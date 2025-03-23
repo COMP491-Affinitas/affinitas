@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Dialogue
+namespace MainGame
 {
     public class OpenDialogue : MonoBehaviour
     {

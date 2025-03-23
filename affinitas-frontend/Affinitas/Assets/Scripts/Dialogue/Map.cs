@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Dialogue
+namespace MainGame
 {
     public class Map : MonoBehaviour
     {

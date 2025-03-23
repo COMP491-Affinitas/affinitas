@@ -4,7 +4,7 @@ using TMPro;
 using System.Collections;
 using System;
 
-namespace Dialogue
+namespace MainGame
 {
     public class SendText : MonoBehaviour
     {
@@ -31,6 +31,8 @@ namespace Dialogue
         public void SendInputtedText()
         {
             playerInput = dialogueInputField.text;
+            if (playerInput == "")
+                return;
             AddTextBubble(playerInput);
 
             scrollRectHelper.ScrollToBottom();
@@ -48,7 +50,6 @@ namespace Dialogue
             // Make sure TextMesh is first child of bubble gameobject
             bubbleTextMesh = newPlayerSpeechBubble.transform.GetChild(0).GetComponent<TextMeshProUGUI>();
             bubbleTextMesh.text = "";
-            Debug.Log("hi: " + playerInp);
 
             StartCoroutine(AddTextLetterByLetter(bubbleTextMesh, playerInp));
         }
