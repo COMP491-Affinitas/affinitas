@@ -219,6 +219,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+affinitas-env/
 
 # Spyder project settings
 .spyderproject
