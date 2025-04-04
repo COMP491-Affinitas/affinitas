@@ -6,13 +6,11 @@ router = APIRouter(prefix="/hello")
 
 @router.get("/")
 async def say_hello():
-    return "Hello, world!"
-
+    return {"message": "Hello, world!"}
 
 @router.post("/")
 async def hello_world(message: Message):
-    print(message)
-
+    logging.info(message)
     return {
         "message": "Hello client!",
         "error": "",
