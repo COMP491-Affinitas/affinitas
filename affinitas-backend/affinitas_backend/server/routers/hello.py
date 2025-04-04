@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter
 
 from ..message import Message
