@@ -10,6 +10,6 @@ class Message(BaseModel):
 
     def __str__(self):
         if self.error:
-            return f"Message[\n\tmessage={self.message},\n\t{self.error},\n\tid={self.id}\n]"
+            return f"Message[\n\tmessage={self.message!r},\n\terror={self.error!r},\n\tid={self.id!r}\n]"
 
-        return f"Message[\n\tmessage={self.message},\n\tid={self.id}\n]"
+        return f"Message[\n\tmessage={self.message!r},\n\tid={self.id!r}\n]"
