@@ -21,7 +21,7 @@ def test_connection(client):
     except Exception as e:
         print("MongoDB connection failed:", e)
 
-
+# Insert one collection to mongodb
 def insert_document(db, collection_name, document):
     try:
         collection = db[collection_name]
@@ -32,6 +32,7 @@ def insert_document(db, collection_name, document):
         print("Insert failed:", e)
         return None
 
+# Retrieve a collection from mongodb
 def retrieve_documents(db, collection_name, query):
     try:
         collection = db[collection_name]
