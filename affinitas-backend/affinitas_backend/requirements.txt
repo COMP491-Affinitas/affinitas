@@ -1,0 +1,5 @@
+certifi==2025.1.31
+pymongo==4.11.3
+python-dotenv==1.1.0
+requests==2.31.0
+idna>=2.5,<4
