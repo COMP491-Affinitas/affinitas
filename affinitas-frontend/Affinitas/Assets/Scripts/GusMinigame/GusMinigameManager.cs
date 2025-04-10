@@ -10,9 +10,12 @@ namespace GusMinigame
         [SerializeField] FishMovement[] fishArray;
         [SerializeField] GameObject FishingGameStartButton;
         [SerializeField] TextMeshProUGUI scoreTextMesh;
+        [SerializeField] TextMeshProUGUI timerTextMesh;
 
         public bool fishingGameStarted;
         public int gusMinigameScore;
+        public float timeLimit = 100f;
+        float remainingTime;
 
         private void Awake()
         {
@@ -21,16 +24,31 @@ namespace GusMinigame
 
         private void Start()
         {
-            FishingGameStartButton.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Start Game";
             fishingGameStarted = false;
             InitializeFishingGame();
+        }
+
+        private void Update()
+        {
+            if (fishingGameStarted)
+            {
+                if (remainingTime <= 0f)
+                {
+                    Debug.Log("no time left, score is: " + gusMinigameScore.ToString());
+                }
+                remainingTime -= Time.deltaTime;
+                timerTextMesh.text = "Time Left: " + remainingTime.ToString("0");
+            }
         }
 
         void InitializeFishingGame()
         {
             gusMinigameScore = 0;
+            remainingTime = timeLimit;
             scoreTextMesh.text = "Score: 0";
+            timerTextMesh.text = "Time Left: " + remainingTime.ToString("0");
             FishingGameStartButton.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Start Game";
+            FishingGameStartButton.GetComponent<Button>().interactable = true;
         }
 
         public void StartFishingGame()
@@ -38,6 +56,7 @@ namespace GusMinigame
             if (!fishingGameStarted)
             {
                 fishingGameStarted = true;
+                FishingGameStartButton.GetComponent<Button>().interactable = false;
 
                 //FishingGameStartButton.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Restart Game";
 
