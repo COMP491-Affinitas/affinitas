@@ -4,10 +4,13 @@ using UnityEngine.Events;
 
 namespace MainGame
 {
-    public class MainGameManager : MonoBehaviour
+    public class MainGameUiManager : MonoBehaviour
     {
         [SerializeField]
         GameObject warningPanel;
+
+        [SerializeField]
+        GameObject journalPanel;
 
         public UnityEvent clickItemEvent;
 
@@ -30,6 +33,16 @@ namespace MainGame
         public void CloseWarningPanel()
         {
             warningPanel.SetActive(false);
+        }
+
+        public void OpenJournalPanel()
+        {
+            journalPanel.SetActive(true);
+        }
+
+        public void CloseJournalPanel()
+        {
+            journalPanel.SetActive(false);
         }
     }
 }
