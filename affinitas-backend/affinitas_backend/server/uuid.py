@@ -1,6 +1,7 @@
 import logging
-from fastapi import HTTPException
 from uuid import UUID
+
+from fastapi import HTTPException
 
 
 def validate_uuid(uuid: str | None) -> UUID:

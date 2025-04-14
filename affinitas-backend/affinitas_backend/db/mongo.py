@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -18,6 +18,8 @@ async def init_db():
     client = AsyncIOMotorClient(uri)
     await init_beanie(database=client[dbname], document_models=[NPC, Save])
     await test_connection(client)
+
+    return client
 
 
 # Verify connection

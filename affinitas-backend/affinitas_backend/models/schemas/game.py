@@ -26,4 +26,4 @@ class GameSaveResponse(BaseModel):
 
 
 class GameSavesResponse(GameData):
-    saves: list[GameSaveResponse]
+    saves: list[GameSaveResponse] = Field(default_factory=list)

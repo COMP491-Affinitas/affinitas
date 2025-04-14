@@ -40,7 +40,7 @@ class NPCAffinitasMetadata(BaseModel):
 class Quest(BaseModel):
     id: str
     name: str
-    rewards: list[str]  # This needs some rework
+    rewards: list[str] = Field(default_factory=list)  # This needs some rework
 
 
 class QuestSaveData(Quest):
@@ -52,29 +52,28 @@ class BaseNPC(BaseModel):
     id: str = Field(..., alias="_id")
     name: str
     age: int
-    occupation: str | None
-    personality: list[str]
-    likes: list[str]
-    dislikes: list[str]
-    motivations: list[str]
+    occupation: str | None = None
+    personality: list[str] = Field(default_factory=list)
+    likes: list[str] = Field(default_factory=list)
+    dislikes: list[str] = Field(default_factory=list)
+    motivations: list[str] = Field(default_factory=list)
     backstory: str
-    minigame: str | None
+    minigame: str | None = None
     affinitas: NPCAffinitasMetadata
     global_influence: bool
-    endings: list[str]
-    quests: list[Quest]
-    dialogue_unlocks: list[str]
+    endings: list[str] = Field(default_factory=list)
+    quests: list[Quest] = Field(default_factory=list)
+    dialogue_unlocks: list[str] = Field(default_factory=list)
 
 
 class NPCSaveData(BaseNPC):
     affinitas: int
-    quests: list[QuestSaveData]
+    quests: list[QuestSaveData] = Field(default_factory=list)
 
 
 class GameData(BaseModel):
     day_no: int
     remaining_ap: int
-    journal_data: dict[str, list[str | dict[str, str]]]
-    item_list: list[str]
-    npcs: list[NPCSaveData]
-
+    journal_data: dict[str, list[str | dict[str, str]]] = Field(default_factory=dict)
+    item_list: list[str] = Field(default_factory=list)
+    npcs: list[NPCSaveData] = Field(default_factory=list)

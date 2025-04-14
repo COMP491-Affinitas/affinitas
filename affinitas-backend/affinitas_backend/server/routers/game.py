@@ -1,6 +1,7 @@
 import logging
+from typing import Annotated
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Header
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from starlette import status
@@ -18,18 +19,17 @@ router = APIRouter(prefix="/game", tags=["game"])
 @router.get(
     "/load",
     response_model=GameSavesResponse,
-    summary="List all game saves",
+    summary="Lists all game saves",
     description="Returns a list of all game saves for the client. "
                 "The response includes the save ID, name, and saved date. "
                 "The `X-Client-UUID` header must be provided.",
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("3/minute")
-async def list_game_saves(request: Request):
-    uuid = request.headers.get("X-Client-UUID")
-    validate_uuid(uuid)
+async def list_game_saves(request: Request, x_client_uuid: Annotated[str, Header()]):
+    validate_uuid(x_client_uuid)
 
-    saves = await Save.find(Save.client_uuid == uuid).project(GameSaveResponse).to_list()
+    saves = await Save.find(Save.client_uuid == x_client_uuid).project(GameSaveResponse).to_list()
 
     return saves
 
@@ -45,20 +45,19 @@ async def list_game_saves(request: Request):
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("3/minute")
-async def load_game(request: Request, payload: GameLoadRequest):
-    uuid = request.headers.get("X-Client-UUID")
-    validate_uuid(uuid)
+async def load_game(request: Request, payload: GameLoadRequest, x_client_uuid: Annotated[str, Header()]):
+    validate_uuid(x_client_uuid)
 
     save_id = payload.id
 
     save = await Save.find_one(
-        Save.client_uuid == uuid,
+        Save.client_uuid == x_client_uuid,
         Save.id == save_id
     ).project(GameData)
 
     if not save:
         logging.info(f"Save with ID {save_id} not found")
-        raise HTTPException(status_code=404, detail=f"Save not found. Save ID: {save_id}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Save not found. Save ID: {save_id}")
 
     return save
 
@@ -72,14 +71,13 @@ async def load_game(request: Request, payload: GameLoadRequest):
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("10/minute")
-async def save_game(request: Request, payload: GameSaveRequest):
-    client_uuid = request.headers.get("X-Client-UUID")
-    validate_uuid(client_uuid)
+async def save_game(request: Request, payload: GameSaveRequest, x_client_uuid: Annotated[str, Header()]):
+    validate_uuid(x_client_uuid)
 
     save = Save(
         name=payload.name,
         saved_at=payload.saved_at,
-        client_uuid=client_uuid,
+        client_uuid=x_client_uuid,
         day_no=payload.day_no,
         remaining_ap=payload.remaining_ap,
         journal_data=payload.journal_data,
@@ -92,7 +90,7 @@ async def save_game(request: Request, payload: GameSaveRequest):
 
     if save_res is None:
         logging.error("Failed to save game")
-        raise HTTPException(status_code=500, detail="Failed to save game")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save game")
 
     return GameSaveResponse(
         id=str(save_res.id),
@@ -109,8 +107,7 @@ async def save_game(request: Request, payload: GameSaveRequest):
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("20/minute")
-async def master_chat(request: Request, payload):
-    client_uuid = request.headers.get("X-Client-UUID")
-    validate_uuid(client_uuid)
+async def master_chat(request: Request, payload, x_client_uuid: Annotated[str, Header()]):
+    validate_uuid(x_client_uuid)
 
     raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented")

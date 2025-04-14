@@ -15,7 +15,3 @@ class MasterLLMChatRequest(BaseModel):
 
 class NPCChatRequest(ChatRequest):
     npc_id: str
-
-
-
-

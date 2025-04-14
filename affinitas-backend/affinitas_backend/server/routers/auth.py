@@ -1,7 +1,8 @@
 import logging
+from typing import Annotated
 from uuid import uuid4, UUID
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Header
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from starlette import status
@@ -22,16 +23,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     status_code=status.HTTP_200_OK
 )
 @limiter.limit("5/minute")
-async def auth(request: Request):
-    uuid = request.headers.get("X-Client-UUID")
-
+async def auth(request: Request, x_client_uuid: Annotated[str, Header()] = None):
     try:
-        if uuid:
-            uuid = UUID(uuid)
+        if x_client_uuid:
+            uuid = UUID(x_client_uuid)
         else:
             uuid = uuid4()
             logging.info(f"Created UUID: {uuid!r}")
     except ValueError:
-        return HTTPException(status_code=400, detail=f"Invalid value in X-Client-UUID: {uuid}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Invalid value in X-Client-UUID: {x_client_uuid!r}")
 
     return UUIDResponse(uuid=str(uuid))
