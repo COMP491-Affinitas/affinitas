@@ -49,7 +49,6 @@ class QuestSaveData(Quest):
 
 
 class BaseNPC(BaseModel):
-    id: str = Field(..., alias="_id")
     name: str
     age: int
     occupation: str | None = None

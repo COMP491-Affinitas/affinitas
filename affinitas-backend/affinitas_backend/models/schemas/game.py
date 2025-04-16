@@ -1,6 +1,7 @@
 from datetime import datetime, UTC
 from functools import partial
 
+from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
 from affinitas_backend.models.game_data import GameData
@@ -16,14 +17,14 @@ class GameLoadResponse(GameData):
 
 
 class GameLoadRequest(BaseModel):
-    id: str
+    id: PydanticObjectId
 
 
 class GameSaveResponse(BaseModel):
-    id: str
+    id: PydanticObjectId
     name: str
     saved_at: datetime
 
 
-class GameSavesResponse(GameData):
+class GameSavesResponse(BaseModel):
     saves: list[GameSaveResponse] = Field(default_factory=list)

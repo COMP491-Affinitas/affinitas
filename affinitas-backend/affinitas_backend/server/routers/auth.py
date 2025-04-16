@@ -1,13 +1,13 @@
 import logging
-from typing import Annotated
 from uuid import uuid4, UUID
 
-from fastapi import HTTPException, Header
+from fastapi import HTTPException
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from starlette import status
 
 from affinitas_backend.models.schemas.auth import UUIDResponse
+from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     status_code=status.HTTP_200_OK
 )
 @limiter.limit("5/minute")
-async def auth(request: Request, x_client_uuid: Annotated[str, Header()] = None):
+async def auth(request: Request, x_client_uuid: XClientUUIDHeader = None):
     try:
         if x_client_uuid:
             uuid = UUID(x_client_uuid)

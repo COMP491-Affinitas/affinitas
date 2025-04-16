@@ -1,13 +1,14 @@
 import logging
-from typing import Annotated
 
-from fastapi import HTTPException, Header
+from beanie import PydanticObjectId
+from fastapi import HTTPException
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from starlette import status
 
 from affinitas_backend.models.beanie.npc import NPC
-from affinitas_backend.models.schemas.npcs import NPCResponse
+from affinitas_backend.models.schemas.npcs import NPCResponse, NPCsResponse
+from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.uuid import validate_uuid
 
@@ -16,19 +17,19 @@ router = APIRouter(prefix="/npcs", tags=["npcs"])
 
 @router.get(
     "/",
-    response_model=list[NPCResponse],
+    response_model=NPCsResponse,
     summary="Returns all NPCs",
     description="Returns all NPCs in the database. This is a read-only endpoint and does not modify any data. "
                 "Needs a valid UUID in the `X-Client-UUID` header.",
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("3/minute")
-async def get_npcs(request: Request, x_client_uuid: Annotated[str, Header()]):
+async def get_npcs(request: Request, x_client_uuid: XClientUUIDHeader):
     validate_uuid(x_client_uuid)
 
     npcs = await NPC.find().project(NPCResponse).to_list()
 
-    return npcs
+    return NPCsResponse(npcs=npcs)
 
 
 @router.get(
@@ -40,10 +41,15 @@ async def get_npcs(request: Request, x_client_uuid: Annotated[str, Header()]):
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("18/minute")  # Would be better if the limit was 3 * #NPCs / minute
-async def get_npc_by_id(request: Request, npc_id: str, x_client_uuid: Annotated[str, Header()]):
+async def get_npc_by_id(request: Request, npc_id: PydanticObjectId, x_client_uuid: XClientUUIDHeader):
     validate_uuid(x_client_uuid)
 
-    npc = await NPC.find_one(NPC.id == npc_id).project(NPCResponse)
+    npc = (
+        await NPC
+            .find(NPC.id == npc_id)
+            .project(NPCResponse)
+            .first_or_none()
+    )
 
     if not npc:
         logging.info(f"NPC with ID {npc_id} not found")
@@ -61,7 +67,7 @@ async def get_npc_by_id(request: Request, npc_id: str, x_client_uuid: Annotated[
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("10/minute")
-async def npc_chat(request: Request, npc_id: str, payload, x_client_uuid: Annotated[str, Header()]):
+async def npc_chat(request: Request, npc_id: str, payload, x_client_uuid: XClientUUIDHeader):
     validate_uuid(x_client_uuid)
 
     raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")

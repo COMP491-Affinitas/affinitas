@@ -1,9 +1,7 @@
-from datetime import datetime, UTC
-from functools import partial
+from datetime import datetime
 
 import pymongo
 from beanie import Document, Indexed
-from pydantic import Field
 from pymongo import IndexModel
 
 from affinitas_backend.models.game_data import GameData
@@ -11,7 +9,7 @@ from affinitas_backend.models.game_data import GameData
 
 class Save(Document, GameData):
     name: str
-    saved_at: datetime = Field(default_factory=partial(datetime.now, tz=UTC))
+    saved_at: datetime
     client_uuid: Indexed(str)
 
     class Settings:
