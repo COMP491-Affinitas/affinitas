@@ -12,14 +12,19 @@ public class NpcUi : MonoBehaviour
     //[SerializeField]
     //GameObject journalTab;
 
+    private void Start()
+    {
+        
+    }
+
     public void InitializeNpc(Npc npcData)
     {
         npc = npcData;
-        UpdateUI();
+        npc.OnAffinitasChanged += UpdateAffinitasUI;
     }
 
-    void UpdateUI()
+    void UpdateAffinitasUI(int newAffinitas)
     {
-        affinitasTextMesh.text = npc.npcName + "\nAffinitas: " + npc.affinitasValue.ToString();
+        affinitasTextMesh.text = npc.npcName + "\nAffinitas: " + newAffinitas.ToString();
     }
 }

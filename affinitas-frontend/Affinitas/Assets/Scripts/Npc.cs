@@ -1,13 +1,33 @@
+using System;
 using System.Collections.Generic;
 
 public class Npc
 {
     public int idNo;
     public string npcName;
-    public int affinitasValue;
 
+    public event Action<int> OnAffinitasChanged;
+
+    private int _affinitasValue;
+    public int affinitasValue
+    {
+        get => _affinitasValue;
+        set
+        {
+            // If value unchanged do nothing
+            if (_affinitasValue == value)
+                return;
+
+            // If value changed, also update UI
+            _affinitasValue = value;
+            OnAffinitasChanged?.Invoke(_affinitasValue);
+        }
+    }
+
+    // First wuest is main quest, others subquests
     List<string> questList = new();
-    List<string> previousDialogues = new();
+    // One dialogue summary for each day
+    List<string> dialogueSummary = new();
 
     public Npc(int idNo, string npcName, int affinitasValue)
     {
@@ -26,6 +46,6 @@ public class Npc
 
     public void AddToDialogues(string dialogue)
     {
-        previousDialogues.Add(dialogue);
+        dialogueSummary.Add(dialogue);
     }
 }
