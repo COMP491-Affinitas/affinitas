@@ -43,16 +43,6 @@ namespace MainGame
             StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue));
         }
 
-        // For testing
-        public void AddNpcQuestDialogue()
-        {
-
-            string npcText = "Your quest is to do blablalba";
-
-            AddNpcDialogueBox(npcText);
-            scrollRectHelper.ScrollToBottom();
-        }
-
         IEnumerator AddTextLetterByLetter(TextMeshProUGUI textMesh, string str)
         {
             yield return new WaitForSeconds(0.2f);

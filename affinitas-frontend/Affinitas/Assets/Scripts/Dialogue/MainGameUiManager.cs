@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace MainGame
 {
@@ -12,11 +11,13 @@ namespace MainGame
         [SerializeField]
         GameObject journalPanel;
 
-        public UnityEvent clickItemEvent;
+        [SerializeField]
+        GameObject daysLeftPanel;
 
         private void Start()
         {
             warningPanel.SetActive(false);
+            journalPanel.SetActive(false);
         }
 
         public void OpenWarningPanel(string warningText)
@@ -43,6 +44,13 @@ namespace MainGame
         public void CloseJournalPanel()
         {
             journalPanel.SetActive(false);
+        }
+
+        //Call when End Day button is pressed
+        // TODO: if days left is zero, also update End Day button to say End Game!!!
+        public void UpdateDaysLeftPanel()
+        {
+            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = GameManager.Instance.daysLeft.ToString() + " Days Left";
         }
     }
 }

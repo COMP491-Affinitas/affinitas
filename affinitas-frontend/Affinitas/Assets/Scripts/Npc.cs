@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public class Npc
 {
-    public int idNo;
+    public int npcId;
     public string npcName;
 
     public event Action<int> OnAffinitasChanged;
@@ -29,9 +29,9 @@ public class Npc
     // One dialogue summary for each day
     List<string> dialogueSummary = new();
 
-    public Npc(int idNo, string npcName, int affinitasValue)
+    public Npc(int npcId, string npcName, int affinitasValue)
     {
-        this.idNo = idNo;
+        this.npcId = npcId;
         this.npcName = npcName;
         this.affinitasValue = affinitasValue;
     }

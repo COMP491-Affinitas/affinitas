@@ -15,12 +15,12 @@ namespace MainGame
         {
             // Send Text also when user presses Enter
             dialogueInputField.onSubmit.AddListener((str) => SendInputtedText());
-            dialogueInputField.onSubmit.AddListener((str) => GameManager.Instance.SendAndReceiveFromServer(str, false));
             addDialogueBox = gameObject.GetComponent<AddDialogueBox>();
             scrollRectHelper = gameObject.GetComponent<ScrollRectHelper>();
         }
 
         // TODO: Make sure player cannot press enter again!!!
+        // Call this from Send Text button
         public void SendInputtedText()
         {
             playerInput = dialogueInputField.text;
@@ -32,7 +32,6 @@ namespace MainGame
 
             dialogueInputField.text = "";
             dialogueInputField.ActivateInputField();
-
         }
 
     }
