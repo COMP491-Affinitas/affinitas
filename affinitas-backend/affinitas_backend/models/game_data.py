@@ -1,4 +1,8 @@
+from typing import Any
+
+from langchain_core.messages.utils import MessageLikeRepresentation
 from pydantic import BaseModel, Field, field_validator
+from beanie import PydanticObjectId
 
 
 class NPCAffinitasMetadata(BaseModel):
@@ -38,17 +42,20 @@ class NPCAffinitasMetadata(BaseModel):
 
 
 class Quest(BaseModel):
-    id: str
+    id: PydanticObjectId = Field(..., alias="_id")
     name: str
+    description: str
     rewards: list[str] = Field(default_factory=list)  # This needs some rework
 
 
-class QuestSaveData(Quest):
+class QuestSaveData(BaseModel):
+    quest_meta: Quest
     started: bool
     status: str
 
 
 class BaseNPC(BaseModel):
+    id: PydanticObjectId = Field(..., alias="_id")
     name: str
     age: int
     occupation: str | None = None
@@ -58,16 +65,17 @@ class BaseNPC(BaseModel):
     motivations: list[str] = Field(default_factory=list)
     backstory: str
     minigame: str | None = None
-    affinitas: NPCAffinitasMetadata
-    global_influence: bool
+    affinitas_meta: NPCAffinitasMetadata
     endings: list[str] = Field(default_factory=list)
     quests: list[Quest] = Field(default_factory=list)
     dialogue_unlocks: list[str] = Field(default_factory=list)
 
 
-class NPCSaveData(BaseNPC):
+class NPCSaveData(BaseModel):
     affinitas: int
     quests: list[QuestSaveData] = Field(default_factory=list)
+    npc_meta: BaseNPC
+    chat_history: list[MessageLikeRepresentation] = Field(default_factory=list)
 
 
 class GameData(BaseModel):

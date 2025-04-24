@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 from affinitas_backend.models.game_data import GameData
 
 
-class GameSaveRequest(GameData):
+class GameSaveRequest(BaseModel):
     name: str
     saved_at: datetime = Field(default_factory=partial(datetime.now, tz=UTC))
+    data: GameData
 
-
-class GameLoadResponse(GameData):
-    pass
+class GameLoadResponse(BaseModel):
+    data: GameData
 
 
 class GameLoadRequest(BaseModel):

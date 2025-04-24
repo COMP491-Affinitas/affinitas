@@ -2,16 +2,20 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-
-class ChatRequest(BaseModel):
-    query: str
-    respond: bool
-    role: Literal["user", "system"]
+from affinitas_backend.models.game_data import NPCSaveData
 
 
-class MasterLLMChatRequest(BaseModel):
-    pass
+class NPCUserChatRequest(BaseModel):
+    role: Literal["user"]
+    content: str
+    npc: NPCSaveData
 
 
-class NPCChatRequest(ChatRequest):
-    npc_id: str
+class NPCSystemChatRequest(BaseModel):
+    role: Literal["system"]
+    content: str
+
+
+class NPCChatResponse(BaseModel):
+    response: str
+    updated_npc: NPCSaveData

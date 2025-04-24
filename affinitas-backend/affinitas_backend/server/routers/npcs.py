@@ -7,7 +7,8 @@ from fastapi.routing import APIRouter
 from starlette import status
 
 from affinitas_backend.models.beanie.npc import NPC
-from affinitas_backend.models.schemas.npcs import NPCResponse, NPCsResponse
+from affinitas_backend.models.schemas.chat import NPCUserChatRequest, NPCSystemChatRequest
+from affinitas_backend.models.schemas.npcs import NPCResponse, NPCsResponse, NPCChatResponse
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.uuid import validate_uuid
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/npcs", tags=["npcs"])
 async def get_npcs(request: Request, x_client_uuid: XClientUUIDHeader):
     validate_uuid(x_client_uuid)
 
-    npcs = await NPC.find().project(NPCResponse).to_list()
+    npcs = await NPC.find().to_list()
 
     return NPCsResponse(npcs=npcs)
 
@@ -47,7 +48,6 @@ async def get_npc_by_id(request: Request, npc_id: PydanticObjectId, x_client_uui
     npc = (
         await NPC
             .find(NPC.id == npc_id)
-            .project(NPCResponse)
             .first_or_none()
     )
 
@@ -55,19 +55,33 @@ async def get_npc_by_id(request: Request, npc_id: PydanticObjectId, x_client_uui
         logging.info(f"NPC with ID {npc_id} not found")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"NPC not found. NPC ID: {npc_id}")
 
-    return npc
+    return NPCResponse(npc=npc)
 
 
 # Chat with the LLM
 @router.post(
     "/{npc_id}/chat",
-    # response_model=None,
+    response_model=None,
     # summary=None,
     # description=None,
     status_code=status.HTTP_200_OK,
 )
 @limiter.limit("10/minute")
-async def npc_chat(request: Request, npc_id: str, payload, x_client_uuid: XClientUUIDHeader):
+async def npc_chat(
+    request: Request,
+    npc_id: str,
+    payload: NPCUserChatRequest | NPCSystemChatRequest,
+    x_client_uuid: XClientUUIDHeader
+):
     validate_uuid(x_client_uuid)
 
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")
+    if isinstance(payload, NPCUserChatRequest):
+        npc = payload.npc
+        npc.chat_history
+    elif isinstance(payload, NPCSystemChatRequest):
+        pass
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid data format")
+
+
+
