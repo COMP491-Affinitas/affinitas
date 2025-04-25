@@ -18,4 +18,5 @@ class NPCSystemChatRequest(BaseModel):
 
 class NPCChatResponse(BaseModel):
     response: str
-    updated_npc: NPCSaveData
+    affinitas_new: int
+

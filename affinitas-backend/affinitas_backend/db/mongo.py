@@ -5,7 +5,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from affinitas_backend.models.beanie.npc import NPC
-from affinitas_backend.models.beanie.save import Save
+from affinitas_backend.models.beanie.save import Save, ShadowSave
 
 
 # Load variables
@@ -16,7 +16,7 @@ def load_config():
 async def init_db():
     uri, dbname = load_config()
     client = AsyncIOMotorClient(uri)
-    await init_beanie(database=client[dbname], document_models=[NPC, Save])
+    await init_beanie(database=client[dbname], document_models=[NPC, Save, ShadowSave])
     await test_connection(client)
 
     return client

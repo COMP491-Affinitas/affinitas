@@ -1,5 +1,3 @@
-from typing import Any
-
 from langchain_core.messages.utils import MessageLikeRepresentation
 from pydantic import BaseModel, Field, field_validator
 from beanie import PydanticObjectId
@@ -64,7 +62,6 @@ class BaseNPC(BaseModel):
     dislikes: list[str] = Field(default_factory=list)
     motivations: list[str] = Field(default_factory=list)
     backstory: str
-    minigame: str | None = None
     affinitas_meta: NPCAffinitasMetadata
     endings: list[str] = Field(default_factory=list)
     quests: list[Quest] = Field(default_factory=list)

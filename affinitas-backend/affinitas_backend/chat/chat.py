@@ -1,13 +1,16 @@
 # TODO: Class will be removed and its functionality will be performed using functions
 #  The thread ID for the chat states is generated and passed by the client.
-#  NPC data is also given by the client.
 #  The unity client should have a list of messages, not the whole history but the unanswered ones.
 #  When a user message is added, the API call should be made and then the list should be cleared.
 #  The new game is implemented by loading the data of a game that is saved right after being started.
+#  The active game data is stored in the database in a "shadow" saves collection. Updated after each action.
+#  When a game is saved, the data is copied to the main saves collection. When a game is quit, the shadow save is deleted.
+#  Implement new endpoints related to this.
 import os
 import uuid
 from typing import Literal
 
+from beanie import PydanticObjectId
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage, trim_messages
 from langchain.chat_models import init_chat_model
 from langgraph.checkpoint.memory import MemorySaver
@@ -16,9 +19,9 @@ from langchain_core.runnables.config import RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages.utils import count_tokens_approximately
 
+from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.game_data import NPCSaveData
-from affinitas_backend.models.chat.chat import NPCChatResponse, NPCMessagesState
-
+from affinitas_backend.models.chat.chat import NPCChatResponse, NPCMessagesState, NPCState
 
 MESSAGE_TYPES = {"user": HumanMessage, "system": SystemMessage, "assistant": AIMessage}
 AFFINITAS_CHANGE_MAP = {"very positive": 5, "positive": 2, "neutral": 0, "negative": -2, "very negative": -5}
@@ -48,14 +51,19 @@ prompt_template = ChatPromptTemplate.from_messages([
 
 def call_model(state: NPCMessagesState):
     trimmed_messages = trimmer.invoke(state["messages"])
-    prompt = prompt_template.format_prompt(messages=trimmed_messages, npc_json=state["npc_json"])
-    response = model.invoke(prompt)
+    prompt = prompt_template.format_prompt(messages=trimmed_messages, npc=state["npc"])
+    res = model.invoke(prompt)
 
+    response = res.response
+    affinitas_change = res.affinitas_change
+
+    occupation = res.delta.occupation
+    likes = res.delta.likes
+    dislikes = res.delta.dislikes
 
     return {
-        "messages": [AIMessage(response.response)],
-        "affinitas_change": response.affinitas_change,
-        "delta": response.delta
+        "messages": [AIMessage(response)],
+        "npc": update_npc(state["npc"], affinitas_change=affinitas_change, occupation=occupation, likes=likes, dislikes=dislikes),
     }
 
 
@@ -71,6 +79,13 @@ workflow.add_node("model", call_model)
 
 memory = MemorySaver()
 app = workflow.compile(checkpointer=memory)
+
+
+def get_response(thread_id: str):
+    state = app.get_state({"configurable": {"thread_id": thread_id}})
+
+    if state is None:
+        raise ValueError("Thread ID not found")
 
 class NPCChat:
     DEFAULT_CONFIG: RunnableConfig = {"configurable": {"thread_id": None}}
@@ -106,29 +121,8 @@ class NPCChat:
 
         self._messages.clear()
 
-        npc_response = output["messages"][-1].content
-        affinitas_change = AFFINITAS_CHANGE_MAP[output["affinitas_change"]]
-        delta = output["delta"]
 
-        # Update NPC data
-        self.npc_data.affinitas += affinitas_change
-        self.npc_data.affinitas = max(0, min(100, self.npc_data.affinitas))
-
-        if delta.occupation and not self.npc_data.npc_meta.occupation:
-            self.npc_data.npc_meta.occupation = delta["occupation"]
-
-        if delta.likes:
-            self.npc_data.npc_meta.likes.extend(delta.likes)
-            self.npc_data.npc_meta.likes = list(set(self.npc_data.npc_meta.likes))
-
-        if delta.dislikes:
-            self.npc_data.npc_meta.dislikes.extend(delta.dislikes)
-            self.npc_data.npc_meta.dislikes = list(set(self.npc_data.npc_meta.dislikes))
-
-        return {
-            "response": npc_response,
-            "affinitas_change": affinitas_change,
-        }
+        return "I hate nigas"
 
     @staticmethod
     def _generate_thread_id():
@@ -140,3 +134,53 @@ class NPCChat:
         cfg["configurable"]["thread_id"] = self._generate_thread_id()
 
         return cfg
+
+
+def update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | None = None, likes: list[str] = None, dislikes: list[str] = None) -> NPCState:
+    npc = npc.copy()
+
+    if affinitas_change:
+        npc["affinitas"] += affinitas_change
+        npc["affinitas"] = max(0, min(100, npc["affinitas"]))
+
+    if occupation and not npc["npc_meta"]["occupation"]:
+        npc["npc_meta"]["occupation"] = occupation
+
+    if likes:
+        npc["npc_meta"]["likes"].extend(likes)
+        npc["npc_meta"]["likes"] = list(set(npc["npc_meta"]["likes"]))
+
+    if dislikes:
+        npc["npc_meta"]["dislikes"].extend(dislikes)
+        npc["npc_meta"]["dislikes"] = list(set(npc["npc_meta"]["dislikes"]))
+
+    return npc
+
+
+def get_state(thread_id: str) -> NPCMessagesState | None:
+    state = app.get_state({"configurable": {"thread_id": thread_id}})
+    if state is None:
+        return None
+
+    return state.values
+
+
+async def get_npc_state(client_id: str, shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> NPCState | None:
+    npc_data = await ShadowSave.aggregate([
+        {"$match": {
+            "_id": shadow_save_id,
+            "client_uuid": client_id,
+        }},
+        {"$unwind": "$npcs"},
+        {"$match": {"npcs.npc_meta._id": npc_id}},
+        {"$replaceRoot": {"newRoot": "$npcs"}},
+        {"$project": {
+            "chat_history": 0,
+        }}
+    ]).to_list(1)
+
+    print("NPC Data:", npc_data)
+    if npc_data:
+        return npc_data[0]
+
+    return None
