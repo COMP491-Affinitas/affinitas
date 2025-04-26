@@ -26,7 +26,7 @@ class ShadowSave(Document, GameData):
         name = "shadow_save"
         indexes = [
             IndexModel(
-                [("id", pymongo.ASCENDING), ("client_uuid", pymongo.ASCENDING)],
+                [("client_uuid", pymongo.ASCENDING)],
                 unique=True,
             )
         ]

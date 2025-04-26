@@ -7,23 +7,74 @@
 #  When a game is saved, the data is copied to the main saves collection. When a game is quit, the shadow save is deleted.
 #  Implement new endpoints related to this.
 import os
-import uuid
-from typing import Literal
+from typing import Literal, cast
 
 from beanie import PydanticObjectId
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage, trim_messages
+from beanie.odm.operators.update.array import Push
+from beanie.odm.operators.update.general import Set
+from bson import json_util
+from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import START, StateGraph
-from langchain_core.runnables.config import RunnableConfig
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, trim_messages
 from langchain_core.messages.utils import count_tokens_approximately
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables.config import RunnableConfig
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, END, StateGraph
+from pydantic import TypeAdapter
 
+from affinitas_backend.db.mongo import init_db
 from affinitas_backend.models.beanie.save import ShadowSave
-from affinitas_backend.models.game_data import NPCSaveData
 from affinitas_backend.models.chat.chat import NPCChatResponse, NPCMessagesState, NPCState
 
-MESSAGE_TYPES = {"user": HumanMessage, "system": SystemMessage, "assistant": AIMessage}
+load_dotenv()
+
+
+def call_model(state: NPCMessagesState):
+    npc_json = json_util.dumps(state["npc"])
+    trimmed_messages = trimmer.invoke(state["messages"])
+    prompt = prompt_template.format_prompt(messages=trimmed_messages, npc_json=npc_json)
+    res = model.invoke(prompt)
+
+    response = res.response
+    affinitas_change = res.affinitas_change
+
+    occupation = res.delta.occupation
+    likes = res.delta.likes
+    dislikes = res.delta.dislikes
+
+    return {
+        "messages": [AIMessage(response)],
+        "npc": update_npc(state["npc"], affinitas_change=AFFINITAS_CHANGE_MAP[affinitas_change], occupation=occupation,
+                          likes=likes, dislikes=dislikes),
+    }
+
+
+def append_message(state: NPCMessagesState):
+    return {"messages": [], "npc": state["npc"]}
+
+
+def get_next_node(state: NPCMessagesState) -> Literal["call", "__end__"]:
+    if state["invoke_model"]:
+        return "call"
+    else:
+        return END
+
+
+model = init_chat_model(
+    model=os.getenv("OPENAI_MODEL_NAME"),
+    model_provider="openai",
+).with_structured_output(NPCChatResponse)
+
+workflow = StateGraph(state_schema=NPCMessagesState)
+workflow.add_node("call", call_model)
+workflow.add_node("append", append_message)
+workflow.add_edge(START, "append")
+workflow.add_conditional_edges("append", get_next_node)
+
+memory = MemorySaver()
+app = workflow.compile(checkpointer=memory)
+
 AFFINITAS_CHANGE_MAP = {"very positive": 5, "positive": 2, "neutral": 0, "negative": -2, "very negative": -5}
 
 NPC_PROMPT_TEMPLATE = """\
@@ -49,94 +100,41 @@ prompt_template = ChatPromptTemplate.from_messages([
 ])
 
 
-def call_model(state: NPCMessagesState):
-    trimmed_messages = trimmer.invoke(state["messages"])
-    prompt = prompt_template.format_prompt(messages=trimmed_messages, npc=state["npc"])
-    res = model.invoke(prompt)
+async def get_response(
+        message: BaseMessage, npc_id: PydanticObjectId, client_id: str,
+        shadow_save_id: PydanticObjectId, chat_id: str
+):
+    thread_id = f"{client_id}:{chat_id}:{npc_id}"
 
-    response = res.response
-    affinitas_change = res.affinitas_change
+    state = get_state(thread_id)
 
-    occupation = res.delta.occupation
-    likes = res.delta.likes
-    dislikes = res.delta.dislikes
+    if state:
+        npc = state["npc"]
+    else:
+        npc = await get_npc_state(client_id, shadow_save_id, npc_id)  # TODO: Should the chat_history be taken from here
+        if npc is None:
+            raise ValueError(f"NPC with ID {npc_id} not found")
 
-    return {
-        "messages": [AIMessage(response)],
-        "npc": update_npc(state["npc"], affinitas_change=affinitas_change, occupation=occupation, likes=likes, dislikes=dislikes),
-    }
+    res = app.invoke({
+        "messages": [message],
+        "npc": npc,
+        "invoke_model": isinstance(message, HumanMessage),
+    }, config=cast(RunnableConfig, {"configurable": {"thread_id": thread_id}}))
 
+    (await ShadowSave  # TODO: Do this in the route.
+     .find(ShadowSave.id == shadow_save_id)
+     .find({"npcs.npc_meta._id": npc_id})
+     .update(Push({"npcs.$.chat_history": res["messages"][-1]}))
+     .update(Set({"npcs.$.affinitas": res["npc"]["affinitas"]}))
+     .update(Set({"npcs.$.npc_meta.occupation": res["npc"]["npc_meta"]["occupation"]}))
+     .update(Set({"npcs.$.npc_meta.likes": res["npc"]["npc_meta"]["likes"]}))
+     .update(Set({"npcs.$.npc_meta.dislikes": res["npc"]["npc_meta"]["dislikes"]})))
 
-model = init_chat_model(
-    model=os.getenv("OPENAI_MODEL_NAME"),
-    model_provider="openai",
-).with_structured_output(NPCChatResponse)
-
-
-workflow = StateGraph(state_schema=NPCMessagesState)
-workflow.add_edge(START, "model")
-workflow.add_node("model", call_model)
-
-memory = MemorySaver()
-app = workflow.compile(checkpointer=memory)
-
-
-def get_response(thread_id: str):
-    state = app.get_state({"configurable": {"thread_id": thread_id}})
-
-    if state is None:
-        raise ValueError("Thread ID not found")
-
-class NPCChat:
-    DEFAULT_CONFIG: RunnableConfig = {"configurable": {"thread_id": None}}
-    affinitas_change_map = {"very positive": 5, "positive": 2, "neutral": 0, "negative": -2, "very negative": -5}
-
-    def __init__(self, npc: NPCSaveData):
-        self._messages: list[BaseMessage] = []
-        self.npc_data = npc
-        self._model_config = self.default_config
-
-    def reset(self):
-        self._messages.clear()
-        self._model_config = self.default_config
-
-    def add_message(self, message: str, role: Literal["user", "system", "assistant"]):
-        self._messages.append(MESSAGE_TYPES[role](content=message))
-
-    def get_response(self):
-        output = app.invoke({
-            "messages": self._messages,
-            "npc_json": self.npc_data.model_dump_json(exclude={
-                "npc_meta": {
-                    "id": True,
-                    "quests": {
-                        "quest_meta": {
-                            "id": True
-                        }
-                    }, "minigame": True
-                },
-                "chat_history": True
-            })
-        }, self._model_config)
-
-        self._messages.clear()
+    return res
 
 
-        return "I hate nigas"
-
-    @staticmethod
-    def _generate_thread_id():
-        return uuid.uuid4().hex
-
-    @property
-    def default_config(self) -> RunnableConfig:
-        cfg = self.DEFAULT_CONFIG.copy()
-        cfg["configurable"]["thread_id"] = self._generate_thread_id()
-
-        return cfg
-
-
-def update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | None = None, likes: list[str] = None, dislikes: list[str] = None) -> NPCState:
+def update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | None = None, likes: list[str] = None,
+               dislikes: list[str] = None) -> NPCState:
     npc = npc.copy()
 
     if affinitas_change:
@@ -159,8 +157,6 @@ def update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | No
 
 def get_state(thread_id: str) -> NPCMessagesState | None:
     state = app.get_state({"configurable": {"thread_id": thread_id}})
-    if state is None:
-        return None
 
     return state.values
 
@@ -176,11 +172,31 @@ async def get_npc_state(client_id: str, shadow_save_id: PydanticObjectId, npc_id
         {"$replaceRoot": {"newRoot": "$npcs"}},
         {"$project": {
             "chat_history": 0,
+            "npc_meta._id": 0,
+            "npc_meta.quests._id": 0,
+            "quests.quest_meta._id": 0,
         }}
     ]).to_list(1)
 
-    print("NPC Data:", npc_data)
     if npc_data:
-        return npc_data[0]
+        if os.getenv("ENV") == "dev":  # TODO: Remove this after confirming the npc_data has the correct structure
+            npc_state_validator = TypeAdapter(NPCState)
+            npc_state_validator.validate_python(npc_data[0], strict=True)
+        return cast(NPCState, npc_data[0])
 
     return None
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(init_db())
+
+    uid = "ebc1f20c-af94-45ea-8ce3-11ca1428418d"
+    ssid = PydanticObjectId("680b76ddcb00481b1e7d8163")
+    npc_id = PydanticObjectId("6809505281ea296e5f1daa59")
+
+    print(loop.run_until_complete(
+        get_response(HumanMessage("Hello, what is your name?"), npc_id, uid, ssid, "test"))
+    )

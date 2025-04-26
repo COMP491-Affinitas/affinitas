@@ -1,4 +1,4 @@
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, Annotated
 
 from beanie import PydanticObjectId
 from langgraph.graph.message import MessagesState
@@ -22,7 +22,6 @@ class NPCChatResponse(BaseModel):
     delta: NPCDataDelta = Field(..., description="Optional changes to the NPC's likes, dislikes and occupation. Occupation is only changed when the NPC is missing it.")
 
 class QuestMeta(TypedDict):
-    id: str
     name: str
     description: str
     rewards: list[str]
@@ -38,7 +37,6 @@ class NPCState(TypedDict):
     affinitas: int
     quests: list[QuestState]
     npc_meta: TypedDict("BaseNPCState", {
-        "id": PydanticObjectId,
         "name": str,
         "age": int,
         "occupation": str | None,
@@ -60,3 +58,4 @@ class NPCState(TypedDict):
 
 class NPCMessagesState(MessagesState):
     npc: NPCState
+    invoke_model: bool
