@@ -1,22 +1,15 @@
 from typing import Literal
 
+from beanie import PydanticObjectId
 from pydantic import BaseModel
 
-from affinitas_backend.models.game_data import NPCSaveData
 
-
-class NPCUserChatRequest(BaseModel):
-    role: Literal["user"]
+class NPCChatRequest(BaseModel):
+    role: Literal["user", "system"]
     content: str
-    npc: NPCSaveData
-
-
-class NPCSystemChatRequest(BaseModel):
-    role: Literal["system"]
-    content: str
+    shadow_save_id: PydanticObjectId
 
 
 class NPCChatResponse(BaseModel):
     response: str
     affinitas_new: int
-

@@ -31,10 +31,10 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
 
     saves = (
         await Save
-            .find(Save.client_uuid == x_client_uuid)
-            .sort(-Save.saved_at)  # noqa
-            .project(GameSaveResponse)
-            .to_list()
+        .find(Save.client_uuid == x_client_uuid)
+        .sort(-Save.saved_at)  # noqa
+        .project(GameSaveResponse)
+        .to_list()
     )
 
     return GameSavesResponse(saves=saves)
@@ -58,10 +58,10 @@ async def load_game(request: Request, payload: GameLoadRequest, x_client_uuid: X
 
     save = (
         await Save
-            .find(Save.client_uuid == x_client_uuid)
-            .find(Save.id == PydanticObjectId(save_id))
-            .project(GameLoadResponse)
-            .first_or_none()
+        .find(Save.client_uuid == x_client_uuid)
+        .find(Save.id == PydanticObjectId(save_id))
+        .project(GameLoadResponse)
+        .first_or_none()
     )
 
     if not save:

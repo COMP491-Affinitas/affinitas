@@ -1,6 +1,6 @@
+from beanie import PydanticObjectId
 from langchain_core.messages.utils import MessageLikeRepresentation
 from pydantic import BaseModel, Field, field_validator
-from beanie import PydanticObjectId
 
 
 class NPCAffinitasMetadata(BaseModel):

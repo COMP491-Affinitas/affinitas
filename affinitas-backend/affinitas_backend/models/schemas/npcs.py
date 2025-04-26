@@ -9,9 +9,3 @@ class NPCResponse(BaseModel):
 
 class NPCsResponse(BaseModel):
     npcs: list[BaseNPC] = Field(default_factory=list)
-
-
-class NPCChatResponse(BaseModel):
-    npc_name: str
-    affinitas_change: int
-    response: str
