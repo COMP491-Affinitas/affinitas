@@ -6,6 +6,8 @@ namespace MainGame
 {
     public class AddDialogueBox : MonoBehaviour
     {
+        // This code needs to be on the DialogueScrollView
+
         [SerializeField]
         GameObject playerDialogueBoxPrefab;
         [SerializeField]

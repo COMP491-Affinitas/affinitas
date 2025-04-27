@@ -5,6 +5,8 @@ namespace MainGame
 {
     public class SendText : MonoBehaviour
     {
+        // This code needs to be on DialogueScrollView
+
         [SerializeField]
         TMP_InputField dialogueInputField;
         string playerInput;

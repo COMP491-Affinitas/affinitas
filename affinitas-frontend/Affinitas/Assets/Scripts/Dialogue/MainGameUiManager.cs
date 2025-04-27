@@ -6,9 +6,6 @@ namespace MainGame
     public class MainGameUiManager : MonoBehaviour
     {
         [SerializeField]
-        GameObject warningPanel;
-
-        [SerializeField]
         GameObject journalPanel;
 
         [SerializeField]
@@ -16,31 +13,16 @@ namespace MainGame
 
         private void Start()
         {
-            warningPanel.SetActive(false);
             journalPanel.SetActive(false);
         }
 
-        public void OpenWarningPanel(string warningText)
-        {
-            if (warningText == "")
-                warningText = "Warning.";
-
-            // Make sure WarningText is first child of Panel
-            TextMeshProUGUI warningTextMesh = warningPanel.transform.GetChild(0).GetChild(0).GetComponent<TextMeshProUGUI>();
-            warningTextMesh.text = warningText;
-            warningPanel.SetActive(true);
-        }
-
-        public void CloseWarningPanel()
-        {
-            warningPanel.SetActive(false);
-        }
-
+        // Call from Open Journal button
         public void OpenJournalPanel()
         {
             journalPanel.SetActive(true);
         }
 
+        // Call from close (x) button on the Journal panel
         public void CloseJournalPanel()
         {
             journalPanel.SetActive(false);
@@ -50,7 +32,7 @@ namespace MainGame
         // TODO: if days left is zero, also update End Day button to say End Game!!!
         public void UpdateDaysLeftPanel()
         {
-            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = GameManager.Instance.daysLeft.ToString() + " Days Left";
+            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = "Day No: " + GameManager.Instance.dayNo.ToString();
         }
     }
 }

@@ -1,10 +1,11 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace MainGame
 {
     public class Map : MonoBehaviour
     {
+        // This code needs to be on the MapPanel
+
         GameObject mapPanel;
         [SerializeField]
         GameObject npcDialoguePanels;
@@ -28,6 +29,7 @@ namespace MainGame
             }
         }
 
+        // Call from Go to Map button
         public void OpenMap()
         {
             mapPanel.SetActive(true);

@@ -25,7 +25,8 @@ public class Npc
     }
 
     // First wuest is main quest, others subquests
-    List<string> questList = new();
+    List<string> questList;
+    List<int> questStatus;
     // One dialogue summary for each day
     List<string> dialogueSummary = new();
 
@@ -36,16 +37,16 @@ public class Npc
         this.affinitasValue = affinitasValue;
     }
 
-    public void AddQuestList(string[] lst)
-    {
-        for (int i = 0; i < lst.Length; i++)
-        {
-            questList.Add(lst[i]);
-        }
-    }
+    //public void AddQuestList(string[] lst)
+    //{
+    //    for (int i = 0; i < lst.Length; i++)
+    //    {
+    //        questList.Add(lst[i]);
+    //    }
+    //}
 
-    public void AddToDialogues(string dialogue)
-    {
-        dialogueSummary.Add(dialogue);
-    }
+    //public void AddToDialogues(string dialogue)
+    //{
+    //    dialogueSummary.Add(dialogue);
+    //}
 }

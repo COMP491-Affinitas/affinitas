@@ -5,6 +5,8 @@ using UnityEngine.UI;
 // Add script to Scroll View with ScrollRect element.
 public class ScrollRectHelper : MonoBehaviour
 {
+    // This code needs to be on DialogueScrollView
+
     ScrollRect scrollRect;
 
     bool isScrollCoroutineRunning;

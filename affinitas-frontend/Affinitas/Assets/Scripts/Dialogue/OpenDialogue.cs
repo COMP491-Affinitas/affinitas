@@ -11,7 +11,6 @@ namespace MainGame
         public void OpenCharacterDialogue()
         {
             npcDialoguePanel.SetActive(true);
-            // TODO: Also display previous conversations.
         }
     }
 }

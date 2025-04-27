@@ -8,14 +8,14 @@ public class GameManager : MonoBehaviour
 
     public string gameId;
 
-    ServerResponse serverResponse;
+    //ServerResponse serverResponse;
 
     [SerializeField]
     NpcUi[] npcUiList;
 
     public Dictionary<int, Npc> npcDict = new();
     public int dailyActionPoints;
-    public int daysLeft;
+    public int dayNo;
 
     public Dictionary<string, bool> dialoguesDict = new();
     public Dictionary<string, bool> questDict = new();
@@ -31,10 +31,21 @@ public class GameManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
+        GetAuthenticationUUID();
+    }
 
-        InitializeNpcs();
-        InitializeGame();
-        InitializeInteractionDicts();
+    // Get New UUID from server
+    public async void GetAuthenticationUUID()
+    {
+        UuidRequest uuid = new UuidRequest { x_client_uuid = "" };
+        UuidResponse uuidResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, UuidResponse>(uuid, "/auth/uuid");
+        gameId = uuidResponse.uuid;
+    }
+
+    // Get game information from server
+    public async void LoadGameWithUUID()
+    {
+        LoadGame.GetLoadGameInfo(gameId);
     }
 
     void InitializeNpcs()
@@ -75,33 +86,32 @@ public class GameManager : MonoBehaviour
     void InitializeGame()
     {
         dailyActionPoints = 15;
-        daysLeft = 10;
-
+        dayNo = 1;
     }
 
-    public async void SendAndReceiveFromServer(ClientResponse message, int directory)
-    {
-        // Send player input message to server
-        serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer(message, directory);
+    //public async void SendAndReceiveFromServer(ClientResponse message, int directory)
+    //{
+    //    // Send player input message to server
+    //    serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer(message, directory);
 
-        if (serverResponse == null)
-        {
-            return; 
-        }
+    //    if (serverResponse == null)
+    //    {
+    //        return; 
+    //    }
 
-        // TODO: Write code to add NPC dialogue box on screen
-        // TODO: Update journal page with summary
+    //    // TODO: Write code to add NPC dialogue box on screen
+    //    // TODO: Update journal page with summary
 
-        // Update everything
-        Npc npc = npcDict[serverResponse.npcId];
-        npc.affinitasValue = serverResponse.affinitasChange;
+    //    // Update everything
+    //    Npc npc = npcDict[serverResponse.npcId];
+    //    npc.affinitasValue = serverResponse.affinitasChange;
 
-    }
+    //}
 
     //Call when End Day button is pressed
     public void EndDay()
     {
-        daysLeft -= 1;
+        dayNo += 1;
         dailyActionPoints = 15;
     }
 

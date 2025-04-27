@@ -5,23 +5,26 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-public enum RequestType
+[Serializable]
+public abstract class BaseRequest
 {
-    sendPlayerInput,    //Ask server for npcResponse
-    requestNpcQuest,    //Ask server to give npc quest string npcResponse
-    endDay,             //Tell server day ended
-    endGame,            //Ask server to give game ending story string in summary
-
-    resetGame,          //Ask server to give initialized npc data
-    loadGame,           //Ask server to give current npc data
+}
+[Serializable]
+public abstract class BaseResponse
+{
 }
 
-public enum ServerDirectory
+[Serializable]
+public class UuidRequest : BaseRequest
 {
-    init,
-    load,
-    npc
+    public string x_client_uuid;
 }
+[Serializable]
+public class UuidResponse : BaseRequest
+{
+    public string uuid;
+}
+
 
 [Serializable]
 public class ClientResponse
@@ -61,6 +64,13 @@ public class ServerResponse
 //    }
 //}
 
+public enum ServerDirectory
+{
+    init,
+    load,
+    npc
+}
+
 public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
@@ -73,7 +83,6 @@ public class ServerConnection : MonoBehaviour
         { (int)ServerDirectory.npc, "/npcs/" },
         { (int)ServerDirectory.init, "/auth/uuid"}
     };
-
 
     HttpResponseMessage response;
 
@@ -102,29 +111,25 @@ public class ServerConnection : MonoBehaviour
     //    await SendLoadGameRequest(message, ServerDirectory.load);
     //}
 
-    public async Task<ServerResponse> SendAndGetMessageFromServer(ClientResponse message, int directory)
+
+    // Send and Get Generic Response from Server
+    public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath)
     {
-        string completeServerURL = serverURL + serverDirectoriesDict[directory];
-
         // Change to JSON
-        StringContent reqBody = new StringContent(
-            JsonUtility.ToJson(message),
-            Encoding.UTF8,
-            "application/json"
-        );
+        StringContent reqBody = new StringContent(JsonUtility.ToJson(message), Encoding.UTF8, "application/json");
 
-        ServerResponse serverResponse = null;
-
+        BaseResponse serverResponse = default;
         try
         {
-            // Send player input text and wait for message
-            response = await client.PostAsync(completeServerURL, reqBody);
+            // Send request and wait for response
+            var response = await client.PostAsync(serverURL + directoryPath, reqBody);
             string result = await response.Content.ReadAsStringAsync();
 
             Debug.Log($"Status Code: {response.StatusCode}");
 
             if (response.IsSuccessStatusCode)
-                serverResponse = JsonUtility.FromJson<ServerResponse>(result);
+                // Change back from JSON
+                serverResponse = JsonUtility.FromJson<BaseResponse>(result);
             else
                 Debug.LogError($"Request failed: {response.StatusCode} - {response.ReasonPhrase}");
         }
@@ -134,6 +139,41 @@ public class ServerConnection : MonoBehaviour
         }
 
         return serverResponse;
-
     }
+
+
+    //public async Task<ServerResponse> SendAndGetMessageFromServer(ClientResponse message, int directory)
+    //{
+    //    string completeServerURL = serverURL + serverDirectoriesDict[directory];
+
+    //    // Change to JSON
+    //    StringContent reqBody = new StringContent(
+    //        JsonUtility.ToJson(message),
+    //        Encoding.UTF8,
+    //        "application/json"
+    //    );
+
+    //    ServerResponse serverResponse = null;
+
+    //    try
+    //    {
+    //        // Send player input text and wait for message
+    //        response = await client.PostAsync(completeServerURL, reqBody);
+    //        string result = await response.Content.ReadAsStringAsync();
+
+    //        Debug.Log($"Status Code: {response.StatusCode}");
+
+    //        if (response.IsSuccessStatusCode)
+    //            serverResponse = JsonUtility.FromJson<ServerResponse>(result);
+    //        else
+    //            Debug.LogError($"Request failed: {response.StatusCode} - {response.ReasonPhrase}");
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        Debug.LogError($"Exception occurred: {ex.Message}");
+    //    }
+
+    //    return serverResponse;
+
+    //}
 }
