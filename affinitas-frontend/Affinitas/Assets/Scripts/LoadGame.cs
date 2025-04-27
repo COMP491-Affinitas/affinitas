@@ -3,12 +3,6 @@ using System;
 using System.Collections.Generic;
 
 [Serializable]
-public class LoadGameRootResponse
-{
-    public LoadGameData data;
-}
-
-[Serializable]
 public class LoadGameData
 {
     public int day_no;
@@ -29,6 +23,7 @@ public class LoadGameJournalData
 [Serializable]
 public class LoadGameNpc
 {
+    public int npc_name;
     public int affinitas;
     public List<LoadGameQuestStatus> quests;
     public LoadGameNpcMeta npc_meta;
@@ -88,6 +83,13 @@ public static class LoadGame
 
         GameManager.Instance.dayNo = rootResponse.data.day_no;
         GameManager.Instance.dailyActionPoints = rootResponse.data.remaining_ap;
+
+        foreach (var npcUiGameObject in GameManager.Instance.npcUiList)
+        {
+            npcUiGameObject.InitializeNpc(new Npc());
+        }
+        
+
         
     }
 }

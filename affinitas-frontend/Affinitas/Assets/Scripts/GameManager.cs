@@ -11,7 +11,7 @@ public class GameManager : MonoBehaviour
     //ServerResponse serverResponse;
 
     [SerializeField]
-    NpcUi[] npcUiList;
+    public NpcUi[] npcUiList;
 
     public Dictionary<int, Npc> npcDict = new();
     public int dailyActionPoints;
