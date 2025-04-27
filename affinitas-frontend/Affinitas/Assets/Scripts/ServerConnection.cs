@@ -53,16 +53,6 @@ public class ServerResponse
     public string messageId;
 }
 
-//[Serializable]
-//public class LoadGameRequest
-//{
-//    string gameId;
-
-//    public LoadGameRequest(string gameId)
-//    {
-//        this.gameId = gameId;
-//    }
-//}
 
 public enum ServerDirectory
 {
@@ -75,7 +65,7 @@ public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
 
-    const string serverURL = "http://localhost:8000";
+    const string serverURL = "https://affinitas.onrender.com";
     static readonly HttpClient client = new HttpClient();
 
     public Dictionary<int, string> serverDirectoriesDict = new Dictionary<int, string>{
@@ -86,45 +76,42 @@ public class ServerConnection : MonoBehaviour
 
     HttpResponseMessage response;
 
-
-    //async void Start()
-    //{
-    //    await LoadGame();
-    //}
-
-    //async void InitGame()
-    //{
-    //    LoadGameRequest message = new LoadGameRequest("");
-    //    ServerResponse serverResponse = await SendLoadGameRequest(message, ServerDirectory.init);
-    //    if (serverResponse != null)
-    //    {
-    //        GameManager.Instance.gameId = serverResponse.
-    //    }
-
-    //}
-
-    //async void LoadGame()
-    //{
-
-    //    LoadGameRequest message = new LoadGameRequest("")
-
-    //    await SendLoadGameRequest(message, ServerDirectory.load);
-    //}
-
-
+    private void Awake()
+    {   
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+        }
+    }
+  
+    
     // Send and Get Generic Response from Server
     public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath)
     {
-        // Change to JSON
-        StringContent reqBody = new StringContent(JsonUtility.ToJson(message), Encoding.UTF8, "application/json");
+        
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, serverURL + directoryPath);
+
+        string jsonString = JsonUtility.ToJson(message);
+        requestMessage.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+
+        // Set the header x-client-uuid
+        if (!string.IsNullOrEmpty(GameManager.Instance.gameId))
+        {
+            requestMessage.Headers.Add("x-client-uuid", GameManager.Instance.gameId);
+        }
 
         BaseResponse serverResponse = default;
         try
         {
             // Send request and wait for response
-            var response = await client.PostAsync(serverURL + directoryPath, reqBody);
+            var response = await client.SendAsync(requestMessage);
             string result = await response.Content.ReadAsStringAsync();
-
+            Debug.Log($"Server raw response: {result}");
             Debug.Log($"Status Code: {response.StatusCode}");
 
             if (response.IsSuccessStatusCode)
@@ -141,39 +128,4 @@ public class ServerConnection : MonoBehaviour
         return serverResponse;
     }
 
-
-    //public async Task<ServerResponse> SendAndGetMessageFromServer(ClientResponse message, int directory)
-    //{
-    //    string completeServerURL = serverURL + serverDirectoriesDict[directory];
-
-    //    // Change to JSON
-    //    StringContent reqBody = new StringContent(
-    //        JsonUtility.ToJson(message),
-    //        Encoding.UTF8,
-    //        "application/json"
-    //    );
-
-    //    ServerResponse serverResponse = null;
-
-    //    try
-    //    {
-    //        // Send player input text and wait for message
-    //        response = await client.PostAsync(completeServerURL, reqBody);
-    //        string result = await response.Content.ReadAsStringAsync();
-
-    //        Debug.Log($"Status Code: {response.StatusCode}");
-
-    //        if (response.IsSuccessStatusCode)
-    //            serverResponse = JsonUtility.FromJson<ServerResponse>(result);
-    //        else
-    //            Debug.LogError($"Request failed: {response.StatusCode} - {response.ReasonPhrase}");
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        Debug.LogError($"Exception occurred: {ex.Message}");
-    //    }
-
-    //    return serverResponse;
-
-    //}
 }

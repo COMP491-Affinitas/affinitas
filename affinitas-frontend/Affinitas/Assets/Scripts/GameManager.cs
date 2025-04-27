@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System.Threading.Tasks;
 
 public class GameManager : MonoBehaviour
 {
@@ -20,7 +21,7 @@ public class GameManager : MonoBehaviour
     public Dictionary<string, bool> dialoguesDict = new();
     public Dictionary<string, bool> questDict = new();
 
-    private void Start()
+    private async void Start()
     {
         if (Instance != null && Instance != this)
         {
@@ -31,11 +32,12 @@ public class GameManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
-        GetAuthenticationUUID();
+        await GetAuthenticationUUID();
+        LoadGameWithUUID();
     }
 
     // Get New UUID from server
-    public async void GetAuthenticationUUID()
+    public async Task GetAuthenticationUUID()
     {
         UuidRequest uuid = new UuidRequest { x_client_uuid = "" };
         UuidResponse uuidResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, UuidResponse>(uuid, "/auth/uuid");
@@ -43,7 +45,7 @@ public class GameManager : MonoBehaviour
     }
 
     // Get game information from server
-    public async void LoadGameWithUUID()
+    public void LoadGameWithUUID()
     {
         LoadGame.GetLoadGameInfo(gameId);
     }
