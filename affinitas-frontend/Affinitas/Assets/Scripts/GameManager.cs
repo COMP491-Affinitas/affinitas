@@ -66,8 +66,8 @@ public class GameManager : MonoBehaviour
         //    npcList[i] = currNpc;
         //}
 
-        var alice = new Npc(1, "Alice", 10);
-        var bob = new Npc(2, "Bob", 20);
+        var alice = new Npc(1, "Alice", 10, new List<Npc.Quest>());
+        var bob = new Npc(2, "Bob", 20, new List<Npc.Quest>());
 
         npcDict[alice.npcId] = alice;
         npcDict[bob.npcId] = bob;
