@@ -1,11 +1,11 @@
 from pydantic import BaseModel, Field
 
-from affinitas_backend.models.game_data import BaseNPC
+from affinitas_backend.models.game_data import NPCSaveData
 
 
 class NPCResponse(BaseModel):
-    npc: BaseNPC
+    npc: NPCSaveData
 
 
 class NPCsResponse(BaseModel):
-    npcs: list[BaseNPC] = Field(default_factory=list)
+    npcs: list[NPCSaveData] = Field(default_factory=list)

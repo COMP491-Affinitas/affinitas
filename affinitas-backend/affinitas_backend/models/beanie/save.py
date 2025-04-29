@@ -1,17 +1,20 @@
 from datetime import datetime
+from typing import Annotated
 
 import pymongo
 from beanie import Document, Indexed
+from pydantic import UUID4, Field
 from pymongo import IndexModel
 
 from affinitas_backend.models.game_data import GameData
 
 
 class Save(Document, GameData):
-    name: str
-    saved_at: datetime
-    client_uuid: Indexed(str)
-    chat_id: Indexed(str)
+    client_uuid: Annotated[UUID4, Indexed()]  # directly using `Indexed(UUId4)` does not work here
+    chat_id: Annotated[UUID4, Indexed(unqiue=True)]
+
+    name: str | None
+    saved_at: datetime | None
 
     class Settings:
         name = "save"
@@ -27,8 +30,8 @@ class Save(Document, GameData):
 
 
 class ShadowSave(Document, GameData):
-    client_uuid: Indexed(str)
-    chat_id: Indexed(str)
+    client_uuid: Annotated[UUID4, Indexed(unique=True)]  # We want only one active game per user
+    chat_id: Annotated[UUID4, Indexed(unqiue=True)]
 
     class Settings:
         name = "shadow_save"
@@ -42,3 +45,10 @@ class ShadowSave(Document, GameData):
                 unique=True,
             )
         ]
+
+
+class DefaultSave(Document, GameData):
+    id: int = Field(..., alias="_id")
+
+    class Settings:
+        name = "default_save"

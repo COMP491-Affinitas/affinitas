@@ -3,7 +3,7 @@ from langchain_core.messages.utils import MessageLikeRepresentation
 from pydantic import BaseModel, Field, field_validator
 
 
-class NPCAffinitasMetadata(BaseModel):
+class NPCAffinitasConfig(BaseModel):
     initial: int
     increase: float | list[str] = Field(
         ...,
@@ -47,31 +47,15 @@ class Quest(BaseModel):
 
 
 class QuestSaveData(BaseModel):
-    quest_meta: Quest
+    quest_id: PydanticObjectId
     started: bool
     status: str
 
 
-class BaseNPC(BaseModel):
-    id: PydanticObjectId = Field(..., alias="_id")
-    name: str
-    age: int
-    occupation: str | None = None
-    personality: list[str] = Field(default_factory=list)
-    likes: list[str] = Field(default_factory=list)
-    dislikes: list[str] = Field(default_factory=list)
-    motivations: list[str] = Field(default_factory=list)
-    backstory: str
-    affinitas_meta: NPCAffinitasMetadata
-    endings: list[str] = Field(default_factory=list)
-    quests: list[Quest] = Field(default_factory=list)
-    dialogue_unlocks: list[str] = Field(default_factory=list)
-
-
 class NPCSaveData(BaseModel):
+    npc_id: PydanticObjectId
     affinitas: int
     quests: list[QuestSaveData] = Field(default_factory=list)
-    npc_meta: BaseNPC
     chat_history: list[MessageLikeRepresentation] = Field(default_factory=list)
 
 

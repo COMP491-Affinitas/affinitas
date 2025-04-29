@@ -1,9 +1,6 @@
-# TODO: Class will be removed and its functionality will be performed using functions
-#  The thread ID for the chat states is generated and passed by the client.
+# TODO:
 #  The unity client should have a list of messages, not the whole history but the unanswered ones.
-#  When a user message is added, the API call should be made and then the list should be cleared.
 #  The new game is implemented by loading the data of a game that is saved right after being started.
-#  The active game data is stored in the database in a "shadow" saves collection. Updated after each action.
 #  When a game is saved, the data is copied to the main saves collection. When a game is quit, the shadow save is deleted.
 #  Implement new endpoints related to this.
 import os
