@@ -1,11 +1,18 @@
+from beanie import PydanticObjectId
+from langchain_core.messages import MessageLikeRepresentation
 from pydantic import BaseModel, Field
 
-from affinitas_backend.models.game_data import NPCSaveData
+from affinitas_backend.models.game_data import QuestSaveData
+
+
+class QuestSaveDataResponse(QuestSaveData):
+    name: str
+    description: str
+    rewards: list[str] = Field(default_factory=list)
 
 
 class NPCResponse(BaseModel):
-    npc: NPCSaveData
-
-
-class NPCsResponse(BaseModel):
-    npcs: list[NPCSaveData] = Field(default_factory=list)
+    npc_id: PydanticObjectId
+    affinitas: int
+    quests: list[QuestSaveDataResponse]
+    chat_history: list[MessageLikeRepresentation] = Field(default_factory=list)

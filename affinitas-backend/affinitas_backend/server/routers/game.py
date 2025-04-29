@@ -4,10 +4,10 @@ import os
 import uuid
 from typing import Any
 
-from beanie import PydanticObjectId
 from fastapi import HTTPException
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
+from pymongo.errors import DuplicateKeyError
 from starlette import status
 
 from affinitas_backend.models.beanie.save import Save, ShadowSave, DefaultSave
@@ -54,35 +54,54 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
 )
 @limiter.limit("3/minute")
 async def load_game(request: Request, payload: GameLoadRequest, x_client_uuid: XClientUUIDHeader):
-    save = (
-        await Save
-        .find(Save.client_uuid == x_client_uuid)
-        .find(Save.id == PydanticObjectId(payload.save_id))
-        .first_or_none()
-    )
+    save = await Save.aggregate(
+        get_aggregate_pipeline({"_id": payload.save_id})
+    ).to_list(1)
 
     if not save:
         logging.info(f"Save with ID {payload.save_id} not found")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Save not found. Save ID: {payload.save_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Save not found. Save ID: {payload.save_id}"
+        )
+
+    save = save[0]
 
     shadow_save = ShadowSave(
-        **save.model_dump(exclude={"_id", "saved_at", "name"}),
+        **save
     )
-
-    res = await shadow_save.insert()  # noqa
+    try:
+        res = await shadow_save.insert()  # noqa
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A game save for this client already exists.",
+        )
 
     if res is None:
-        logging.error("Failed to load game: Failed to insert shadow save")
-        logging.error(f"Save ID: {payload.save_id}")
-        logging.error(f"Save data: {save}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Failed to load game: Failed to insert shadow save")
+        throw_500(
+            "Failed to load game: Failed to insert shadow save",
+            f"Save ID: {payload.save_id}",
+            f"Save data: {save}",
+        )
 
-    return GameLoadResponse(
-        data=GameDataResponse(**res.model_dump(exclude={"_id", "client_uuid", "chat_id"})),
-        shadow_save_id=res.id,
-    )
+    try:
+        save.pop("client_uuid", None)
+        save.pop("chat_id", None)
+        save.pop("saved_at", None)
 
+        for npc in save["npcs"]:
+            npc.pop("likes", None)
+            npc.pop("dislikes", None)
+            npc.pop("occupation", None)
+
+        return GameLoadResponse(
+            data=GameDataResponse(**save),
+            shadow_save_id=res.id,
+        )
+    except Exception:
+        await res.delete()
+        raise
 
 @router.post(
     "/save",
@@ -121,10 +140,13 @@ async def save_game(request: Request, payload: GameSaveRequest, x_client_uuid: X
         logging.error("Failed to save game")
         logging.error(f"Shadow save ID: {payload.shadow_save_id}")
         logging.error(f"Save data: {save}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save game")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save game"
+        )
 
     return GameSaveResponse(
-        id=save_res.id,
+        save_id=save_res.id,
         name=save_res.name,
         saved_at=save_res.saved_at,
     )
@@ -144,8 +166,10 @@ async def quit_game(request: Request, payload: GameQuitRequest, x_client_uuid: X
     shadow_save = await ShadowSave.get(payload.save_id)
     if not shadow_save:
         logging.info(f"Shadow save with ID {payload.save_id} not found")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Shadow save not found. shadow_save_id: {payload.save_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shadow save not found. shadow_save_id: {payload.save_id}"
+        )
 
     await shadow_save.delete()  # noqa
 
@@ -161,28 +185,17 @@ async def quit_game(request: Request, payload: GameQuitRequest, x_client_uuid: X
 )
 @limiter.limit("3/minute")
 async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
-    # 4 AM coding. Don't ask anything about this.
-
-    save = (await DefaultSave.aggregate([
-        {"$match": {
-            "_id": int(os.getenv("DEFAULT_SAVE_VERSION"))
-        }},
-        {"$lookup": {
-            "from": "npcs",
-            "localField": "npcs.npc_id",
-            "foreignField": "_id",
-            "as": "npc_configs"
-        }}
-    ]).to_list(1))[0]
-
-    npc_configs = save.pop("npc_configs")
-    del save["_id"]
+    save = await DefaultSave.aggregate(
+        get_aggregate_pipeline({"_id": int(os.getenv("DEFAULT_SAVE_VERSION"))})
+    ).to_list(1)
 
     if not save:
-        logging.error("Failed to create new game: Default save not found")
-        logging.error("Default save version no: %s", os.getenv("DEFAULT_SAVE_VERSION"))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Failed to create new game: Default save not found")
+        throw_500(
+            "Failed to create new game: Default save not found",
+            f"Default save version no: {os.getenv("DEFAULT_SAVE_VERSION")}"
+        )
+
+    save = save[0]
 
     shadow_save = ShadowSave(
         client_uuid=x_client_uuid,
@@ -190,21 +203,33 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
         **save,
     )
 
-    res = await shadow_save.insert()  # noqa
+    try:
+        res = await shadow_save.insert()  # noqa
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A game save for this client already exists.",
+        )
+
     if res is None:
-        logging.error("Failed to create new game: Failed to insert shadow save")
-        logging.error(f"Save data: {save}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Failed to create new game: Failed to insert shadow save")
+        throw_500(
+            "Failed to create new game: Failed to insert shadow save",
+            f"Save data: {save}",
+        )
 
-    dump = res.model_dump(exclude={"id", "client_uuid", "chat_id"})
+    try:
+        for npc in save["npcs"]:
+            npc.pop("likes", None)  # Not needed in the response data
+            npc.pop("dislikes", None)
+            npc.pop("occupation", None)
 
-    merge_quest_config(dump["npcs"], npc_configs)
-
-    return GameLoadResponse(
-        data=GameDataResponse(**dump),
-        shadow_save_id=res.id,
-    )
+        return GameLoadResponse(
+            data=GameDataResponse(**save),
+            shadow_save_id=res.id,
+        )
+    except Exception:
+        await res.delete()  # Delete the shadow save if the merge fails since we don't want to keep it now
+        raise
 
 
 @router.post(
@@ -219,28 +244,106 @@ async def master_chat(request: Request, payload, x_client_uuid: XClientUUIDHeade
     raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented")
 
 
-def merge_quest_config(npcs: list[dict[str, Any]], npc_configs: list[dict[str, Any]]):
-    for npc_save_data in npcs:
-        npc_config = next((npc for npc in npc_configs if npc["_id"] == npc_save_data["npc_id"]), None)
-        if not npc_config:
-            logging.error("Failed to create new game: NPC config not found")
-            logging.error(f"NPC ID: {npc_save_data["npc_id"]}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                                detail="Failed to create new game: NPC config not found")
+def throw_500(detail: str, *msgs: str):
+    logging.error(detail)
+    for msg in msgs:
+        logging.error(msg)
 
-        for i, quest in enumerate(npc_save_data["quests"]):
-            quest_config = next(
-                (quest_config for quest_config in npc_config["quests"] if quest_config["_id"] == quest["quest_id"]),
-                None)
-            if not quest_config:
-                logging.error("Failed to create new game: Quest config not found")
-                logging.error(f"Quest ID: {quest["quest_id"]}")
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                                    detail="Failed to create new game: Quest config not found")
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
 
-            npc_save_data["quests"][i] = {
-                **quest,
-                "name": quest_config["name"],
-                "description": quest_config["description"],
-                "rewards": quest_config["rewards"],
+
+def get_aggregate_pipeline(match: dict[str, Any], ):
+    """
+    Returns the aggregation pipeline for the game save data.
+    The pipeline is used to transform the save data stored in ShadowSave, DefaultSave, and Save documents.
+    The dynamic npc data (likes, dislikes, and occupation) is embedded into the npc data, and the static quest data
+    stored in npcs.quests is embedded into the quest save data.
+    :param match: Match stage to filter the save data. The match stage is used to filter the save data by ID.
+    :return: The aggregation pipeline for fetching save data.
+    """
+    return [
+        {"$match": match},
+        {"$lookup": {
+            "from": "npcs",
+            "localField": "npcs.npc_id",
+            "foreignField": "_id",
+            "as": "npc_configs"
+        }},
+        {"$set": {
+            "npcs": {
+                "$map": {
+                    "input": "$npcs",
+                    "as": "npc_save",
+                    "in": {
+                        "$let": {
+                            "vars": {
+                                "npc_config": {
+                                    "$arrayElemAt": [
+                                        {
+                                            "$filter": {
+                                                "input": "$npc_configs",
+                                                "as": "cfg",
+                                                "cond": {
+                                                    "$eq": ["$$cfg._id", "$$npc_save.npc_id"]
+                                                }
+                                            }
+                                        },
+                                        0
+                                    ]
+                                }
+                            },
+                            "in": {
+                                "$mergeObjects": [
+                                    "$$npc_save",
+                                    {
+                                        "affinitas": "$$npc_config.affinitas",
+                                        "likes": "$$npc_config.likes",
+                                        "dislikes": "$$npc_config.dislikes",
+                                        "occupation": "$$npc_config.occupation",
+                                        "quests": {
+                                            "$map": {
+                                                "input": "$$npc_save.quests",
+                                                "as": "quest_save",
+                                                "in": {
+                                                    "$let": {
+                                                        "vars": {
+                                                            "quest_config": {
+                                                                "$arrayElemAt": [
+                                                                    {
+                                                                        "$filter": {
+                                                                            "input": "$$npc_config.quests",
+                                                                            "as": "qcfg",
+                                                                            "cond": {
+                                                                                "$eq": ["$$qcfg._id",
+                                                                                        "$$quest_save.quest_id"]
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    0
+                                                                ]
+                                                            }
+                                                        },
+                                                        "in": {
+                                                            "$mergeObjects": [
+                                                                "$$quest_save",
+                                                                {
+                                                                    "name": "$$quest_config.name",
+                                                                    "description": "$$quest_config.description",
+                                                                    "rewards": "$$quest_config.rewards"
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
             }
+        }},
+        {"$unset": ["npc_configs", "_id"]}
+    ]

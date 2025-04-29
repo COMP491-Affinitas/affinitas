@@ -1,8 +1,7 @@
 from typing import Literal, TypedDict
 
-from beanie import PydanticObjectId
 from langgraph.graph.message import MessagesState
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, UUID4
 
 
 class NPCDataDelta(BaseModel):
@@ -22,39 +21,32 @@ class OpenAI_NPCChatResponse(BaseModel):
                                 description="Optional changes to the NPC's likes, dislikes and occupation. Occupation is only changed when the NPC is missing it.")
 
 
-class QuestMeta(TypedDict):
+class QuestState(TypedDict):
+    started: bool
+    status: str
     name: str
     description: str
     rewards: list[str]
 
 
-class QuestState(TypedDict):
-    quest_meta: QuestMeta
-    started: bool
-    status: str
-
-
 class NPCState(TypedDict):
     affinitas: int
+    likes: list[str]
+    dislikes: list[str]
+    occupation: str | None
     quests: list[QuestState]
-    npc_meta: TypedDict("BaseNPCState", {
-        "name": str,
-        "age": int,
-        "occupation": str | None,
-        "personality": list[str],
-        "likes": list[str],
-        "dislikes": list[str],
-        "motivations": list[str],
-        "backstory": str,
-        "endings": list[str],
-        "quests": list[QuestMeta],
-        "affinitas_meta": TypedDict("NPCAffinitasMetadata", {
-            "initial": int,
-            "increase": float | list[str],
-            "decrease": float | list[str],
-        }),
-        "dialogue_unlocks": list[str],
+    name: str
+    age: int
+    personality: list[str]
+    motivations: list[str]
+    backstory: str
+    affinitas_config: TypedDict("NPCAffinitasConfig", {
+        "initial": int,
+        "increase": float | list[str],
+        "decrease": float | list[str],
     })
+    endings: list[str]
+    dialogue_unlocks: list[str]
 
 
 class NPCMessagesState(MessagesState):
@@ -63,5 +55,5 @@ class NPCMessagesState(MessagesState):
 
 
 class ThreadInfo(BaseModel):
-    chat_id: PydanticObjectId
-    client_uuid: str
+    chat_id: UUID4
+    client_uuid: UUID4

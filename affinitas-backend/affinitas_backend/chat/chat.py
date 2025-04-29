@@ -1,14 +1,8 @@
-# TODO:
-#  The unity client should have a list of messages, not the whole history but the unanswered ones.
-#  The new game is implemented by loading the data of a game that is saved right after being started.
-#  When a game is saved, the data is copied to the main saves collection. When a game is quit, the shadow save is deleted.
-#  Implement new endpoints related to this.
 import os
 from typing import Literal, cast
 
 from beanie import PydanticObjectId
 from bson import json_util
-from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, trim_messages, SystemMessage
 from langchain_core.messages.utils import count_tokens_approximately
@@ -20,8 +14,6 @@ from pydantic import TypeAdapter
 
 from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo
-
-load_dotenv()
 
 
 def call_model(state: NPCMessagesState):
@@ -128,9 +120,9 @@ async def get_response(
     if invoke_model:
         return res["messages"][-1].content, {
             "affinitas": res["npc"]["affinitas"],
-            "occupation": res["npc"]["npc_meta"]["occupation"],
-            "likes": res["npc"]["npc_meta"]["likes"],
-            "dislikes": res["npc"]["npc_meta"]["dislikes"],
+            "occupation": res["npc"]["occupation"],
+            "likes": res["npc"]["likes"],
+            "dislikes": res["npc"]["dislikes"],
         }
 
     return None
@@ -144,16 +136,16 @@ def update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | No
         npc["affinitas"] += affinitas_change
         npc["affinitas"] = max(0, min(100, npc["affinitas"]))
 
-    if occupation and not npc["npc_meta"]["occupation"]:
-        npc["npc_meta"]["occupation"] = occupation
+    if occupation and not npc["occupation"]:
+        npc["occupation"] = occupation
 
     if likes:
-        npc["npc_meta"]["likes"].extend(likes)
-        npc["npc_meta"]["likes"] = list(set(npc["npc_meta"]["likes"]))
+        npc["likes"].extend(likes)
+        npc["likes"] = list(set(npc["likes"]))
 
     if dislikes:
-        npc["npc_meta"]["dislikes"].extend(dislikes)
-        npc["npc_meta"]["dislikes"] = list(set(npc["npc_meta"]["dislikes"]))
+        npc["dislikes"].extend(dislikes)
+        npc["dislikes"] = list(set(npc["dislikes"]))
 
     return npc
 
@@ -166,23 +158,11 @@ def get_state(thread_id: str) -> NPCMessagesState | None:
 
 async def get_npc_state(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> tuple[
     NPCState | None, list[BaseMessage]]:
-    npc_data = await ShadowSave.aggregate([
-        {"$match": {
-            "_id": shadow_save_id,
-        }},
-        {"$unwind": "$npcs"},
-        {"$match": {"npcs.npc_meta._id": npc_id}},
-        {"$replaceRoot": {"newRoot": "$npcs"}},
-        {"$project": {
-            "npc_meta._id": 0,
-            "npc_meta.quests._id": 0,
-            "quests.quest_meta._id": 0,
-        }}
-    ]).to_list(1)
+    npc_data = await get_shadow_save_npc_state(shadow_save_id, npc_id)
 
     if npc_data:
-        npc, chat_history = npc_data[0], npc_data[0]["chat_history"]
-        del npc["chat_history"]
+        npc = npc_data[0]
+        chat_history = npc.pop("chat_history")
 
         if os.getenv("ENV") == "dev":  # TODO: Remove this after confirming the npc_data has the correct structure
             npc_state_validator = TypeAdapter(NPCState)
@@ -217,3 +197,83 @@ async def get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObject
         return f"{res.client_uuid}:{res.chat_id}:{npc_id}"
 
     return None
+
+
+def get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId):
+    return ShadowSave.aggregate([
+        {'$match': {
+            '_id': shadow_save_id
+        }},
+        {'$unwind': '$npcs'},
+        {'$match': {
+            'npcs.npc_id': npc_id
+        }},
+        {'$lookup': {
+            'from': 'npcs',
+            'localField': 'npcs.npc_id',
+            'foreignField': '_id',
+            'as': 'npc_config'
+        }},
+        {'$unwind': '$npc_config'},
+        {'$replaceRoot': {
+            'newRoot': {
+                '$mergeObjects': [
+                    '$npcs', {
+                        'name': '$npc_config.name',
+                        'age': '$npc_config.age',
+                        'occupation': '$npcs.occupation',
+                        'personality': '$npc_config.personality',
+                        'likes': '$npcs.likes',
+                        'dislikes': '$npcs.dislikes',
+                        'motivations': '$npc_config.motivations',
+                        'backstory': '$npc_config.backstory',
+                        'endings': '$npc_config.endings',
+                        'dialogue_unlocks': '$npc_config.dialogue_unlocks',
+                        'affinitas_config': '$npc_config.affinitas_config',
+                        'affinitas': '$npcs.affinitas',
+                        'chat_history': '$npcs.chat_history',
+                        'quests': {
+                            '$map': {
+                                'input': '$npcs.quests',
+                                'as': 'quest_save',
+                                'in': {
+                                    '$let': {
+                                        'vars': {
+                                            'quest_config': {
+                                                '$arrayElemAt': [
+                                                    {
+                                                        '$filter': {
+                                                            'input': '$npc_config.quests',
+                                                            'as': 'qcfg',
+                                                            'cond': {
+                                                                '$eq': [
+                                                                    '$$qcfg._id', '$$quest_save.quest_id'
+                                                                ]
+                                                            }
+                                                        }
+                                                    }, 0
+                                                ]
+                                            }
+                                        },
+                                        'in': {
+                                            '$mergeObjects': [
+                                                '$$quest_save', {
+                                                    'name': '$$quest_config.name',
+                                                    'description': '$$quest_config.description',
+                                                    'rewards': '$$quest_config.rewards'
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+        },
+        {'$project': {
+            'npc_id': 0,
+            'quests.quest_id': 0
+        }}]).to_list()

@@ -1,5 +1,5 @@
 from beanie import PydanticObjectId
-from langchain_core.messages.utils import MessageLikeRepresentation
+from langchain_core.messages import MessageLikeRepresentation
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -55,6 +55,9 @@ class QuestSaveData(BaseModel):
 class NPCSaveData(BaseModel):
     npc_id: PydanticObjectId
     affinitas: int
+    likes: list[str] = Field(default_factory=list)
+    dislikes: list[str] = Field(default_factory=list)
+    occupation: str | None = None
     quests: list[QuestSaveData] = Field(default_factory=list)
     chat_history: list[MessageLikeRepresentation] = Field(default_factory=list)
 

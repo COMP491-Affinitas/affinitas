@@ -26,7 +26,6 @@ To prevent abuse, the server implements rate limiting:
 - **GET /npcs/**: 3 requests per minute
 - **GET /npcs/{npc_id}**: 18 requests per minute
 ## TODO
-- Add a chat endpoint for NPCs
 - Implement a more sophisticated rate limiting 
 - Add example data to route schemas\
 """
