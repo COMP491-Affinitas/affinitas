@@ -21,15 +21,19 @@ namespace MainGame
             scrollRectHelper = gameObject.GetComponent<ScrollRectHelper>();
         }
 
-        // TODO: Make sure player cannot press enter again!!!
         // Call this from Send Text button
         public void SendInputtedText()
         {
+            if (ServerConnection.Instance.canSendMessage == false)
+                return;
+
+            ServerConnection.Instance.canSendMessage = false;
+
             playerInput = dialogueInputField.text;
             if (playerInput == "")
                 return;
 
-            addDialogueBox.AddPlayerDialogueBox(playerInput);
+            addDialogueBox.AddPlayerDialogueBox(playerInput, ServerConnection.Instance.OnServerMessageReceived);
             scrollRectHelper.ScrollToBottom();
 
             dialogueInputField.text = "";

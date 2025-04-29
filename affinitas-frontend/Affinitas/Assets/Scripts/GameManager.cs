@@ -45,7 +45,7 @@ public class GameManager : MonoBehaviour
     // Get game information from server
     public async void LoadGameWithUUID()
     {
-        LoadGame.GetLoadGameInfo(gameId);
+        //LoadGame.GetLoadGameInfo(gameId);
     }
 
     void InitializeNpcs()
@@ -66,47 +66,48 @@ public class GameManager : MonoBehaviour
         //    npcList[i] = currNpc;
         //}
 
-        var alice = new Npc(1, "Alice", 10);
-        var bob = new Npc(2, "Bob", 20);
+        //var alice = new Npc(1, "Alice", 10);
+        //var bob = new Npc(2, "Bob", 20);
 
-        npcDict[alice.npcId] = alice;
-        npcDict[bob.npcId] = bob;
+        //npcDict[alice.npcId] = alice;
+        //npcDict[bob.npcId] = bob;
 
     }
 
     void InitializeInteractionDicts()
     {
-        foreach (var npc in npcDict.Values)
+        foreach (Npc npc in npcDict.Values)
         {
             dialoguesDict[npc.npcName] = false;
             questDict[npc.npcName] = false;
         }
     }
 
+    // TODO: This info should come from server
     void InitializeGame()
     {
         dailyActionPoints = 15;
         dayNo = 1;
     }
 
-    //public async void SendAndReceiveFromServer(ClientResponse message, int directory)
-    //{
-    //    // Send player input message to server
-    //    serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer(message, directory);
+    public async void SendAndReceiveFromServer(ClientResponse message, string directory)
+    {
+        // Send player input message to server
+        ServerResponse serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<ClientResponse, ServerResponse>(message, directory);
 
-    //    if (serverResponse == null)
-    //    {
-    //        return; 
-    //    }
+        if (serverResponse == null)
+        {
+            return;
+        }
 
-    //    // TODO: Write code to add NPC dialogue box on screen
-    //    // TODO: Update journal page with summary
+        // TODO: Write code to add NPC dialogue box on screen
+        // TODO: Update journal page with summary
 
-    //    // Update everything
-    //    Npc npc = npcDict[serverResponse.npcId];
-    //    npc.affinitasValue = serverResponse.affinitasChange;
+        // Update everything
+        Npc npc = npcDict[serverResponse.npcId];
+        npc.affinitasValue = serverResponse.affinitasChange;
 
-    //}
+    }
 
     //Call when End Day button is pressed
     public void EndDay()

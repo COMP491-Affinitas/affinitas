@@ -78,6 +78,8 @@ public class ServerConnection : MonoBehaviour
     const string serverURL = "http://localhost:8000";
     static readonly HttpClient client = new HttpClient();
 
+    public bool canSendMessage = true;
+
     public Dictionary<int, string> serverDirectoriesDict = new Dictionary<int, string>{
         { (int)ServerDirectory.load, "/game/load" },
         { (int)ServerDirectory.npc, "/npcs/" },
@@ -85,6 +87,25 @@ public class ServerConnection : MonoBehaviour
     };
 
     HttpResponseMessage response;
+
+    private void Start()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+    }
+
+    // To be called from other classes in game when they are done with current server communication
+    public void OnServerMessageReceived()
+    {
+        canSendMessage = true;
+    }
 
 
     //async void Start()

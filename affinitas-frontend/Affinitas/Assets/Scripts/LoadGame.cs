@@ -76,20 +76,20 @@ public class LoadGameAffinitasMeta
 
 public static class LoadGame
 {
-    public static async void GetLoadGameInfo(string uuid_string)
-    {
-        UuidRequest uuid = new UuidRequest { x_client_uuid = uuid_string };
-        LoadGameRootResponse rootResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(uuid, "/game/load");
+    //public static async void GetLoadGameInfo(string uuid_string)
+    //{
+    //    UuidRequest uuid = new UuidRequest { x_client_uuid = uuid_string };
+    //    LoadGameRootResponse rootResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(uuid, "/game/load");
 
-        GameManager.Instance.dayNo = rootResponse.data.day_no;
-        GameManager.Instance.dailyActionPoints = rootResponse.data.remaining_ap;
+    //    GameManager.Instance.dayNo = rootResponse.data.day_no;
+    //    GameManager.Instance.dailyActionPoints = rootResponse.data.remaining_ap;
 
-        foreach (var npcUiGameObject in GameManager.Instance.npcUiList)
-        {
-            npcUiGameObject.InitializeNpc(new Npc());
-        }
+    //    foreach (var npcUiGameObject in GameManager.Instance.npcUiList)
+    //    {
+    //        npcUiGameObject.InitializeNpc(new Npc());
+    //    }
         
 
         
-    }
+    //}
 }
