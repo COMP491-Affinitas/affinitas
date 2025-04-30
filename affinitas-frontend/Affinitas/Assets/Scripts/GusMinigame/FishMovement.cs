@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace GusMinigame
@@ -7,29 +6,20 @@ namespace GusMinigame
     public class FishMovement : MonoBehaviour
     {
         Vector2 speed = new(.4f, 0);
-        int rightBorderX = 800;
+        readonly int rightBorderX = 800;
         RectTransform fishRectTransform;
         Vector3 scale;
 
         private void Start()
         {
             fishRectTransform = GetComponent<RectTransform>();
+
+            speed = new(Random.Range(.4f, .8f), 0);
         }
 
-        //void Update()
-        //{
-        //    if (FishingGameManager.Instance.currGameState == FishingGameStates.GameStarted)
-        //    {
-        //        fishRectTransform.anchoredPosition += speed;
-
-        //        if (fishRectTransform.anchoredPosition.x <= -rightBorderX || fishRectTransform.anchoredPosition.x >= rightBorderX)
-        //            speed *= -1;
-        //    }
-        //}
-
-        IEnumerator MoveFishRoutine()
+        private void Update()
         {
-            while (GusMinigameManager.Instance.fishingGameStarted)
+            if (GusMinigameManager.Instance.fishingGameStarted)
             {
                 fishRectTransform.anchoredPosition += speed;
 
@@ -40,15 +30,17 @@ namespace GusMinigame
                     scale.x *= -1;
                     fishRectTransform.localScale = scale;
                 }
-                    
-
-                yield return null;
             }
         }
 
         public void StartMoving()
         {
-            StartCoroutine(MoveFishRoutine());
+            speed = new(Random.Range(.4f, .8f), 0);
+        }
+
+        public void StopMoving()
+        {
+            speed = Vector2.zero;
         }
 
     }

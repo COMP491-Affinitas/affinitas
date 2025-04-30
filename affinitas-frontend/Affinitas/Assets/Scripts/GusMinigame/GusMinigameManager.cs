@@ -1,21 +1,29 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 namespace GusMinigame
 {
     public class GusMinigameManager : MonoBehaviour
     {
         public static GusMinigameManager Instance { get; private set; }
-        [SerializeField] FishMovement[] fishArray;
-        [SerializeField] GameObject FishingGameStartButton;
+        public List<FishMovement> fishList = new();
+        [SerializeField] GameObject fishPrefab;
+        [SerializeField] RectTransform fishesRectTransform;
+
+        [SerializeField] Button fishingGameStartButton;
         [SerializeField] TextMeshProUGUI scoreTextMesh;
         [SerializeField] TextMeshProUGUI timerTextMesh;
+        [SerializeField] GameObject endPanel;
 
         public bool fishingGameStarted;
         public int gusMinigameScore;
         public float timeLimit = 100f;
         float remainingTime;
+        
 
         private void Awake()
         {
@@ -24,63 +32,108 @@ namespace GusMinigame
 
         private void Start()
         {
-            fishingGameStarted = false;
             InitializeFishingGame();
         }
 
-        private void Update()
+        public void GoToMap()
         {
-            if (fishingGameStarted)
-            {
-                if (remainingTime <= 0f)
-                {
-                    Debug.Log("no time left, score is: " + gusMinigameScore.ToString());
-                }
-                remainingTime -= Time.deltaTime;
-                timerTextMesh.text = "Time Left: " + remainingTime.ToString("0");
-            }
+            SceneManager.LoadScene(0);
         }
 
         void InitializeFishingGame()
         {
+            fishingGameStarted = false;
             gusMinigameScore = 0;
             remainingTime = timeLimit;
             scoreTextMesh.text = "Score: 0";
             timerTextMesh.text = "Time Left: " + remainingTime.ToString("0");
-            FishingGameStartButton.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Start Game";
-            FishingGameStartButton.GetComponent<Button>().interactable = true;
+            fishingGameStartButton.interactable = true;
+            endPanel.SetActive(false);
         }
 
+        // Call from Start Game
         public void StartFishingGame()
         {
-            if (!fishingGameStarted)
+            InitializeFishingGame();
+            fishingGameStarted = true;
+            fishingGameStartButton.interactable = false;
+
+            foreach (FishMovement fish in fishList)
             {
-                fishingGameStarted = true;
-                FishingGameStartButton.GetComponent<Button>().interactable = false;
-
-                //FishingGameStartButton.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Restart Game";
-
-                foreach (FishMovement fish in fishArray)
-                {
+                if (fish != null)
                     fish.StartMoving();
-                }
             }
+            StartCoroutine(FishingGameTimer());
         }
 
-        public void CheckAllFishCaught()
+        IEnumerator FishingGameTimer()
         {
-            if (fishArray.Length == 0)
+            float timeLeft = remainingTime;
+
+            while (timeLeft > 0f)
             {
-                fishingGameStarted = false;
-                FishingGameStartButton.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Play Again";
+                timerTextMesh.text = "Time Left: " + timeLeft.ToString("0");
+                yield return null; // wait one frame
+                timeLeft -= Time.deltaTime;
             }
+
+            timerTextMesh.text = "No Time Left!";
+            EndFishingGame();
+        }
+
+        void EndFishingGame()
+        {
+            fishingGameStarted = false;
+
+            foreach (FishMovement fish in fishList)
+            {
+                if (fish != null)
+                    fish.StopMoving();
+            }
+            endPanel.GetComponentInChildren<TextMeshProUGUI>().text = "Your Time is Up! Final Score: " + gusMinigameScore.ToString();
+            endPanel.SetActive(true);
+            fishingGameStartButton.interactable = true;
         }
 
         public void AddToScore()
         {
-            gusMinigameScore += 1;
-            scoreTextMesh.text = "Score: " + gusMinigameScore.ToString();
-            CheckAllFishCaught();
+            if (fishingGameStarted)
+            {
+                gusMinigameScore += 1;
+                scoreTextMesh.text = "Score: " + gusMinigameScore.ToString();
+            }
+        }
+
+        public void AddMoreFish()
+        {
+            if (!fishingGameStarted)
+                return;
+  
+            int randomNum = Random.Range(1, 4);
+
+            for (int i = 0; i < randomNum; i++)
+            {
+                GameObject newFish = Instantiate(fishPrefab, fishesRectTransform);
+
+                RectTransform fishRectTransform = newFish.GetComponent<RectTransform>();
+                fishRectTransform.anchoredPosition = GetRandomPos();
+
+                FishMovement newFishMovement = newFish.GetComponent<FishMovement>();
+                newFishMovement.StartMoving();
+
+                fishList.Add(newFishMovement);
+            }
+        }
+
+        // Get random position within the confines of fishes
+        Vector2 GetRandomPos()
+        {
+            Vector2 size = fishesRectTransform.rect.size;
+
+            float x = Random.Range(-size.x / 2f + 100f, size.x / 2f - 100f);
+            float y = Random.Range(-size.y / 2f + 100f, size.y / 2f - 100f);
+
+            return new Vector2(x, y);
         }
 
     }
