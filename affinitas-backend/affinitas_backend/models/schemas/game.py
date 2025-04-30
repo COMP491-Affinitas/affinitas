@@ -30,7 +30,7 @@ class GameQuitRequest(BaseModel):
 
 
 class GameSaveResponse(BaseModel):
-    save_id: PydanticObjectId
+    save_id: PydanticObjectId = Field(..., alias="_id")
     name: str
     saved_at: datetime
 

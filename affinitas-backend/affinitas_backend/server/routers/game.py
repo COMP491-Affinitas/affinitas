@@ -22,6 +22,7 @@ router = APIRouter(prefix="/game", tags=["game"])
 @router.get(
     "/load",
     response_model=GameSavesResponse,
+    response_model_by_alias=False,
     summary="Lists all game saves",
     description="Returns a list of all game saves for the client. "
                 "The response includes the save ID, name, and saved date. "
