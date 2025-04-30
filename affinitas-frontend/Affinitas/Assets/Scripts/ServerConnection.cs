@@ -68,6 +68,8 @@ public class ServerConnection : MonoBehaviour
     const string serverURL = "https://affinitas.onrender.com";
     static readonly HttpClient client = new HttpClient();
 
+    public bool canSendMessage = true;
+
     public Dictionary<int, string> serverDirectoriesDict = new Dictionary<int, string>{
         { (int)ServerDirectory.load, "/game/load" },
         { (int)ServerDirectory.npc, "/npcs/" },
@@ -76,20 +78,51 @@ public class ServerConnection : MonoBehaviour
 
     HttpResponseMessage response;
 
-    private void Awake()
-    {   
-        if (Instance == null)
+    private void Start()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
-        else if (Instance != this)
-        {
-            Destroy(gameObject);
-        }
     }
-  
-    
+
+    // To be called from other classes in game when they are done with current server communication
+    public void OnServerMessageReceived()
+    {
+        canSendMessage = true;
+    }
+
+
+    //async void Start()
+    //{
+    //    await LoadGame();
+    //}
+
+    //async void InitGame()
+    //{
+    //    LoadGameRequest message = new LoadGameRequest("");
+    //    ServerResponse serverResponse = await SendLoadGameRequest(message, ServerDirectory.init);
+    //    if (serverResponse != null)
+    //    {
+    //        GameManager.Instance.gameId = serverResponse.
+    //    }
+
+    //}
+
+    //async void LoadGame()
+    //{
+
+    //    LoadGameRequest message = new LoadGameRequest("")
+
+    //    await SendLoadGameRequest(message, ServerDirectory.load);
+    //}
+
+
     // Send and Get Generic Response from Server
     public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath, HttpMethod method = null)
     {

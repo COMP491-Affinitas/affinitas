@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
@@ -10,19 +11,26 @@ public class UIManager : MonoBehaviour
     [SerializeField]
     GameObject mainPanel;
     [SerializeField]
-    GameObject[] minigamePanels;
+    GameObject endingPanel;
 
     [SerializeField]
     Toggle fullscreenToggle;
 
+    private void Awake()
+    {
+        DontDestroyOnLoad(gameObject);
+    }
+
     private void Start()
-    {  
+    {
+        InitiliazePanels();   
+    }
+
+    void InitiliazePanels()
+    {
         settingsPanel.SetActive(false);
         mainPanel.SetActive(false);
-        foreach (var panel in minigamePanels)
-        {
-            panel.SetActive(false);
-        }
+        endingPanel.SetActive(false);
         menuPanel.SetActive(true);
     }
 
@@ -30,6 +38,7 @@ public class UIManager : MonoBehaviour
     {
         menuPanel.SetActive(false);
         settingsPanel.SetActive(false);
+        endingPanel.SetActive(false);
         mainPanel.SetActive(true);
     }
 
@@ -37,7 +46,22 @@ public class UIManager : MonoBehaviour
     {
         mainPanel.SetActive(false);
         settingsPanel.SetActive(false);
+        endingPanel.SetActive(false);
         menuPanel.SetActive(true);
+    }
+
+    public void OpenEndingPanel()
+    {
+        mainPanel.SetActive(false);
+        settingsPanel.SetActive(false);
+        menuPanel.SetActive(false);
+        endingPanel.SetActive(true);
+    }
+
+    // Call from minigame buttons with correct indexing
+    public void OpenMinigameScreen(string minigameSceneName)
+    {
+        SceneManager.LoadScene(minigameSceneName);
     }
 
     // Make sure that SettingsPanel is above all other panels in hierarchy (at the bottom of list)
@@ -82,4 +106,6 @@ public class UIManager : MonoBehaviour
         else
             fullscreenToggle.isOn = false;
     }
+
+
 }

@@ -17,7 +17,7 @@ namespace MainGame
         public void GetQuestButton()
         {
             //TODO: SERVER SYSTEM CALL
-            addDialogueBox.AddNpcDialogueBox("Hey your quest is to go adrgasd");
+            addDialogueBox.AddNpcDialogueBox("Hey your quest is to go adrgasd", null);
         }
     }
 }

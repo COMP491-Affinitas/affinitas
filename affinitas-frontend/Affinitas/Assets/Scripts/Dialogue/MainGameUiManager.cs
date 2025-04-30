@@ -7,13 +7,28 @@ namespace MainGame
     {
         [SerializeField]
         GameObject journalPanel;
+        [SerializeField]
+        GameObject[] journalTabPanels;
 
         [SerializeField]
+        GameObject mapPanel;
+        [SerializeField]
+        GameObject[] npcDialoguePanels;
+
         GameObject daysLeftPanel;
 
         private void Start()
         {
-            journalPanel.SetActive(false);
+            InitilizeMainPanels();
+        }
+
+        void InitilizeMainPanels()
+        {
+            CloseJournalPanel();
+            OpenJournalTab(1);
+            UpdateDaysLeftPanel();
+            OpenMapPanel();
+            OpenCharacterDialogue(-1);
         }
 
         // Call from Open Journal button
@@ -33,6 +48,33 @@ namespace MainGame
         public void UpdateDaysLeftPanel()
         {
             daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = "Day No: " + GameManager.Instance.dayNo.ToString();
+        }
+
+        // Call when Tab buttons are clicked
+        // indexing starts at 1 for NPC1
+        public void OpenJournalTab(int index)
+        {
+            for (int i = 0; i < journalTabPanels.Length; i++)
+            {
+                journalTabPanels[i].SetActive(i == (index-1));
+            }
+        }
+
+        // Call when House button is pressed for corresponding NPC
+        // indexing starts at 1 for NPC1
+        public void OpenCharacterDialogue(int index)
+        {
+            mapPanel.SetActive(false);
+            for (int i = 0; i < npcDialoguePanels.Length; i++)
+            {
+                npcDialoguePanels[i].SetActive(i == (index-1));
+            }
+        }
+
+        // Call from Go to Map button
+        public void OpenMapPanel()
+        {
+            mapPanel.SetActive(true);
         }
     }
 }
