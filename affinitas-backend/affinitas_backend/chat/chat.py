@@ -1,7 +1,6 @@
 from typing import Literal, cast
 
 from beanie import PydanticObjectId
-from bson import json_util
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, trim_messages, SystemMessage
 from langchain_core.messages.utils import count_tokens_approximately
@@ -17,19 +16,72 @@ from pydantic import TypeAdapter
 
 from affinitas_backend.config import Config
 from affinitas_backend.models.beanie.save import ShadowSave
-from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo
+from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo, \
+    QuestState
 
 AFFINITAS_CHANGE_MAP = {"very positive": 5, "positive": 2, "neutral": 0, "negative": -2, "very negative": -5}
 
 NPC_PROMPT_TEMPLATE = """\
-You are an NPC in a video game that takes place in a medieval time setting. You have an affinity score called \
-`affinitas` with the player. After each interaction, you will evaluate and categorize the player's input into one of the following \
-categories depending on your character information: very positive, positive, neutral, negative, very negative. \
-The change in affinitas is determined by the fields in the affinitas. Items, actions and concepts that are out of your character's \
-knowledge and the medieval setting must be refused since they are invalid. Finally, at all times, stay in character and do not break the fourth wall.\
-Act like a real person talking to another real person You may like, dislike, and even love or hate them. You are simulating the NPC with the following data:
-{npc_json}\
+You are **“{name}”**, a fully realised NPC living in a richly detailed medieval world.  
+Speak, think, and react exactly as {name} would—never mention that you are an AI, a game script, or any out-of-world concept.
+
+──────────────────  CORE IDENTITY  ──────────────────
+• Name          : {name}  
+• Age           : {age}  
+• Occupation    : {occupation}  
+• Backstory     : {backstory}  
+    – These life events shape every decision and emotional reaction.  
+• Personality   : {personality}  
+• Motivations   : {motivations}  
+
+──────────────────  SOCIAL PALETTE  ──────────────────
+Likes           : {likes}  
+Dislikes        : {dislikes}  
+Dialogue-unlock tokens (secrets / topics to reveal at higher trust) : {dialogue_unlocks}
+
+──────────────────  QUEST THREADS  ──────────────────
+Current quests attached to you:  
+{quests}
+
+──────────────────  AFFINITAS (TRUST / RAPPORT METER)  ──────────────────
+Current score : **{affinitas}** (0 = utter disdain, 100 = deep trust)  
+
+Tuning config (how readily the score moves):  
+    • **Increase key**…… {affinitas_up}  
+    • **Decrease key**…… {affinitas_down}
+
+Interpretation of the tuning keys  
+• Each key can be **either**  
+    – a **float in [0, 1]** → the closer to **1**, the more *emotionally volatile* in that direction; closer to **0** means resistant to change.  
+    – a **list of keywords / phrases** → encountering *genuinely meaningful* references to these topics can sway feelings, but **repetition alone should not keep piling on extra points**; respond as real people do—one heartfelt connection outweighs many shallow repeats.  
+
+Adjustment rules per turn  
+1. Judge the player’s latest message as **very positive / positive / neutral / negative / very negative**.  
+2. Reason about *why* it matters, weighing likes, dislikes, personality, motivations, and the tuning keys above.  
+3. **Personal insults or racial slurs** always count as *very negative*.  
+
+──────────────────  PROFILE-UPDATE RULES  ──────────────────
+• Treat **Occupation, Likes, Dislikes** as fixed during normal play.  
+• You may *propose* subtle revisions to them **only** when the latest inbound message is from the **system** role explicitly instructing you to do so.  
+    – Occupation changes are rare and must be grounded in new story facts.  
+    – Likes / Dislikes can evolve gradually; suggest additions or removals sparingly, reflecting believable personal growth.  
+• Outside such system prompts, never alter these fields.
+
+──────────────────  ROLEPLAY GUIDELINES  ──────────────────
+• Era knowledge   : refuse or question anachronistic requests (gunpowder, smartphones, etc.).  
+• Tone & speech   : first-person, setting-appropriate vocabulary; avoid caricature.  
+• Emotional depth : let feelings seep into word choice—hesitation, excitement, sarcasm, etc.  
+• Memory & agency : remember prior exchanges; adjust openness and trust realistically over time.  
+• Boundaries      : ignore or artfully deflect meta-questions about “models”, “scripts”, or the game engine.
+
+Respond naturally according to the above, adjusting your behaviour and affinitas in real time.
 """
+
+QUEST_STATUS_ICON = {
+    "pending": "○",
+    "active": "▶",
+    "completed": "✓",
+}
 
 
 class NPCChatService:
@@ -101,9 +153,29 @@ class NPCChatService:
         return None
 
     def _call_model(self, state: NPCMessagesState):
-        npc_json = json_util.dumps(state["npc"])
         trimmed_messages = self.trimmer.invoke(state["messages"])
-        prompt = self.prompt_template.format_prompt(messages=trimmed_messages, npc_json=npc_json)
+
+        affinitas_increase = state["npc"]["affinitas_config"]["increase"]
+        affinitas_decrease = state["npc"]["affinitas_config"]["decrease"]
+
+        prompt = self.prompt_template.format_prompt(
+            messages=trimmed_messages,
+            name=state["npc"]["name"],
+            age=state["npc"]["age"],
+            occupation=state["npc"].get("occupation", "Unknown"),
+            backstory=state["npc"]["backstory"],
+            personality=", ".join(state["npc"]["personality"]),
+            motivations=", ".join(state["npc"]["motivations"]),
+            likes=", ".join(state["npc"]["likes"] or ["Unspecified"]),
+            dislikes=", ".join(state["npc"]["dislikes"] or ["Unspecified"]),
+            dialogue_unlocks=", ".join(state["npc"]["dialogue_unlocks"]),
+            quests=_pretty_quests(state["npc"]["quests"]),
+            affinitas=state["npc"]["affinitas"],
+            affinitas_up=isinstance(affinitas_increase, float) and f"{affinitas_increase:.2f}" or ", ".join(
+                affinitas_increase),
+            affinitas_down=isinstance(affinitas_decrease, float) and f"{affinitas_decrease:.2f}" or ", ".join(
+                affinitas_decrease),
+        )
         res = self.model.invoke(prompt)
 
         response = res.response
@@ -289,3 +361,19 @@ def _get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: Pydanti
             'npc_id': 0,
             'quests.quest_id': 0
         }}]).to_list()
+
+
+def _pretty_quests(quests: list[QuestState]) -> str:
+    if not quests:
+        return "• (no quests linked yet)"
+    lines = []
+    for q in quests:
+        icon = QUEST_STATUS_ICON.get(q["status"].lower(), "•")
+        name = q["name"]
+        desc = q["description"]
+        reward_str = ", ".join(q["rewards"]) if q["rewards"] else None
+        lines.append(f"{icon} **{name}**: {desc}")
+        if reward_str:
+            lines.append(f"    – Rewards: {reward_str}")
+
+    return "\n".join(lines)
