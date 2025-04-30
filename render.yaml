@@ -3,8 +3,8 @@ services:
     name: affinitas-backend
     runtime: python
     plan: free
-    buildCommand: pip install uv && uv pip sync --active
-    startCommand: uv --active run fastapi run affinitas_backend/server/main.py
+    buildCommand: pip install uv && uv pip sync uv.lock
+    startCommand: UV_VIRTUAL_ENV=1 uv run fastapi run affinitas_backend/server/main.py
     region: frankfurt
     repo: https://github.com/COMP491-Affinitas/affinitas.git
     branch: wip/chat-routes
