@@ -1,22 +1,17 @@
 import logging
-import os
 
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
+from affinitas_backend.config import Config
 from affinitas_backend.models.beanie.npc import NPC
 from affinitas_backend.models.beanie.save import Save, ShadowSave, DefaultSave
 
 
-# Load variables
-def load_config():
-    return os.getenv("MONGODB_URI"), os.getenv("MONGODB_DBNAME")
-
-
 async def init_db():
-    uri, dbname = load_config()
-    client = AsyncIOMotorClient(uri)
-    await init_beanie(database=client[dbname], document_models=[NPC, Save, ShadowSave, DefaultSave])
+    config = Config()  # noqa
+    client = AsyncIOMotorClient(config.mongodb_uri, uuidRepresentation="standard")
+    await init_beanie(database=client[config.mongodb_dbname], document_models=[NPC, Save, ShadowSave, DefaultSave])
     await test_connection(client)
 
     return client

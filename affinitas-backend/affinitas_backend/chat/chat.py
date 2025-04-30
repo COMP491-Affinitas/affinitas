@@ -1,4 +1,3 @@
-import os
 from typing import Literal, cast
 
 from beanie import PydanticObjectId
@@ -8,63 +7,17 @@ from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, trim_m
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
+from langchain_core.tracers import LangChainTracer
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, END, StateGraph
+from langsmith import Client
+from langsmith.wrappers import wrap_openai
+from openai import OpenAI
 from pydantic import TypeAdapter
 
+from affinitas_backend.config import Config
 from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo
-
-
-def call_model(state: NPCMessagesState):
-    npc_json = json_util.dumps(state["npc"])
-    trimmed_messages = trimmer.invoke(state["messages"])
-    prompt = prompt_template.format_prompt(messages=trimmed_messages, npc_json=npc_json)
-    res = model.invoke(prompt)
-
-    response = res.response
-    affinitas_change = res.affinitas_change
-
-    occupation = res.delta.occupation
-    likes = res.delta.likes
-    dislikes = res.delta.dislikes
-
-    return {
-        "messages": [AIMessage(response)],
-        "npc": update_npc(
-            state["npc"],
-            affinitas_change=AFFINITAS_CHANGE_MAP[affinitas_change],
-            occupation=occupation,
-            likes=likes,
-            dislikes=dislikes
-        ),
-    }
-
-
-def append_message(state: NPCMessagesState):
-    return {"messages": [], "npc": state["npc"]}
-
-
-def get_next_node(state: NPCMessagesState) -> Literal["call", "__end__"]:
-    if state["invoke_model"]:
-        return "call"
-    else:
-        return END
-
-
-model = init_chat_model(
-    model=os.getenv("OPENAI_MODEL_NAME"),
-    model_provider="openai",
-).with_structured_output(OpenAI_NPCChatResponse)
-
-workflow = StateGraph(state_schema=NPCMessagesState)
-workflow.add_node("call", call_model)
-workflow.add_node("append", append_message)
-workflow.add_edge(START, "append")
-workflow.add_conditional_edges("append", get_next_node)
-
-memory = MemorySaver()
-app = workflow.compile(checkpointer=memory)
 
 AFFINITAS_CHANGE_MAP = {"very positive": 5, "positive": 2, "neutral": 0, "negative": -2, "very negative": -5}
 
@@ -78,58 +31,152 @@ Act like a real person talking to another real person You may like, dislike, and
 {npc_json}\
 """
 
-trimmer = trim_messages(
-    max_tokens=int(os.getenv("LANGCHAIN_MAX_TOKENS") or 30_000),
-    include_system=True,
-    start_on="human",
-    token_counter=count_tokens_approximately
-)
 
-prompt_template = ChatPromptTemplate.from_messages([
-    ("system", NPC_PROMPT_TEMPLATE),
-    MessagesPlaceholder(variable_name="messages")
-])
+class NPCChatService:
+    def __init__(self, config: Config):
+        self.config = config
+        self.model = init_chat_model(
+            model=config.openai_model_name,
+            model_provider="openai",
+            api_key=config.openai_api_key,
+        ).with_structured_output(OpenAI_NPCChatResponse)
 
+        if self.config.langsmith_tracing:
+            self._init_langsmith()
 
-async def get_response(
-        message: BaseMessage, npc_id: PydanticObjectId,
-        shadow_save_id: PydanticObjectId,
-) -> None | tuple[str, dict[str, str | int]]:
-    thread_id = await get_thread_id(shadow_save_id, npc_id)
+        self.trimmer = trim_messages(
+            max_tokens=config.langchain_max_tokens,
+            include_system=True,
+            start_on="human",
+            token_counter=count_tokens_approximately
+        )
 
-    if thread_id is None:
-        raise ValueError(f"Thread ID not found for NPC ID {npc_id} and ShadowSave ID {shadow_save_id}")
+        self.prompt_template = ChatPromptTemplate.from_messages([
+            ("system", NPC_PROMPT_TEMPLATE),
+            MessagesPlaceholder(variable_name="messages")
+        ])
 
-    state = get_state(thread_id)
+        workflow = StateGraph(state_schema=NPCMessagesState)
+        workflow.add_node("call", self._call_model)
+        workflow.add_node("append", _append_message)
+        workflow.add_edge(START, "append")
+        workflow.add_conditional_edges("append", _get_next_node)
 
-    if state:
-        npc = state["npc"]
-        chat_history = []
-    else:
-        npc, chat_history = await get_npc_state(shadow_save_id, npc_id)
-        if npc is None:
-            raise ValueError(f"NPC with ID {npc_id} not found")
+        memory = MemorySaver()
+        self.app = workflow.compile(checkpointer=memory)
 
-    invoke_model = isinstance(message, HumanMessage)
-    res = app.invoke({
-        "messages": chat_history + [message],
-        "npc": npc,
-        "invoke_model": invoke_model,
-    }, config=cast(RunnableConfig, {"configurable": {"thread_id": thread_id}}))
+    async def get_response(
+            self, message: BaseMessage, npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId,
+    ) -> None | tuple[str, dict[str, str | int]]:
+        thread_id = await _get_thread_id(shadow_save_id, npc_id)
 
-    if invoke_model:
-        return res["messages"][-1].content, {
-            "affinitas": res["npc"]["affinitas"],
-            "occupation": res["npc"]["occupation"],
-            "likes": res["npc"]["likes"],
-            "dislikes": res["npc"]["dislikes"],
+        if thread_id is None:
+            raise ValueError(f"Thread ID not found for NPC ID {npc_id} and ShadowSave ID {shadow_save_id}")
+
+        state = self._get_state(thread_id)
+
+        if state:
+            npc = state["npc"]
+            chat_history = []
+        else:
+            npc, chat_history = await self._get_npc_state(shadow_save_id, npc_id)
+            if npc is None:
+                raise ValueError(f"NPC with ID {npc_id} not found")
+
+        invoke_model = isinstance(message, HumanMessage)
+        res = self.app.invoke({
+            "messages": chat_history + [message],
+            "npc": npc,
+            "invoke_model": invoke_model,
+        }, config=cast(RunnableConfig, {"configurable": {"thread_id": thread_id}}))
+
+        if invoke_model:
+            return res["messages"][-1].content, {
+                "affinitas": res["npc"]["affinitas"],
+                "occupation": res["npc"]["occupation"],
+                "likes": res["npc"]["likes"],
+                "dislikes": res["npc"]["dislikes"],
+            }
+
+        return None
+
+    def _call_model(self, state: NPCMessagesState):
+        npc_json = json_util.dumps(state["npc"])
+        trimmed_messages = self.trimmer.invoke(state["messages"])
+        prompt = self.prompt_template.format_prompt(messages=trimmed_messages, npc_json=npc_json)
+        res = self.model.invoke(prompt)
+
+        response = res.response
+        affinitas_change = res.affinitas_change
+
+        occupation = res.delta.occupation
+        likes = res.delta.likes
+        dislikes = res.delta.dislikes
+
+        return {
+            "messages": [AIMessage(response)],
+            "npc": _update_npc(
+                state["npc"],
+                affinitas_change=AFFINITAS_CHANGE_MAP[affinitas_change],
+                occupation=occupation,
+                likes=likes,
+                dislikes=dislikes
+            ),
         }
 
-    return None
+    def _get_state(self, thread_id: str) -> NPCMessagesState | None:
+        state = self.app.get_state({"configurable": {"thread_id": thread_id}})
+
+        return state.values
+
+    async def _get_npc_state(self, shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> tuple[
+        NPCState | None, list[BaseMessage]]:
+        npc_data = await _get_shadow_save_npc_state(shadow_save_id, npc_id)
+
+        if npc_data:
+            npc = npc_data[0]
+            chat_history = npc.pop("chat_history")
+
+            if self.config.env == "dev":  # TODO: Remove this after confirming the npc_data has the correct structure
+                npc_state_validator = TypeAdapter(NPCState)
+                npc_state_validator.validate_python(npc, strict=True)
+
+            return cast(NPCState, npc), [get_message(message[0], message[1]) for message in chat_history]
+
+        return None, []
+
+    def _init_langsmith(self):
+        client = Client(api_key=self.config.langsmith_api_key, api_url=self.config.langsmith_endpoint)
+        tracer = LangChainTracer(client=client, project_name=self.config.langsmith_project)
+        openai_client = wrap_openai(OpenAI(api_key=self.config.openai_api_key))
+        self.model = self.model.with_config(callbacks=[tracer], client=openai_client)
 
 
-def update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | None = None, likes: list[str] = None,
-               dislikes: list[str] = None) -> NPCState:
+def get_message(role: Literal["user", "ai", "system"], content: str) -> BaseMessage:
+    match role:
+        case "user":
+            return HumanMessage(content)
+        case "ai":
+            return AIMessage(content)
+        case "system":
+            return SystemMessage(content)
+        case _:
+            raise ValueError(f"Unknown message type: {role}")
+
+
+def _append_message(state: NPCMessagesState):
+    return {"messages": [], "npc": state["npc"]}
+
+
+def _get_next_node(state: NPCMessagesState) -> Literal["call", "__end__"]:
+    if state["invoke_model"]:
+        return "call"
+    else:
+        return END
+
+
+def _update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | None = None, likes: list[str] = None,
+                dislikes: list[str] = None) -> NPCState:
     npc = npc.copy()
 
     if affinitas_change:
@@ -150,42 +197,7 @@ def update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | No
     return npc
 
 
-def get_state(thread_id: str) -> NPCMessagesState | None:
-    state = app.get_state({"configurable": {"thread_id": thread_id}})
-
-    return state.values
-
-
-async def get_npc_state(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> tuple[
-    NPCState | None, list[BaseMessage]]:
-    npc_data = await get_shadow_save_npc_state(shadow_save_id, npc_id)
-
-    if npc_data:
-        npc = npc_data[0]
-        chat_history = npc.pop("chat_history")
-
-        if os.getenv("ENV") == "dev":  # TODO: Remove this after confirming the npc_data has the correct structure
-            npc_state_validator = TypeAdapter(NPCState)
-            npc_state_validator.validate_python(npc, strict=True)
-
-        return cast(NPCState, npc), [get_message(message[0], message[1]) for message in chat_history]
-
-    return None, []
-
-
-def get_message(role: Literal["user", "ai", "system"], content: str) -> BaseMessage:
-    match role:
-        case "user":
-            return HumanMessage(content)
-        case "ai":
-            return AIMessage(content)
-        case "system":
-            return SystemMessage(content)
-        case _:
-            raise ValueError(f"Unknown message type: {role}")
-
-
-async def get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> str | None:
+async def _get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> str | None:
     res = (
         await ShadowSave
         .find(ShadowSave.id == shadow_save_id)
@@ -199,7 +211,7 @@ async def get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObject
     return None
 
 
-def get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId):
+def _get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId):
     return ShadowSave.aggregate([
         {'$match': {
             '_id': shadow_save_id

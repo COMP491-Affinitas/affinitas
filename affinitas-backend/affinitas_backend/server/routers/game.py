@@ -1,6 +1,5 @@
 import datetime
 import logging
-import os
 import uuid
 from typing import Any
 
@@ -10,6 +9,7 @@ from fastapi.routing import APIRouter
 from pymongo.errors import DuplicateKeyError
 from starlette import status
 
+from affinitas_backend.config import Config
 from affinitas_backend.models.beanie.save import Save, ShadowSave, DefaultSave
 from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadResponse, GameLoadRequest, GameSaveRequest, \
     GameSaveResponse, GameQuitRequest, GameDataResponse
@@ -18,11 +18,11 @@ from affinitas_backend.server.limiter import limiter
 
 router = APIRouter(prefix="/game", tags=["game"])
 
+config = Config()  # noqa
 
 @router.get(
     "/load",
     response_model=GameSavesResponse,
-    response_model_by_alias=False,
     summary="Lists all game saves",
     description="Returns a list of all game saves for the client. "
                 "The response includes the save ID, name, and saved date. "
@@ -31,15 +31,21 @@ router = APIRouter(prefix="/game", tags=["game"])
 )
 @limiter.limit("3/minute")
 async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
-    saves = (
-        await Save
-        .find(Save.client_uuid == x_client_uuid)
-        .sort(-Save.saved_at)  # noqa
-        .project(GameSaveResponse)
-        .to_list()
-    )
+    saves = await Save.aggregate([
+        {"$match": {"client_uuid": x_client_uuid}},
+        {"$sort": {"saved_at": -1}},
+        {"$project": {
+            "_id": 1,
+            "name": 1,
+            "saved_at": 1,
+        }},
+        {"$set": {"save_id": "$_id"}},
+        {"$unset": ["_id"]},
+    ]).to_list()
 
-    return GameSavesResponse(saves=saves)
+    return GameSavesResponse(saves=[
+        GameSaveResponse.model_validate(save) for save in saves
+    ])
 
 
 @router.post(
@@ -107,7 +113,6 @@ async def load_game(request: Request, payload: GameLoadRequest, x_client_uuid: X
 @router.post(
     "/save",
     response_model=GameSaveResponse,
-    response_model_by_alias=False,
     summary="Saves a game to the database",
     description="Saves a game to the database and returns the save id, name and the save date. "
                 "The `X-Client-UUID` header must be provided. Save data is taken from the shadow "
@@ -148,7 +153,7 @@ async def save_game(request: Request, payload: GameSaveRequest, x_client_uuid: X
         )
 
     return GameSaveResponse(
-        _id=save_res.id,
+        save_id=save_res.id,
         name=save_res.name,
         saved_at=save_res.saved_at,
     )
@@ -188,13 +193,13 @@ async def quit_game(request: Request, payload: GameQuitRequest, x_client_uuid: X
 @limiter.limit("3/minute")
 async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     save = await DefaultSave.aggregate(
-        get_aggregate_pipeline({"_id": int(os.getenv("DEFAULT_SAVE_VERSION"))})
+        get_aggregate_pipeline({"_id": config.default_save_version})
     ).to_list(1)
 
     if not save:
         throw_500(
             "Failed to create new game: Default save not found",
-            f"Default save version no: {os.getenv("DEFAULT_SAVE_VERSION")}"
+            f"Default save version no: {config.default_save_version}",
         )
 
     save = save[0]
