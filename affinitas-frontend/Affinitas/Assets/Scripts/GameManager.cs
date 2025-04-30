@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading.Tasks;
+using System.Net.Http;
 
 public class GameManager : MonoBehaviour
 {
@@ -40,8 +41,9 @@ public class GameManager : MonoBehaviour
     public async Task GetAuthenticationUUID()
     {
         UuidRequest uuid = new UuidRequest { x_client_uuid = "" };
-        UuidResponse uuidResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, UuidResponse>(uuid, "/auth/uuid");
+        UuidResponse uuidResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, UuidResponse>(uuid, "/auth/uuid", HttpMethod.Post);
         gameId = uuidResponse.uuid;
+        Debug.Log(gameId);
     }
 
     // Get game information from server

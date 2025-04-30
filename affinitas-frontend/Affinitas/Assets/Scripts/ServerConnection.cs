@@ -91,13 +91,19 @@ public class ServerConnection : MonoBehaviour
   
     
     // Send and Get Generic Response from Server
-    public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath)
+    public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath, HttpMethod method = null)
     {
         
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, serverURL + directoryPath);
+        if (method == null) {
+            method = HttpMethod.Post;
+        }
+        
+        var requestMessage = new HttpRequestMessage(method, serverURL + directoryPath);
 
-        string jsonString = JsonUtility.ToJson(message);
-        requestMessage.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+        if (method == HttpMethod.Post) {
+            string jsonString = JsonUtility.ToJson(message);
+            requestMessage.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+        }
 
         // Set the header x-client-uuid
         if (!string.IsNullOrEmpty(GameManager.Instance.gameId))
