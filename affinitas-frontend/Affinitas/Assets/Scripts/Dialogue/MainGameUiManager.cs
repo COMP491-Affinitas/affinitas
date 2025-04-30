@@ -5,30 +5,53 @@ namespace MainGame
 {
     public class MainGameUiManager : MonoBehaviour
     {
-        [SerializeField]
-        GameObject journalPanel;
-        [SerializeField]
-        GameObject[] journalTabPanels;
+        // Singleton
+        public static MainGameUiManager Instance { get; private set; }
 
-        [SerializeField]
-        GameObject mapPanel;
-        [SerializeField]
-        GameObject[] npcDialoguePanels;
+        [SerializeField] GameObject mapPanel;
+        [SerializeField] GameObject daysLeftPanel;
 
-        GameObject daysLeftPanel;
+        [SerializeField] TextMeshProUGUI[] affinitasTextMeshes;
+
+        [SerializeField] GameObject[] npcDialoguePanels;
+        [SerializeField] TMP_InputField[] dialogueInputFields;
+
+        [SerializeField] GameObject journalPanel;
+        [SerializeField] GameObject[] journalTabPanels;
+        [SerializeField] TextMeshProUGUI[] journalTabButtonTextMeshes;
+        [SerializeField] TextMeshProUGUI[] journalTextMeshes;
+
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                Instance = this;
+            }
+        }
 
         private void Start()
         {
             InitilizeMainPanels();
+
+            // Send Text also when user presses Enter
+            foreach (TMP_InputField dialogueInputField in dialogueInputFields)
+            {
+                //TODO: 
+                //dialogueInputField.onSubmit.AddListener((str) => CreateMessageForSendPlayerInput(str));
+            }
         }
 
-        void InitilizeMainPanels()
+        public void InitilizeMainPanels()
         {
             CloseJournalPanel();
             OpenJournalTab(1);
             UpdateDaysLeftPanel();
-            OpenMapPanel();
             OpenCharacterDialogue(-1);
+            OpenMapPanel();
         }
 
         // Call from Open Journal button
@@ -47,7 +70,7 @@ namespace MainGame
         // TODO: if days left is zero, also update End Day button to say End Game!!!
         public void UpdateDaysLeftPanel()
         {
-            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = "Day No: " + GameManager.Instance.dayNo.ToString();
+            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = "Day No: " + MainGameManager.Instance.dayNo.ToString();
         }
 
         // Call when Tab buttons are clicked
@@ -75,6 +98,25 @@ namespace MainGame
         public void OpenMapPanel()
         {
             mapPanel.SetActive(true);
+        }
+
+        // npcId indexing starts from 1
+        public void InitializeNpcUIs(Npc npcData)
+        {
+            int i = npcData.npcId - 1;
+            //npcList.Insert(i, npcData);
+            journalTabButtonTextMeshes[i].text = npcData.npcName;
+            affinitasTextMeshes[i].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
+        }
+
+        void UpdateAffinitasUIs()
+        {
+            // Just iterate over all npcs or use a function that takes npcId
+            foreach (Npc npc in MainGameManager.Instance.npcList)
+            {
+                int i = npc.npcId - 1;
+                affinitasTextMeshes[i].text = npc.npcName + "\nAffinitas: " + npc.affinitasValue.ToString();
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading.Tasks;
 
 [Serializable]
 public class LoadGameRootResponse
@@ -31,6 +32,8 @@ public class LoadGameJournalData
 [Serializable]
 public class LoadGameNpcData
 {
+    // public int npc_no;
+    //public string npc_name;
     public string npc_id;
     public int affinitas;
     public List<LoadGameQuestMeta> quests; // first quest is the main quest
@@ -50,19 +53,55 @@ public class LoadGameQuestMeta
 
 public static class LoadGame
 {
-    public static async void GetLoadGameInfo(string uuid_string)
+    public static async Task GetLoadGameInfo(string uuid_string)
     {
         UuidRequest uuid = new UuidRequest { x_client_uuid = uuid_string };
         LoadGameRootResponse rootResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(uuid, "/game/new", HttpMethod.Get);
+        MainGameManager manager = MainGameManager.Instance;
 
-        GameManager.Instance.dayNo = rootResponse.data.day_no;
-        GameManager.Instance.dailyActionPoints = rootResponse.data.remaining_ap;
+        manager.dayNo = rootResponse.data.day_no;
+        manager.dailyActionPoints = rootResponse.data.remaining_ap;
+
+
         Debug.Log("Game Info");
-        Debug.Log(GameManager.Instance.dailyActionPoints);
-        Debug.Log(GameManager.Instance.dayNo);
-        Debug.Log(rootResponse.data.npcs[0]);
+        Debug.Log(manager.dailyActionPoints);
+        Debug.Log(manager.dayNo);
 
-        var npcDatas = rootResponse.data.npcs;
+        List<LoadGameNpcData> npcDatas = rootResponse.data.npcs;
+        int i = 1;
+        foreach (LoadGameNpcData npcData in npcDatas)
+        {
+            Npc newNpc = new()
+            {
+                //npc_id = npcData.npc_id,
+                npcId = i,
+                npcName = "NPC wowowow" + i.ToString(),
+                affinitasValue = npcData.affinitas
+            };
+            i++;
+
+            foreach (LoadGameQuestMeta questData in npcData.quests)
+            {
+                Quest newQuest = new()
+                {
+                    name = questData.name,
+                    description = questData.description,
+                    started = questData.started,
+                    status = questData.status
+                };
+                newNpc.questList.Add(newQuest);
+            }
+
+            manager.npcList.Add(newNpc);
+
+            Debug.Log("hello " + newNpc.npcId.ToString() + newNpc.affinitasValue.ToString() + newNpc.npcName);
+        }
+
+        return;
+       
+
+
+
         // for (int i = 0; i < npcDatas.Count; i++)
         // {
         //     LoadGameNpcData npcData = npcDatas[i];

@@ -5,19 +5,13 @@ using System.Net.Http;
 
 public class GameManager : MonoBehaviour
 {
-    // singleton
+    // Singleton
     public static GameManager Instance { get; private set; }
 
     public string gameId;
 
     //ServerResponse serverResponse;
 
-    public Dictionary<int, Npc> npcDict = new();
-    public int dailyActionPoints;
-    public int dayNo;
-
-    public Dictionary<string, bool> dialoguesDict = new();
-    public Dictionary<string, bool> questDict = new();
 
     private async void Start()
     {
@@ -31,7 +25,7 @@ public class GameManager : MonoBehaviour
             DontDestroyOnLoad(gameObject);
         }
         await GetAuthenticationUUID();
-        LoadGameWithUUID();
+        await LoadGameWithUUID();
     }
 
     // Get New UUID from server
@@ -44,83 +38,81 @@ public class GameManager : MonoBehaviour
     }
 
     // Get game information from server
-    public void LoadGameWithUUID()
+    public async Task LoadGameWithUUID()
     {
-        //LoadGame.GetLoadGameInfo(gameId);
+        await LoadGame.GetLoadGameInfo(gameId);
+        MainGameManager.Instance.InitializeNpcsUis();
+        return;
     }
 
-    void InitializeNpcs()
-    {
-        //TODO: Get Npc information from Unity connection
-        //npcList = new Npc[3];
-        //Npc currNpc;
+    //public void InitializeNpc(string ncp_id) // int npcId
+    //{
+    //    // npcId should be int
 
-        //for (int i = 0; i < npcList.Length; i++)
-        //{
-        //    // Random affinitas values for now
-        //    currNpc = new Npc(i, npcNames[i], i * 10);
-        //    string[] questList = { "Say hello to the world." };
-        //    currNpc.AddQuestList(questList);
 
-        //    npcUiList[i].InitializeNpc(currNpc);
 
-        //    npcList[i] = currNpc;
-        //}
+    //    //TODO: Get Npc information from Unity connection
+    //    //npcList = new Npc[3];
+    //    //Npc currNpc;
 
-<<<<<<< HEAD
-        var alice = new Npc(1, "Alice", 10, new List<Npc.Quest>());
-        var bob = new Npc(2, "Bob", 20, new List<Npc.Quest>());
-=======
-        //var alice = new Npc(1, "Alice", 10);
-        //var bob = new Npc(2, "Bob", 20);
->>>>>>> frontend-panels
+    //    //for (int i = 0; i < npcList.Length; i++)
+    //    //{
+    //    //    // Random affinitas values for now
+    //    //    currNpc = new Npc(i, npcNames[i], i * 10);
+    //    //    string[] questList = { "Say hello to the world." };
+    //    //    currNpc.AddQuestList(questList);
 
-        //npcDict[alice.npcId] = alice;
-        //npcDict[bob.npcId] = bob;
+    //    //    npcUiList[i].InitializeNpc(currNpc);
 
-    }
+    //    //    npcList[i] = currNpc;
+    //    //}
 
-    void InitializeInteractionDicts()
-    {
-        foreach (Npc npc in npcDict.Values)
-        {
-            dialoguesDict[npc.npcName] = false;
-            questDict[npc.npcName] = false;
-        }
-    }
 
-    // TODO: This info should come from server
-    void InitializeGame()
-    {
-        dailyActionPoints = 15;
-        dayNo = 1;
-    }
+    //    //var alice = new Npc(1, "Alice", 10, new List<Npc.Quest>());
+    //    //var bob = new Npc(2, "Bob", 20, new List<Npc.Quest>());
 
-    public async void SendAndReceiveFromServer(ClientResponse message, string directory)
-    {
-        // Send player input message to server
-        ServerResponse serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<ClientResponse, ServerResponse>(message, directory);
 
-        if (serverResponse == null)
-        {
-            return;
-        }
+    //    //npcDict[alice.npcId] = alice;
+    //    //npcDict[bob.npcId] = bob;
 
-        // TODO: Write code to add NPC dialogue box on screen
-        // TODO: Update journal page with summary
+    //}
 
-        // Update everything
-        Npc npc = npcDict[serverResponse.npcId];
-        npc.affinitasValue = serverResponse.affinitasChange;
+    //void InitializeInteractionDicts()
+    //{
+    //    foreach (Npc npc in npcDict.Values)
+    //    {
+    //        dialoguesDict[npc.npcName] = false;
+    //        questDict[npc.npcName] = false;
+    //    }
+    //}
 
-    }
+    //// TODO: This info should come from server
+    //void InitializeGame()
+    //{
+    //    dailyActionPoints = 15;
+    //    dayNo = 1;
+    //}
 
-    //Call when End Day button is pressed
-    public void EndDay()
-    {
-        dayNo += 1;
-        dailyActionPoints = 15;
-    }
+    //public async void SendAndReceiveFromServer(ClientResponse message, string directory)
+    //{
+    //    // Send player input message to server
+    //    ServerResponse serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<ClientResponse, ServerResponse>(message, directory);
+
+    //    if (serverResponse == null)
+    //    {
+    //        return;
+    //    }
+
+    //    // TODO: Write code to add NPC dialogue box on screen
+    //    // TODO: Update journal page with summary
+
+    //    // Update everything
+    //    Npc npc = npcDict[serverResponse.npcId];
+    //    npc.affinitasValue = serverResponse.affinitasChange;
+
+    //}
+
+    
 
     // calculate how mnay actşon points left
     void CalculateActionPoints()

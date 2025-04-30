@@ -78,7 +78,7 @@ public class ServerConnection : MonoBehaviour
 
     HttpResponseMessage response;
 
-    private void Start()
+    private void Awake()
     {
         if (Instance != null && Instance != this)
         {

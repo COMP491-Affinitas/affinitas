@@ -1,64 +1,74 @@
 using UnityEngine;
-using TMPro;
 using System.Collections.Generic;
 
 public class Npc
 {
     public int npcId;
+    //public string npc_id; // this comes from database
     public string npcName;
     public int affinitasValue;
+    public List<Quest> questList = new(); // First quest is main quest, others subquests
+    public List<string> dialogueSummary = new(); // One dialogue summary for each day
+}
 
-    // First quest is main quest, others subquests
-    public List<string> questList = new();
-    public List<int> questStatus = new();
-    // One dialogue summary for each day
-    public List<string> dialogueSummary = new();
+public class Quest
+{
+    public string name;
+    public string description;
+    public bool started;
+    public string status;
 }
 
 public class MainGameManager : MonoBehaviour
 {
-    List<Npc> npcList = new(6);
+    // Singleton
+    public static MainGameManager Instance { get; private set; }
 
-    [SerializeField]
-    TextMeshProUGUI[] affinitasTextMeshes;
+    public List<Npc> npcList = new(6);
+    //public Dictionary<string, Npc> npcDict = new();
+    public int dailyActionPoints;
+    public int dayNo;
 
-    [SerializeField]
-    GameObject[] dialogueContents;
-    [SerializeField]
-    TMP_InputField[] dialogueInputFields;
+    public Dictionary<string, bool> dialoguesDict = new();
+    public Dictionary<string, bool> questDict = new();
 
-    [SerializeField]
-    TextMeshProUGUI[] journalTabButtonTextMeshes;
-    [SerializeField]
-    TextMeshProUGUI[] journalTextMeshes;
-
-    private void Start()
+    private void Awake()
     {
-        // Send Text also when user presses Enter
-        foreach (TMP_InputField dialogueInputField in dialogueInputFields)
+        if (Instance != null && Instance != this)
         {
-            //TODO: 
-            //dialogueInputField.onSubmit.AddListener((str) => CreateMessageForSendPlayerInput(str));
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
         }
     }
-        
-    // npcId indexing starts from 1
-    public void InitializeNpc(Npc npcData)
+
+    //Call when End Day button is pressed
+    public void EndDay()
     {
-        int i = npcData.npcId -1;
-        npcList.Insert(i, npcData);
-        journalTabButtonTextMeshes[i].text = npcData.npcName;
-        affinitasTextMeshes[i].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
-        //npc.OnAffinitasChanged += UpdateAffinitasUI;
+        if (dayNo > 9)
+            return;
+            // End game panel
+
+        // Check dailyActionPoints and end day accordingly
+        //if (dailyActionPoints)
+        dayNo += 1;
+        dailyActionPoints = 15;
     }
 
-    void UpdateAffinitasUIs()
+    public void InitializeNpcsUis()
     {
-        // Just iterate over all npcs or use a function that takes npcId
         foreach (Npc npc in npcList)
         {
-            int i = npc.npcId -1;
-            affinitasTextMeshes[i].text = npc.npcName + "\nAffinitas: " + npc.affinitasValue.ToString();
+            MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
         }
     }
+
+
+
+
+
+
 }
