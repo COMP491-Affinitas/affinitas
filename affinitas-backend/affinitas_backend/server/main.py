@@ -65,8 +65,15 @@ LLM-driven NPCs.
 ---
 
 ### Roadmap
+* Add order no to NPCs, order by descending.
 * Finish the reserved `/game/chat` route.
+  * May be better to separate into `GET /game/quest/:quest_id` and `POST /game/ending`
 * Add OpenAPI examples for every schema.
+
+#### Non-Urgent
+* Add `DELETE /game/load` to delete a save.
+* Rename game routes.
+* Remove the shadow save ID dependency from game routes.
 """
 
 app = FastAPI(
