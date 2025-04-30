@@ -303,6 +303,7 @@ def get_aggregate_pipeline(match: dict[str, Any], ):
                                 "$mergeObjects": [
                                     "$$npc_save",
                                     {
+                                        "name": "$$npc_config.name",
                                         "affinitas": "$$npc_config.affinitas",
                                         "likes": "$$npc_config.likes",
                                         "dislikes": "$$npc_config.dislikes",

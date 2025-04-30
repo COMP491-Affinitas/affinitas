@@ -13,6 +13,7 @@ class QuestSaveDataResponse(QuestSaveData):
 
 class NPCResponse(BaseModel):
     npc_id: PydanticObjectId
+    name: str
     affinitas: int
     quests: list[QuestSaveDataResponse]
     chat_history: list[MessageLikeRepresentation] = Field(default_factory=list)
