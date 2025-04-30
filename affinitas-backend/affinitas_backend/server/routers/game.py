@@ -107,6 +107,7 @@ async def load_game(request: Request, payload: GameLoadRequest, x_client_uuid: X
 @router.post(
     "/save",
     response_model=GameSaveResponse,
+    response_model_by_alias=False,
     summary="Saves a game to the database",
     description="Saves a game to the database and returns the save id, name and the save date. "
                 "The `X-Client-UUID` header must be provided. Save data is taken from the shadow "
@@ -147,7 +148,7 @@ async def save_game(request: Request, payload: GameSaveRequest, x_client_uuid: X
         )
 
     return GameSaveResponse(
-        save_id=save_res.id,
+        _id=save_res.id,
         name=save_res.name,
         saved_at=save_res.saved_at,
     )
