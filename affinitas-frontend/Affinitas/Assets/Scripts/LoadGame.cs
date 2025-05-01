@@ -32,9 +32,8 @@ public class LoadGameJournalData
 [Serializable]
 public class LoadGameNpcData
 {
-    // public int npc_no;
-    //public string npc_name;
     public string npc_id;
+    public string name;
     public int affinitas;
     public List<LoadGameQuestMeta> quests; // first quest is the main quest
     public List<string> chat_history;
@@ -78,7 +77,7 @@ public static class LoadGame
             {
                 dbNpcId = npcData.npc_id,
                 npcId = i,
-                npcName = "NPC wowowow" + i.ToString(),
+                npcName = npcData.name,
                 affinitasValue = npcData.affinitas
             };
             i++;
@@ -97,36 +96,10 @@ public static class LoadGame
 
             manager.npcList.Add(newNpc);
 
-            Debug.Log("hello " + newNpc.npcId.ToString() + newNpc.affinitasValue.ToString() + newNpc.npcName);
+            Debug.Log("Npc no " + newNpc.npcId.ToString() + ": " + newNpc.npcName + " with Affinitas " + newNpc.affinitasValue.ToString());
         }
 
         return;
-       
-
-
-
-        // for (int i = 0; i < npcDatas.Count; i++)
-        // {
-        //     LoadGameNpcData npcData = npcDatas[i];
-        //     int npcId = i + 1;
-
-        //     var questList = new List<Npc.Quest>();
-        //     foreach (var questMeta in npcData.quests)
-        //     {
-        //         var quest = new Npc.Quest
-        //         {
-        //             name = questMeta.name,
-        //             status = questMeta.status,
-        //             description = questMeta.description,
-        //             reward = questMeta.reward
-        //         };
-        //         questList.Add(quest);
-        //     }
-
-        //     var npc = new Npc(npcId, npcData.npc_name, npcData.affinitas, questList);
-
-        //     GameManager.Instance.npcUiList[i].InitializeNpc(npc);
-        // }
 
         // TODO: Initialize journal info
         // TODO: Initialize item list 

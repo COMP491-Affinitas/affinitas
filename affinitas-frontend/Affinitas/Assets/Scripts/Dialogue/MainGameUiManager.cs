@@ -17,6 +17,7 @@ namespace MainGame
 
         [SerializeField] GameObject[] npcDialoguePanels;
         [SerializeField] TMP_InputField[] dialogueInputFields;
+        [SerializeField] TextMeshProUGUI[] dialoguePanelNameTextMeshes;
 
         [SerializeField] GameObject journalPanel;
         [SerializeField] GameObject[] journalTabPanels;
@@ -36,32 +37,50 @@ namespace MainGame
             }
 
             InitilizeMainPanels();
-            GameManager.Instance.SubscribeToNpcDataLoaded(SetupDialogueListeners);
+            //GameManager.Instance.SubscribeToNpcDataLoaded(SetupDialogueListeners);
         }
 
         
-        private void SetupDialogueListeners()
-        {
-            MainGameManager manager = MainGameManager.Instance;
+        //private void SetupDialogueListeners()
+        //{
+        //    MainGameManager manager = MainGameManager.Instance;
 
-            for (int i = 0; i < dialogueInputFields.Length; i++)
-            {
-                int capturedIndex = i;
-                Npc npc = manager.npcList[i];
-                AddDialogueBox dialogueUI = npcDialoguePanels[i].GetComponent<AddDialogueBox>(); 
+        //    for (int i = 0; i < dialogueInputFields.Length; i++)
+        //    {
+        //        int capturedIndex = i;
+        //        Npc npc = manager.npcList[i];
+        //        AddDialogueBox dialogueUI = npcDialoguePanels[i].GetComponent<AddDialogueBox>();
 
-                dialogueInputFields[i].onSubmit.AddListener(async (str) =>
-                {
-                    dialogueUI.AddPlayerDialogueBox(str, () => { });
-                    string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(str, npc.dbNpcId);
+        //        dialogueInputFields[i].onSubmit.AddListener((str) => SendMessageGetNpcResponse(str, npc));
 
-                    if (!string.IsNullOrEmpty(npcResponse))
-                    {
-                        dialogueUI.AddNpcDialogueBox(npcResponse, () => { });
-                    }
-                });
-            }
-        }
+        //        dialogueInputFields[i].onSubmit.AddListener(async (str) =>
+        //        {
+        //            //dialogueUI.AddPlayerDialogueBox(str, () => { });
+        //            string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(str, npc.dbNpcId);
+
+        //            Debug.Log("npc says: " + npcResponse);
+
+        //            if (!string.IsNullOrEmpty(npcResponse))
+        //            {
+        //                Debug.Log("npc adds: boxxx");
+        //                dialogueUI.AddNpcDialogueBox(npcResponse, null);//ServerConnection.Instance.OnServerMessageReceived);
+        //            }
+        //        });
+        //    }
+        //}
+
+        //public async void SendMessageGetNpcResponse(string playerInput, Npc npc)
+        //{
+        //    string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(playerInput, npc.dbNpcId);
+
+        //    Debug.Log("npc says: " + npcResponse);
+
+        //    if (!string.IsNullOrEmpty(npcResponse))
+        //    {
+        //        Debug.Log("npc adds: boxxx");
+        //        dialogueUI.AddNpcDialogueBox(npcResponse, null);//ServerConnection.Instance.OnServerMessageReceived);
+        //    }
+        //}
 
 
         public void InitilizeMainPanels()
@@ -123,19 +142,15 @@ namespace MainGame
         public void InitializeNpcUIs(Npc npcData)
         {
             int i = npcData.npcId - 1;
-            //npcList.Insert(i, npcData);
             journalTabButtonTextMeshes[i].text = npcData.npcName;
+            dialoguePanelNameTextMeshes[i].text = npcData.npcName;
             affinitasTextMeshes[i].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
         }
 
-        void UpdateAffinitasUIs()
+        public void UpdateNpcAffinitasUi(Npc npcData)
         {
-            // Just iterate over all npcs or use a function that takes npcId
-            foreach (Npc npc in MainGameManager.Instance.npcList)
-            {
-                int i = npc.npcId - 1;
-                affinitasTextMeshes[i].text = npc.npcName + "\nAffinitas: " + npc.affinitasValue.ToString();
-            }
+            affinitasTextMeshes[npcData.npcId - 1].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
         }
+
     }
 }

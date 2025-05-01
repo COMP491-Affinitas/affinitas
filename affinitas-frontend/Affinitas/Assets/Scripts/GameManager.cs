@@ -85,15 +85,21 @@ public class GameManager : MonoBehaviour
         }
 
         // Update NPC data 
-        Npc npc = MainGameManager.Instance.npcList
-            .Find(n => n.dbNpcId == dbNpcId);
+        Npc npc = MainGameManager.Instance.npcList.Find(n => n.dbNpcId == dbNpcId);
 
         if (npc != null)
         {
+            int oldAffinitas = npc.affinitasValue;
             npc.affinitasValue = serverResponse.affinitas_new;
             npc.dialogueSummary.Add(serverResponse.response);
+
+            if (oldAffinitas != npc.affinitasValue)
+            {
+                MainGame.MainGameUiManager.Instance.UpdateNpcAffinitasUi(npc);
+                Debug.Log("old affinitas was:" + oldAffinitas + "updated affinitas is: " + npc.affinitasValue);
+            }
         }
-        
+
         Debug.Log(serverResponse.response);
         return serverResponse.response; 
     }
