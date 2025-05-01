@@ -1,84 +1,62 @@
 using UnityEngine;
-using UnityEngine.Events;
 using TMPro;
-using System.Collections;
-using System;
 
 namespace MainGame
 {
     public class SendText : MonoBehaviour
     {
+        // This code needs to be on DialogueScrollView
         [SerializeField]
-        GameObject playerSpeechBubblePrefab;
+        int npcId;
         [SerializeField]
         TMP_InputField dialogueInputField;
-
-        TextMeshProUGUI bubbleTextMesh;
-        Transform contentTransform;
-        ScrollRectHelper scrollRectHelper;
-
         string playerInput;
+        AddDialogueBox addDialogueBox;
+        ScrollRectHelper scrollRectHelper;
 
         void Start()
         {
-            scrollRectHelper = GetComponent<ScrollRectHelper>();
-            contentTransform = transform.GetChild(0).transform.GetChild(0).transform;
-
             // Send Text also when user presses Enter
             dialogueInputField.onSubmit.AddListener((str) => SendInputtedText());
+            dialogueInputField.onSubmit.AddListener( (str) => SendTextGetNpcResponse(str));
+            addDialogueBox = gameObject.GetComponent<AddDialogueBox>();
+            scrollRectHelper = gameObject.GetComponent<ScrollRectHelper>();
         }
 
+        // Call this from Send Text button
         public void SendInputtedText()
         {
+            if (ServerConnection.Instance.canSendMessage == false)
+                return;
+
             playerInput = dialogueInputField.text;
             if (playerInput == "")
                 return;
-            AddTextBubble(playerInput);
 
+            addDialogueBox.AddPlayerDialogueBox(playerInput, null);
             scrollRectHelper.ScrollToBottom();
 
             dialogueInputField.text = "";
             dialogueInputField.ActivateInputField();
         }
 
-        void AddTextBubble(string playerInp)
+        public async void SendTextGetNpcResponse(string playerInput)
         {
-            GameObject newPlayerSpeechBubble = Instantiate(playerSpeechBubblePrefab);
-            // Using parent:false in SetParent fixes sizing issues for 4K resolution. 
-            newPlayerSpeechBubble.transform.SetParent(contentTransform, false);
+            if (ServerConnection.Instance.canSendMessage == false)
+                return;
 
-            // Make sure TextMesh is first child of bubble gameobject
-            bubbleTextMesh = newPlayerSpeechBubble.transform.GetChild(0).GetComponent<TextMeshProUGUI>();
-            bubbleTextMesh.text = "";
+            ServerConnection.Instance.canSendMessage = false;
 
-            StartCoroutine(AddTextLetterByLetter(bubbleTextMesh, playerInp));
-        }
+            string dbNpcId = MainGameManager.Instance.npcList[npcId-1].dbNpcId;
 
-        IEnumerator AddTextLetterByLetter(TextMeshProUGUI textMesh, string str)
-        {
-            yield return new WaitForSeconds(0.2f);
+            string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(playerInput, dbNpcId);
 
-            for (int i = 0; i < str.Length; i++)
+            if (!string.IsNullOrEmpty(npcResponse))
             {
-                textMesh.text += str[i];
+                addDialogueBox.AddNpcDialogueBox(npcResponse, ServerConnection.Instance.OnServerMessageReceived);
                 scrollRectHelper.ScrollToBottom();
-                yield return new WaitForSeconds(0.05f);
             }
         }
 
-        // Put this instead of AddTextLetterByLetter in AddTextBubble code to use it
-        IEnumerator AddTextWordByWord(TextMeshProUGUI textMesh, string str)
-        {
-            yield return new WaitForSeconds(0.2f);
-
-            string[] words = str.Split(' ');
-
-            for (int i = 0; i < words.Length; i++)
-            {
-                textMesh.text += words[i] + " ";
-                scrollRectHelper.ScrollToBottom();
-                yield return new WaitForSeconds(0.1f);
-            }
-        }
     }
 }

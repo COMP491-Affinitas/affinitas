@@ -5,6 +5,8 @@ using UnityEngine.UI;
 // Add script to Scroll View with ScrollRect element.
 public class ScrollRectHelper : MonoBehaviour
 {
+    // This code needs to be on DialogueScrollView
+
     ScrollRect scrollRect;
 
     bool isScrollCoroutineRunning;
@@ -15,7 +17,7 @@ public class ScrollRectHelper : MonoBehaviour
         scrollRect = GetComponent<ScrollRect>();
         scrollRect.verticalNormalizedPosition = 0f;
 
-        scrollRect.onValueChanged.AddListener((Vector2 pos) => OnUserScroll(pos));
+        //scrollRect.onValueChanged.AddListener((Vector2 pos) => OnUserScroll(pos));
     }
 
     // This is the function is used by a Button or another class.
