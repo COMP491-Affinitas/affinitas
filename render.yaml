@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: affinitas-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install uv && uv pip sync uv.lock
+    startCommand: UV_VIRTUAL_ENV=1 uv run fastapi run affinitas_backend/server/main.py
+    region: frankfurt
+    repo: https://github.com/COMP491-Affinitas/affinitas.git
+    branch: wip/chat-routes
+    rootDir: "affinitas-backend"
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.3
+      - key: PORT
+        value: 8000
+      - key: MONGODB_URI
+        value: ""
+      - key: MONGODB_DBNAME
+        value: ""
+      - key: OPENAI_API_KEY
+        value: ""
+      - key: OPENAI_MODEL_NAME
+        value: ""
+      - key: LANGCHAIN_MAX_TOKENS
+        value: ""
+      - key: LANGSMITH_TRACING
+        value: ""
+      - key: LANGSMITH_ENDPOINT
+        value: ""
+      - key: LANGSMITH_API_KEY
+        value: ""
+      - key: LANGSMITH_PROJECT
+        value: ""
+      - key: ENV
+        value: "production"
+      - key: DEFAULT_SAVE_VERSION
+        value: "0"
