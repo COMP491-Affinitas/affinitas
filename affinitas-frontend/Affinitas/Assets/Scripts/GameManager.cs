@@ -2,28 +2,34 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Threading.Tasks;
 using System.Net.Http;
+using System;
 
 public class GameManager : MonoBehaviour
 {
     // Singleton
     public static GameManager Instance { get; private set; }
+    
+    public event Action OnNpcDataLoaded;
+    private bool npcDataReady = false;
 
     public string gameId;
-
+    public string shadowSaveId;
     //ServerResponse serverResponse;
 
 
-    private async void Start()
+    private void Awake()
     {
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
+            return;
         }
-        else
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private async void Start()
+    {
         await GetAuthenticationUUID();
         await LoadGameWithUUID();
     }
@@ -42,7 +48,54 @@ public class GameManager : MonoBehaviour
     {
         await LoadGame.GetLoadGameInfo(gameId);
         MainGameManager.Instance.InitializeNpcsUis();
-        return;
+        npcDataReady = true;
+        OnNpcDataLoaded?.Invoke();
+    }
+
+    public void SubscribeToNpcDataLoaded(Action listener)
+    {
+        if (npcDataReady)
+            listener?.Invoke();
+        else
+            OnNpcDataLoaded += listener;
+    }
+
+
+    public async Task<string> CreateMessageForSendPlayerInput(string playerInput, string dbNpcId)
+    {
+        string url = $"/npcs/{dbNpcId}/chat";   
+         
+        ClientResponse message = new ClientResponse(
+            role: "user",
+            shadow_save_id: shadowSaveId,
+            content: playerInput
+        );
+
+        
+        ServerResponse serverResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<ClientResponse, ServerResponse>(
+                message, url, HttpMethod.Post
+            );
+        
+
+        if (serverResponse == null)
+        {
+            Debug.LogError("Server returned null response.");
+            return null; 
+        }
+
+        // Update NPC data 
+        Npc npc = MainGameManager.Instance.npcList
+            .Find(n => n.dbNpcId == dbNpcId);
+
+        if (npc != null)
+        {
+            npc.affinitasValue = serverResponse.affinitas_new;
+            npc.dialogueSummary.Add(serverResponse.response);
+        }
+        
+        Debug.Log(serverResponse.response);
+        return serverResponse.response; 
     }
 
     //public void InitializeNpc(string ncp_id) // int npcId

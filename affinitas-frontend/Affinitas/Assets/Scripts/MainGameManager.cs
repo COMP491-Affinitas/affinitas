@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public class Npc
 {
     public int npcId;
-    //public string npc_id; // this comes from database
+    public string dbNpcId; // this comes from database
     public string npcName;
     public int affinitasValue;
     public List<Quest> questList = new(); // First quest is main quest, others subquests

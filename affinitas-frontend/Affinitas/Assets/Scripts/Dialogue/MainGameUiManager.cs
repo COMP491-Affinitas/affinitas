@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 
@@ -21,7 +23,8 @@ namespace MainGame
         [SerializeField] TextMeshProUGUI[] journalTabButtonTextMeshes;
         [SerializeField] TextMeshProUGUI[] journalTextMeshes;
 
-        private void Awake()
+
+        private void Start()
         {
             if (Instance != null && Instance != this)
             {
@@ -31,19 +34,35 @@ namespace MainGame
             {
                 Instance = this;
             }
+
+            InitilizeMainPanels();
+            GameManager.Instance.SubscribeToNpcDataLoaded(SetupDialogueListeners);
         }
 
-        private void Start()
+        
+        private void SetupDialogueListeners()
         {
-            InitilizeMainPanels();
+            MainGameManager manager = MainGameManager.Instance;
 
-            // Send Text also when user presses Enter
-            foreach (TMP_InputField dialogueInputField in dialogueInputFields)
+            for (int i = 0; i < dialogueInputFields.Length; i++)
             {
-                //TODO: 
-                //dialogueInputField.onSubmit.AddListener((str) => CreateMessageForSendPlayerInput(str));
+                int capturedIndex = i;
+                Npc npc = manager.npcList[i];
+                AddDialogueBox dialogueUI = npcDialoguePanels[i].GetComponent<AddDialogueBox>(); 
+
+                dialogueInputFields[i].onSubmit.AddListener(async (str) =>
+                {
+                    dialogueUI.AddPlayerDialogueBox(str, () => { });
+                    string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(str, npc.dbNpcId);
+
+                    if (!string.IsNullOrEmpty(npcResponse))
+                    {
+                        dialogueUI.AddNpcDialogueBox(npcResponse, () => { });
+                    }
+                });
             }
         }
+
 
         public void InitilizeMainPanels()
         {

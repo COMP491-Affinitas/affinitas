@@ -29,13 +29,14 @@ public class UuidResponse : BaseRequest
 [Serializable]
 public class ClientResponse
 {
-    string role;     //"system" or "user"
-    //int requestId;   //Message classification (sendingPlayerInput, gettingQuest, ...)
-    string content;
+    public string role;     //"system" or "user"
+    public string shadow_save_id;
+    public string content;
 
-    public ClientResponse(string role, string content)
+    public ClientResponse(string role, string shadow_save_id, string content)
     {
         this.role = role;
+        this.shadow_save_id = shadow_save_id;
         //this.requestId = requestId;
         this.content = content;
     }
@@ -44,13 +45,8 @@ public class ClientResponse
 [Serializable]
 public class ServerResponse
 {
-    public int npcId;
-    public int affinitasChange;
-    //public int requestId; //Message classification (sendingNpcResponse, sendingQuest, ???)
-    public string npcResponse;
-    public string summary;
-    public string error;
-    public string messageId;
+    public string response;
+    public int affinitas_new;
 }
 
 
@@ -127,21 +123,21 @@ public class ServerConnection : MonoBehaviour
     public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath, HttpMethod method = null)
     {
         
-        if (method == null) {
-            method = HttpMethod.Post;
-        }
-        
+        if (method == null) method = HttpMethod.Post;
         var requestMessage = new HttpRequestMessage(method, serverURL + directoryPath);
 
         if (method == HttpMethod.Post) {
-            string jsonString = JsonUtility.ToJson(message);
-            requestMessage.Content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+            requestMessage.Content = new StringContent(
+                JsonUtility.ToJson(message), Encoding.UTF8, "application/json");
         }
 
         // Set the header x-client-uuid
-        if (!string.IsNullOrEmpty(GameManager.Instance.gameId))
-        {
+        if (!string.IsNullOrEmpty(GameManager.Instance.gameId)) {
             requestMessage.Headers.Add("x-client-uuid", GameManager.Instance.gameId);
+        }
+
+        if (directoryPath.StartsWith("/npcs/")) {
+            requestMessage.Headers.Add("shadow-save-id", GameManager.Instance.shadowSaveId);
         }
 
         BaseResponse serverResponse = default;
@@ -150,8 +146,6 @@ public class ServerConnection : MonoBehaviour
             // Send request and wait for response
             var response = await client.SendAsync(requestMessage);
             string result = await response.Content.ReadAsStringAsync();
-            Debug.Log($"Server raw response: {result}");
-            Debug.Log($"Status Code: {response.StatusCode}");
 
             if (response.IsSuccessStatusCode)
                 // Change back from JSON
@@ -163,8 +157,6 @@ public class ServerConnection : MonoBehaviour
         {
             Debug.LogError($"Exception occurred: {ex.Message}");
         }
-
         return serverResponse;
     }
-
 }

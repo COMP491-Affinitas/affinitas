@@ -58,6 +58,9 @@ public static class LoadGame
         UuidRequest uuid = new UuidRequest { x_client_uuid = uuid_string };
         LoadGameRootResponse rootResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(uuid, "/game/new", HttpMethod.Get);
         MainGameManager manager = MainGameManager.Instance;
+        GameManager gameManager = GameManager.Instance;
+        
+        gameManager.shadowSaveId = rootResponse.shadow_save_id;
 
         manager.dayNo = rootResponse.data.day_no;
         manager.dailyActionPoints = rootResponse.data.remaining_ap;
@@ -73,7 +76,7 @@ public static class LoadGame
         {
             Npc newNpc = new()
             {
-                //npc_id = npcData.npc_id,
+                dbNpcId = npcData.npc_id,
                 npcId = i,
                 npcName = "NPC wowowow" + i.ToString(),
                 affinitasValue = npcData.affinitas
