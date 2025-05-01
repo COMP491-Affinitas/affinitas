@@ -1,17 +1,20 @@
+from typing import Literal
+
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
-from affinitas_backend.models.game_data import BaseNPC
+from affinitas_backend.models.game_data import QuestSaveData
 
 
-class NPCResponse(BaseNPC):
-    id: PydanticObjectId = Field(alias="_id")
+class QuestSaveDataResponse(QuestSaveData):
+    name: str
+    description: str
+    rewards: list[str] = Field(default_factory=list)
 
-class NPCsResponse(BaseModel):
-    npcs: list[NPCResponse] = Field(default_factory=list)
 
-
-class NPCChatResponse(BaseModel):
-    npc_name: str
-    affinitas_change: int
-    response: str
+class NPCResponse(BaseModel):
+    npc_id: PydanticObjectId
+    name: str
+    affinitas: int
+    quests: list[QuestSaveDataResponse]
+    chat_history: list[tuple[Literal["user", "system", "ai"], str]] = Field(default_factory=list)

@@ -1,7 +1,10 @@
+from typing import Any, Literal
+
+from beanie import PydanticObjectId
 from pydantic import BaseModel, Field, field_validator
 
 
-class NPCAffinitasMetadata(BaseModel):
+class NPCAffinitasConfig(BaseModel):
     initial: int
     increase: float | list[str] = Field(
         ...,
@@ -38,36 +41,33 @@ class NPCAffinitasMetadata(BaseModel):
 
 
 class Quest(BaseModel):
-    id: str
+    id: PydanticObjectId = Field(..., alias="_id")
     name: str
+    description: str
     rewards: list[str] = Field(default_factory=list)  # This needs some rework
 
 
-class QuestSaveData(Quest):
+class QuestSaveData(BaseModel):
+    quest_id: PydanticObjectId
     started: bool
     status: str
 
 
-class BaseNPC(BaseModel):
-    name: str
-    age: int
-    occupation: str | None = None
-    personality: list[str] = Field(default_factory=list)
+class NPCSaveData(BaseModel):
+    npc_id: PydanticObjectId
+    affinitas: int
     likes: list[str] = Field(default_factory=list)
     dislikes: list[str] = Field(default_factory=list)
-    motivations: list[str] = Field(default_factory=list)
-    backstory: str
-    minigame: str | None = None
-    affinitas: NPCAffinitasMetadata
-    global_influence: bool
-    endings: list[str] = Field(default_factory=list)
-    quests: list[Quest] = Field(default_factory=list)
-    dialogue_unlocks: list[str] = Field(default_factory=list)
-
-
-class NPCSaveData(BaseNPC):
-    affinitas: int
+    occupation: str | None = None
     quests: list[QuestSaveData] = Field(default_factory=list)
+    chat_history: list[tuple[Literal["user", "system", "ai"], str]] = Field(default_factory=list)
+
+
+class Journal(BaseModel):
+    quests: list[dict[PydanticObjectId, Any]] = Field(default_factory=list)
+    npcs: list[dict[PydanticObjectId, Any]] = Field(default_factory=list)
+    town_info: dict[str, Any] = Field(default_factory=dict)
+    chat_history: list[dict[PydanticObjectId, tuple[Literal["user", "ai"], str]]] = Field(default_factory=list)
 
 
 class GameData(BaseModel):
