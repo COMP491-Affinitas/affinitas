@@ -22,10 +22,10 @@ requires-dist = [
     { name = "beanie", specifier = ">=1.29.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.12" },
     { name = "langchain", extras = ["openai"], specifier = ">=0.3.24" },
-    { name = "langgraph", specifier = ">=0.3.34" },
+    { name = "langgraph", specifier = ">=0.4.1" },
     { name = "motor", specifier = ">=3.7.0" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
-    { name = "pymongo", specifier = ">=4.12.0" },
+    { name = "pymongo", specifier = ">=4.12.1" },
     { name = "slowapi", specifier = ">=0.1.9" },
 ]
 
@@ -413,16 +413,16 @@ wheels = [
 
 [[package]]
 name = "langchain-openai"
-version = "0.3.14"
+version = "0.3.15"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain-core" },
     { name = "openai" },
     { name = "tiktoken" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7f/ec/8042fd9b8cfb8e295eaf673c79fc8139aca0dd75506241b69e77efe2b850/langchain_openai-0.3.14.tar.gz", hash = "sha256:0662db78620c2e5c3ccfc1c36dc959c0ddc80e6bdf7ef81632cbf4b2cc9b9461", size = 270517 }
+sdist = { url = "https://files.pythonhosted.org/packages/34/af/ed8776d088f82fb5fbc69382f712d785097f75c5d8e7cfda4add95632561/langchain_openai-0.3.15.tar.gz", hash = "sha256:f20612af08d715540922f72729e626a3f360ac4affac46863639680443b48fb4", size = 270871 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/34/d7af3c272fbdd214aa74d7bb23ef36eb6c3463fd557f2f0cd5126ea41536/langchain_openai-0.3.14-py3-none-any.whl", hash = "sha256:b8e648d2d7678a5540818199d141ff727c6f1514294b3e1e999a95357c9d66a0", size = 62380 },
+    { url = "https://files.pythonhosted.org/packages/ec/1b/323d4980c01a3e9bc4c5c7aac05388797d67696b1c6421172c66d21a4886/langchain_openai-0.3.15-py3-none-any.whl", hash = "sha256:3a21b264c82eb9e14c28f8c79a7129fc857d44563082e639709351091edffd92", size = 62831 },
 ]
 
 [[package]]
@@ -439,18 +439,19 @@ wheels = [
 
 [[package]]
 name = "langgraph"
-version = "0.4.0"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain-core", marker = "python_full_version < '4.0'" },
     { name = "langgraph-checkpoint" },
     { name = "langgraph-prebuilt", marker = "python_full_version < '4.0'" },
     { name = "langgraph-sdk", marker = "python_full_version < '4.0'" },
+    { name = "pydantic" },
     { name = "xxhash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/b8/3ee670e85e860fec5f8ca22d3dfb4b40cadd92e411966a2e3a324aa9b1a5/langgraph-0.4.0.tar.gz", hash = "sha256:a5168395586478f7474fed0f5f65e8da4dafda19c0c236d63e4652f059df3b04", size = 123349 }
+sdist = { url = "https://files.pythonhosted.org/packages/da/89/270bb568fcb833f7140e92304e13443a38b1f74130902d498a57bd85dcef/langgraph-0.4.1.tar.gz", hash = "sha256:c6de009e638c3128232e8defa6e9a3218c03bcc2348ec7f06fba23ffcef4b98d", size = 125406 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/ba/6086ba81dcab5964aa09693ee7a158e6fcbb0562e77e6792f36bc1574526/langgraph-0.4.0-py3-none-any.whl", hash = "sha256:d04a8f480b9c382e43fd1c658c49908c78c0fbd6a4ce70c29dc4ba934c79c542", size = 148946 },
+    { url = "https://files.pythonhosted.org/packages/00/1d/726b69360d450eec422d2c2da856f99b040eb14042c3d0904756eb5d442c/langgraph-0.4.1-py3-none-any.whl", hash = "sha256:ad0a5fb4707ec46eb69a9905d629e3712ac14d58bd41fc63df18502dbb8e44b9", size = 151150 },
 ]
 
 [[package]]
@@ -481,15 +482,15 @@ wheels = [
 
 [[package]]
 name = "langgraph-sdk"
-version = "0.1.64"
+version = "0.1.66"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "orjson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/c1/4eed4cbd03d790adb73291406cc040d8fef926d353ad59839faba2c005c9/langgraph_sdk-0.1.64.tar.gz", hash = "sha256:5a26fb31feb01f815c690a20242b3235d2932b91d6d0afe286f0b49f21832bfd", size = 43825 }
+sdist = { url = "https://files.pythonhosted.org/packages/97/7a/5fede018d8b9100db14211cfdb94aefd0e5f2e9ae738072f3d4cc443465b/langgraph_sdk-0.1.66.tar.gz", hash = "sha256:81474ad4555a06004cc7a2f4ab477135d5eaf7db11fbcf2a69257fb2d717582e", size = 44049 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/23/49cc23346e72e0e8ca3cdb9df636e24944d5607dbeeab62843d724c279b6/langgraph_sdk-0.1.64-py3-none-any.whl", hash = "sha256:f204acacf59765e2331344d9ab29b3e2198cecb6df1ba8049eb77529fdf1f4ac", size = 47334 },
+    { url = "https://files.pythonhosted.org/packages/97/06/87ce0b8043ba5a4ec8369a243f3140f8fd9d9b7aab1d8a9351711739beea/langgraph_sdk-0.1.66-py3-none-any.whl", hash = "sha256:f781c63f3e913d3d6bedb02cb84d775cda64e3cdf3282fd387bdd8faaf53c603", size = 47584 },
 ]
 
 [[package]]
