@@ -1,5 +1,6 @@
+from typing import Literal
+
 from beanie import PydanticObjectId
-from langchain_core.messages import MessageLikeRepresentation
 from pydantic import BaseModel, Field
 
 from affinitas_backend.models.game_data import QuestSaveData
@@ -16,4 +17,4 @@ class NPCResponse(BaseModel):
     name: str
     affinitas: int
     quests: list[QuestSaveDataResponse]
-    chat_history: list[MessageLikeRepresentation] = Field(default_factory=list)
+    chat_history: list[tuple[Literal["user", "system", "ai"], str]] = Field(default_factory=list)

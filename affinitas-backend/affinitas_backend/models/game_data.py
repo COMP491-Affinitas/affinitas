@@ -1,5 +1,6 @@
+from typing import Any, Literal
+
 from beanie import PydanticObjectId
-from langchain_core.messages import MessageLikeRepresentation
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -59,7 +60,14 @@ class NPCSaveData(BaseModel):
     dislikes: list[str] = Field(default_factory=list)
     occupation: str | None = None
     quests: list[QuestSaveData] = Field(default_factory=list)
-    chat_history: list[MessageLikeRepresentation] = Field(default_factory=list)
+    chat_history: list[tuple[Literal["user", "system", "ai"], str]] = Field(default_factory=list)
+
+
+class Journal(BaseModel):
+    quests: list[dict[PydanticObjectId, Any]] = Field(default_factory=list)
+    npcs: list[dict[PydanticObjectId, Any]] = Field(default_factory=list)
+    town_info: dict[str, Any] = Field(default_factory=dict)
+    chat_history: list[dict[PydanticObjectId, tuple[Literal["user", "ai"], str]]] = Field(default_factory=list)
 
 
 class GameData(BaseModel):
