@@ -18,6 +18,7 @@ class NPC(Document):
     endings: list[str] = Field(default_factory=list)
     quests: list[Quest] = Field(default_factory=list)
     dialogue_unlocks: list[str] = Field(default_factory=list)
+    order_no: int
 
     class Settings:
         name = "npcs"

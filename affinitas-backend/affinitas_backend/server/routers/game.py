@@ -308,6 +308,7 @@ def get_aggregate_pipeline(match: dict[str, Any], ):
                                         "likes": "$$npc_config.likes",
                                         "dislikes": "$$npc_config.dislikes",
                                         "occupation": "$$npc_config.occupation",
+                                        "order_no": "$$npc_config.order_no",
                                         "quests": {
                                             "$map": {
                                                 "input": "$$npc_save.quests",
@@ -353,5 +354,15 @@ def get_aggregate_pipeline(match: dict[str, Any], ):
                 }
             }
         }},
-        {"$unset": ["npc_configs", "_id"]}
+        {"$set": {
+            "npcs": {
+                "$sortArray": {
+                    "input": "$npcs",
+                    "sortBy": {
+                        "order_no": 1
+                    }
+                }
+            }
+        }},
+        {"$unset": ["npc_configs", "_id", "npcs.order_no"]}
     ]
