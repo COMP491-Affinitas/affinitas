@@ -1,0 +1,155 @@
+using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.SceneManagement;
+
+namespace GusMinigame
+{
+    public class GusMinigameManager : MonoBehaviour
+    {
+        public static GusMinigameManager Instance { get; private set; }
+        public List<FishMovement> fishList = new();
+        [SerializeField] GameObject fishPrefab;
+        [SerializeField] RectTransform fishesRectTransform;
+
+        [SerializeField] Button fishingGameStartButton;
+        [SerializeField] TextMeshProUGUI scoreTextMesh;
+        [SerializeField] TextMeshProUGUI timerTextMesh;
+        [SerializeField] GameObject endPanel;
+
+        public bool fishingGameStarted;
+        public int gusMinigameScore;
+        public float timeLimit = 100f;
+        float remainingTime;
+        
+
+        private void Awake()
+        {
+            Instance = this;
+        }
+
+        private void Start()
+        {
+            InitializeFishingGame();
+        }
+
+        public void GoToMap()
+        {
+            SceneManager.LoadScene(0);
+        }
+
+        void InitializeFishingGame()
+        {
+            fishingGameStarted = false;
+            gusMinigameScore = 0;
+            remainingTime = timeLimit;
+            scoreTextMesh.text = "Score: 0";
+            timerTextMesh.text = "Time Left: " + remainingTime.ToString("0");
+            fishingGameStartButton.interactable = true;
+            endPanel.SetActive(false);
+        }
+
+        // Call from Start Game
+        public void StartFishingGame()
+        {
+            InitializeFishingGame();
+            fishingGameStarted = true;
+            fishingGameStartButton.interactable = false;
+
+            foreach (FishMovement fish in fishList)
+            {
+                if (fish != null)
+                    fish.StartMoving();
+            }
+            StartCoroutine(FishingGameTimer());
+        }
+
+        IEnumerator FishingGameTimer()
+        {
+            float timeLeft = remainingTime;
+
+            while (timeLeft > 0f)
+            {
+                timerTextMesh.text = "Time Left: " + timeLeft.ToString("0");
+                yield return null; // wait one frame
+                timeLeft -= Time.deltaTime;
+            }
+
+            timerTextMesh.text = "No Time Left!";
+            EndFishingGame();
+        }
+
+        void EndFishingGame()
+        {
+            fishingGameStarted = false;
+
+            foreach (FishMovement fish in fishList)
+            {
+                if (fish != null)
+                    fish.StopMoving();
+            }
+            endPanel.GetComponentInChildren<TextMeshProUGUI>().text = "Your Time is Up! Final Score: " + gusMinigameScore.ToString();
+            endPanel.SetActive(true);
+            fishingGameStartButton.interactable = true;
+        }
+
+        public void AddToScore()
+        {
+            if (fishingGameStarted)
+            {
+                gusMinigameScore += 1;
+                scoreTextMesh.text = "Score: " + gusMinigameScore.ToString();
+            }
+        }
+
+        public void AddMoreFish()
+        {
+            if (!fishingGameStarted)
+                return;
+  
+            int randomNum = Random.Range(1, 2);
+
+            for (int i = 0; i < randomNum; i++)
+            {
+                GameObject newFish = Instantiate(fishPrefab, fishesRectTransform);
+
+                RectTransform fishRectTransform = newFish.GetComponent<RectTransform>();
+                fishRectTransform.anchoredPosition = GetRandomPos();
+
+                FishMovement newFishMovement = newFish.GetComponent<FishMovement>();
+                newFishMovement.StartMoving();
+
+                fishList.Add(newFishMovement);
+            }
+        }
+
+        public void ReuseFish(GameObject fishGameObject)
+        {
+            if (!fishingGameStarted)
+                return;
+
+            fishGameObject.SetActive(true);
+
+            RectTransform fishRectTransform = fishGameObject.GetComponent<RectTransform>();
+            fishRectTransform.anchoredPosition = GetRandomPos();
+
+            FishMovement fishMovement = fishGameObject.GetComponent<FishMovement>();
+            StartCoroutine(fishMovement.FadeInFish());
+            fishMovement.StartMoving();
+        }
+
+        // Get random position within the confines of fishes
+        Vector2 GetRandomPos()
+        {
+            Vector2 size = fishesRectTransform.rect.size;
+
+            float x = Random.Range(-size.x / 2f + 200f, size.x / 2f - 200f);
+            float y = Random.Range(-size.y / 2f + 200f, size.y / 2f - 200f);
+
+            return new Vector2(x, y);
+        }
+
+    }
+}
