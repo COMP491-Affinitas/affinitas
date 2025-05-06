@@ -15,10 +15,10 @@ namespace GusMinigame
         RectTransform boatRectTransform;
         RectTransform lineRectTransform;
         RectTransform parentRectTransform;
-        [SerializeField] float boatMovementSpeed = 10f;
-        [SerializeField] float lineSpeed = .3f;
-        [SerializeField] int minHookY = 250;
-        [SerializeField] int maxHookY = 955;
+        float boatMovementSpeed = 600f;
+        float lineSpeed = 800f;
+        int minHookY = 300;
+        int maxHookY = 955;
         Vector2 initialSizeDelta;
         Vector2 lineSpeedVector;
         bool isCoroutineRunning;
@@ -34,23 +34,26 @@ namespace GusMinigame
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space) && !isCoroutineRunning)
-                SendFishingLine();
+            if (GusMinigameManager.Instance.fishingGameStarted)
+            {
+                if (Input.GetKeyDown(KeyCode.Space) && !isCoroutineRunning)
+                    SendFishingLine();
 
-            Vector2 currentPos = boatRectTransform.anchoredPosition;
+                Vector2 currentPos = boatRectTransform.anchoredPosition;
 
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
-                currentPos.x -= boatMovementSpeed * Time.deltaTime;
-            if (Input.GetKeyDown(KeyCode.RightArrow))
-                currentPos.x += boatMovementSpeed * Time.deltaTime;
+                if (Input.GetKey(KeyCode.LeftArrow))
+                    currentPos.x -= boatMovementSpeed * Time.deltaTime;
+                if (Input.GetKey(KeyCode.RightArrow))
+                    currentPos.x += boatMovementSpeed * Time.deltaTime;
 
-            // Clamp position inside parent bounds
-            float halfBoatWidth = boatRectTransform.rect.width / 2f;
-            float parentHalfWidth = parentRectTransform.rect.width / 2f;
+                // Clamp position inside parent bounds
+                float halfBoatWidth = boatRectTransform.rect.width / 2f;
+                float parentHalfWidth = parentRectTransform.rect.width / 2f;
 
-            currentPos.x = Mathf.Clamp(currentPos.x, -parentHalfWidth + halfBoatWidth, parentHalfWidth - halfBoatWidth);
+                currentPos.x = Mathf.Clamp(currentPos.x, -parentHalfWidth + halfBoatWidth, parentHalfWidth - halfBoatWidth);
 
-            boatRectTransform.anchoredPosition = currentPos;
+                boatRectTransform.anchoredPosition = currentPos;
+            }
         }
 
         IEnumerator FishingLineRoutine()
@@ -68,10 +71,10 @@ namespace GusMinigame
                 }
                 else if (lineRectTransform.sizeDelta.y < minHookY)
                 {
-                    yield break;
+                    break;
                 }
 
-                lineRectTransform.sizeDelta += lineSpeedVector;
+                lineRectTransform.sizeDelta += lineSpeedVector * Time.deltaTime;
             }
             sendLineButton.interactable = true;
             isCoroutineRunning = false;
@@ -91,7 +94,7 @@ namespace GusMinigame
 
         public void SendFishingLine()
         {
-            if (GusMinigameManager.Instance.fishingGameStarted || !isCoroutineRunning)
+            if (GusMinigameManager.Instance.fishingGameStarted && !isCoroutineRunning)
             {
                 ResetFishingLine();
 

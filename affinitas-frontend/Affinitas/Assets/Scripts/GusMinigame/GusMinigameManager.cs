@@ -109,7 +109,7 @@ namespace GusMinigame
             if (!fishingGameStarted)
                 return;
   
-            int randomNum = Random.Range(1, 4);
+            int randomNum = Random.Range(1, 2);
 
             for (int i = 0; i < randomNum; i++)
             {
@@ -125,13 +125,28 @@ namespace GusMinigame
             }
         }
 
+        public void ReuseFish(GameObject fishGameObject)
+        {
+            if (!fishingGameStarted)
+                return;
+
+            fishGameObject.SetActive(true);
+
+            RectTransform fishRectTransform = fishGameObject.GetComponent<RectTransform>();
+            fishRectTransform.anchoredPosition = GetRandomPos();
+
+            FishMovement fishMovement = fishGameObject.GetComponent<FishMovement>();
+            StartCoroutine(fishMovement.FadeInFish());
+            fishMovement.StartMoving();
+        }
+
         // Get random position within the confines of fishes
         Vector2 GetRandomPos()
         {
             Vector2 size = fishesRectTransform.rect.size;
 
-            float x = Random.Range(-size.x / 2f + 100f, size.x / 2f - 100f);
-            float y = Random.Range(-size.y / 2f + 100f, size.y / 2f - 100f);
+            float x = Random.Range(-size.x / 2f + 200f, size.x / 2f - 200f);
+            float y = Random.Range(-size.y / 2f + 200f, size.y / 2f - 200f);
 
             return new Vector2(x, y);
         }

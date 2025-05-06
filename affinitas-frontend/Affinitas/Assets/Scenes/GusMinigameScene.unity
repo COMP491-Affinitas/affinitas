@@ -1956,19 +1956,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1115817438}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1585529167}
-        m_TargetAssemblyTypeName: GusMinigame.GusMinigameManager, Assembly-CSharp
-        m_MethodName: StartFishingGame
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!114 &1115817438
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2061,10 +2049,6 @@ MonoBehaviour:
   sendLineButton: {fileID: 2047597829}
   fishingLine: {fileID: 648428147}
   fishingHook: {fileID: 1224186772}
-  boatMovementSpeed: 0.2
-  lineSpeed: 3
-  minHookY: 300
-  maxHookY: 955
 --- !u!114 &1182299689
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2481,7 +2465,7 @@ MonoBehaviour:
   endPanel: {fileID: 834733435}
   fishingGameStarted: 0
   gusMinigameScore: 0
-  timeLimit: 100
+  timeLimit: 60
 --- !u!4 &1585529168
 Transform:
   m_ObjectHideFlags: 0
