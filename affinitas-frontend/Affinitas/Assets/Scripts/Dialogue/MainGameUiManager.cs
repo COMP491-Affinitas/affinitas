@@ -1,7 +1,6 @@
-using System.Collections;
-using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace MainGame
 {
@@ -136,6 +135,13 @@ namespace MainGame
         public void OpenMapPanel()
         {
             mapPanel.SetActive(true);
+        }
+
+        // Call from minigame buttons with correct indexing
+        public void OpenMinigameScene(int minigameSceneIndex)
+        {
+            //SceneManager.LoadScene(minigameSceneIndex);
+            SceneManager.LoadScene(minigameSceneIndex, LoadSceneMode.Additive);
         }
 
         // npcId indexing starts from 1

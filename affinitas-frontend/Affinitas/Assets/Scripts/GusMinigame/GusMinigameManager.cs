@@ -35,9 +35,13 @@ namespace GusMinigame
             InitializeFishingGame();
         }
 
+        // Call from Go to map button
         public void GoToMap()
         {
-            SceneManager.LoadScene(0);
+            // Save score and go to map
+            MainGameManager.Instance.ReturnFromGusMinigame(gusMinigameScore);
+            //SceneManager.LoadScene(0);
+            SceneManager.UnloadSceneAsync(1);
         }
 
         void InitializeFishingGame()

@@ -1,9 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
+    // Singleton
+    public static UIManager Instance { get; private set; }
+
     [SerializeField]
     GameObject menuPanel;
     [SerializeField]
@@ -16,14 +18,18 @@ public class UIManager : MonoBehaviour
     [SerializeField]
     Toggle fullscreenToggle;
 
-    private void Awake()
-    {
-        DontDestroyOnLoad(gameObject);
-    }
-
     private void Start()
     {
-        InitiliazePanels();   
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+        }
+
+        InitiliazePanels();
     }
 
     void InitiliazePanels()
@@ -56,12 +62,6 @@ public class UIManager : MonoBehaviour
         settingsPanel.SetActive(false);
         menuPanel.SetActive(false);
         endingPanel.SetActive(true);
-    }
-
-    // Call from minigame buttons with correct indexing
-    public void OpenMinigameScreen(string minigameSceneName)
-    {
-        SceneManager.LoadScene(minigameSceneName);
     }
 
     // Make sure that SettingsPanel is above all other panels in hierarchy (at the bottom of list)

@@ -32,6 +32,9 @@ public class MainGameManager : MonoBehaviour
     public Dictionary<string, bool> dialoguesDict = new();
     public Dictionary<string, bool> questDict = new();
 
+    // Temporary
+    public int gusMinigameScore;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -64,6 +67,12 @@ public class MainGameManager : MonoBehaviour
         {
             MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
         }
+    }
+
+    // Call from GoToMap function in GusMinigameScene
+    public void ReturnFromGusMinigame(int gusMinigameScoreVal)
+    {
+        gusMinigameScore = gusMinigameScoreVal;
     }
 
 
