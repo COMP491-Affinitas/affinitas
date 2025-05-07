@@ -46,6 +46,7 @@ public class UIManager : MonoBehaviour
         settingsPanel.SetActive(false);
         endingPanel.SetActive(false);
         mainPanel.SetActive(true);
+        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
     }
 
     public void GoToMenu()

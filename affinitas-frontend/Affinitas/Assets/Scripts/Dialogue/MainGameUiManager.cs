@@ -23,6 +23,8 @@ namespace MainGame
         [SerializeField] TextMeshProUGUI[] journalTabButtonTextMeshes;
         [SerializeField] TextMeshProUGUI[] journalTextMeshes;
 
+        [SerializeField] GameObject warningPanel;
+        [SerializeField] TextMeshProUGUI warningPanelTextMesh;
 
         private void Start()
         {
@@ -39,52 +41,10 @@ namespace MainGame
             //GameManager.Instance.SubscribeToNpcDataLoaded(SetupDialogueListeners);
         }
 
-        
-        //private void SetupDialogueListeners()
-        //{
-        //    MainGameManager manager = MainGameManager.Instance;
-
-        //    for (int i = 0; i < dialogueInputFields.Length; i++)
-        //    {
-        //        int capturedIndex = i;
-        //        Npc npc = manager.npcList[i];
-        //        AddDialogueBox dialogueUI = npcDialoguePanels[i].GetComponent<AddDialogueBox>();
-
-        //        dialogueInputFields[i].onSubmit.AddListener((str) => SendMessageGetNpcResponse(str, npc));
-
-        //        dialogueInputFields[i].onSubmit.AddListener(async (str) =>
-        //        {
-        //            //dialogueUI.AddPlayerDialogueBox(str, () => { });
-        //            string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(str, npc.dbNpcId);
-
-        //            Debug.Log("npc says: " + npcResponse);
-
-        //            if (!string.IsNullOrEmpty(npcResponse))
-        //            {
-        //                Debug.Log("npc adds: boxxx");
-        //                dialogueUI.AddNpcDialogueBox(npcResponse, null);//ServerConnection.Instance.OnServerMessageReceived);
-        //            }
-        //        });
-        //    }
-        //}
-
-        //public async void SendMessageGetNpcResponse(string playerInput, Npc npc)
-        //{
-        //    string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(playerInput, npc.dbNpcId);
-
-        //    Debug.Log("npc says: " + npcResponse);
-
-        //    if (!string.IsNullOrEmpty(npcResponse))
-        //    {
-        //        Debug.Log("npc adds: boxxx");
-        //        dialogueUI.AddNpcDialogueBox(npcResponse, null);//ServerConnection.Instance.OnServerMessageReceived);
-        //    }
-        //}
-
-
         public void InitilizeMainPanels()
         {
             CloseJournalPanel();
+            CloseWarningPanel();
             OpenJournalTab(1);
             UpdateDaysLeftPanel();
             OpenCharacterDialogue(-1);
@@ -103,11 +63,24 @@ namespace MainGame
             journalPanel.SetActive(false);
         }
 
+        public void OpenWarningPanel(string warningText)
+        {
+            warningPanel.SetActive(true);
+            warningPanelTextMesh.text = warningText;
+        }
+
+        // Call from close (x) button on the Warning panel
+        public void CloseWarningPanel()
+        {
+            warningPanel.SetActive(false);
+        }
+
         //Call when End Day button is pressed
         // TODO: if days left is zero, also update End Day button to say End Game!!!
         public void UpdateDaysLeftPanel()
         {
-            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = "Day No: " + MainGameManager.Instance.dayNo.ToString();
+            string panelText = "Day No: " + MainGameManager.Instance.dayNo.ToString() + "\n\nAction Points Left: " + MainGameManager.Instance.dailyActionPoints.ToString();
+            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = panelText;
         }
 
         // Call when Tab buttons are clicked
@@ -137,12 +110,26 @@ namespace MainGame
             mapPanel.SetActive(true);
         }
 
-        // Call from minigame buttons with correct indexing
+        // Call from minigame buttons with correct indexing (starts from 1 since 0 is main game index)
         public void OpenMinigameScene(int minigameSceneIndex)
         {
+            if (MainGameManager.Instance.EnoughActionPointsForMinigame() == false)
+            {
+                OpenWarningPanel("You do not have enough action points to play this minigame. End the day!");
+                return;
+            }
+            MainGameManager.Instance.ReduceActionPointsForMinigame(minigameSceneIndex-1);
+            UpdateDaysLeftPanel();
             //SceneManager.LoadScene(minigameSceneIndex);
             SceneManager.LoadScene(minigameSceneIndex, LoadSceneMode.Additive);
         }
+
+        // Call from End Day button
+        public void EndDayButton()
+        {
+            MainGameManager.Instance.EndDay();
+        }
+
 
         // npcId indexing starts from 1
         public void InitializeNpcUIs(Npc npcData)

@@ -23,7 +23,7 @@ namespace MainGame
             contentTransform = transform.GetChild(0).transform.GetChild(0).transform;
         }
 
-        public void AddPlayerDialogueBox(string playerInp, Action onComplete)
+        public void AddPlayerDialogueBox(string playerInp, Action onComplete, Action onCompleteTwo)
         {
             GameObject newPlayerDialogueBox = Instantiate(playerDialogueBoxPrefab);
             // Using parent:false in SetParent fixes sizing issues for 4K resolution. 
@@ -32,10 +32,10 @@ namespace MainGame
             TextMeshProUGUI dialogueTextMesh = newPlayerDialogueBox.transform.GetComponentInChildren<TextMeshProUGUI>();
             dialogueTextMesh.text = "";
 
-            StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, playerInp, onComplete));
+            StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, playerInp, onComplete, onCompleteTwo));
         }
 
-        public void AddNpcDialogueBox(string npcDialogue, Action onComplete)
+        public void AddNpcDialogueBox(string npcDialogue, Action onComplete, Action onCompleteTwo)
         {
             GameObject newNpcDialogueBox = Instantiate(npcDialogueBoxPrefab);
             newNpcDialogueBox.transform.SetParent(contentTransform, false);
@@ -43,10 +43,10 @@ namespace MainGame
             TextMeshProUGUI dialogueTextMesh = newNpcDialogueBox.transform.GetComponentInChildren<TextMeshProUGUI>();
             dialogueTextMesh.text = "";
 
-            StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete));
+            StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete, onCompleteTwo));
         }
 
-        IEnumerator AddTextLetterByLetter(TextMeshProUGUI textMesh, string str, Action onComplete)
+        IEnumerator AddTextLetterByLetter(TextMeshProUGUI textMesh, string str, Action onComplete, Action onCompleteTwo)
         {
             yield return new WaitForSeconds(0.2f);
 
@@ -58,10 +58,11 @@ namespace MainGame
             }
 
             onComplete?.Invoke();
+            onCompleteTwo?.Invoke();
         }
 
         // Put this instead of AddTextLetterByLetter in AddTextBubble code to use it
-        IEnumerator AddTextWordByWord(TextMeshProUGUI textMesh, string str, Action onComplete)
+        IEnumerator AddTextWordByWord(TextMeshProUGUI textMesh, string str, Action onComplete, Action onCompleteTwo)
         {
             yield return new WaitForSeconds(0.2f);
 
@@ -75,6 +76,7 @@ namespace MainGame
             }
 
             onComplete?.Invoke();
+            onCompleteTwo?.Invoke();
         }
 
     }

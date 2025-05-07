@@ -47,7 +47,7 @@ public class GameManager : MonoBehaviour
     public async Task LoadGameWithUUID()
     {
         await LoadGame.GetLoadGameInfo(gameId);
-        MainGameManager.Instance.InitializeNpcsUis();
+        MainGameManager.Instance.InitializeNpcsUisAndVariables();
         npcDataReady = true;
         OnNpcDataLoaded?.Invoke();
     }
@@ -173,17 +173,6 @@ public class GameManager : MonoBehaviour
 
     
 
-    // calculate how mnay actşon points left
-    void CalculateActionPoints()
-    {
-        int actionPointsUsed = 0;
 
-    }
-
-    // If not enough actions points left, do not let player do things
-    void CheckActionPoints()
-    {
-
-    }
 
 }

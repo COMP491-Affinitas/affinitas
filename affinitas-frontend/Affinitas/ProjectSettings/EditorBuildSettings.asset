@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/GusMinigameScene.unity
     guid: 5fff4a5b208544a049d148eb91f15717
+  - enabled: 1
+    path: Assets/Scenes/CherMinigameScene.unity
+    guid: 02a6a6cb9f1844ea2b88d14da6411cc3
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

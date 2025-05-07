@@ -66,7 +66,7 @@ public static class LoadGame
 
 
         Debug.Log("Game Info");
-        Debug.Log(manager.dailyActionPoints);
+        Debug.Log("action points: " + manager.dailyActionPoints);
         Debug.Log(manager.dayNo);
 
         List<LoadGameNpcData> npcDatas = rootResponse.data.npcs;
