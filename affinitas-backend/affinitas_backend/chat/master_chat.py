@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 import bson.json_util
 from beanie import PydanticObjectId
@@ -60,6 +61,21 @@ class MasterLLM:
             }
             for quest, message in zip(quests, res)
         ]
+
+    def generate_ending(self, npc_infos: list[dict[str, Any]]):
+        return self.model.invoke(
+            "Generate an ending for the following game state:\n"
+            f"{bson.json_util.dumps(npc_infos)}\n"
+            "---\n"
+            "Only include the ending text and nothing else.\n"
+            "The ending should adequately reflect the game state and the choices made by the player. "
+            "High affinitas value for an NPC means that the player has a good relationship with them. "
+            "Low affinitas value means that the player has a bad relationship with them. "
+            "How well the player interacted with the NPCs should be reflected in the ending. "
+            "If the endings array is provided for an NPC, their ending is based on "
+            "the ending descriptions in the array. Higher affinitas shall result in "
+            "a better ending for the NPCs. The endings should be unique and not repeated."
+        )
 
     def _init_langsmith(self):
         client = Client(api_key=self.config.langsmith_api_key, api_url=self.config.langsmith_endpoint)

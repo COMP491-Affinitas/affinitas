@@ -8,12 +8,11 @@ from fastapi import Response, HTTPException
 from fastapi.background import BackgroundTasks
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
+from pydantic import TypeAdapter
 from starlette import status
 
-from affinitas_backend.chat.chat import NPCChatService
-from affinitas_backend.chat.master_chat import MasterLLM
-from affinitas_backend.chat.utils import get_message
-from affinitas_backend.config import Config
+from affinitas_backend.chat import get_message
+from affinitas_backend.chat import npc_chat_service, master_llm_service
 from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.schemas.chat import NPCChatRequest, NPCChatResponse
 from affinitas_backend.models.schemas.npcs import NPCQuestResponses, NPCQuestRequest
@@ -21,11 +20,6 @@ from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 
 router = APIRouter(prefix="/npcs", tags=["npcs"])
-
-config = Config()  # noqa
-
-chat_service = NPCChatService(config=config)
-master_llm_service = MasterLLM(config=config)
 
 
 @router.post(
@@ -61,7 +55,7 @@ async def npc_chat(
         .find(ShadowSave.npcs.npc_id == npc_id)  # noqa
     )
 
-    res = await chat_service.get_response(
+    res = await npc_chat_service.get_response(
         message=message,
         npc_id=npc_id,
         shadow_save_id=shadow_save_id,
@@ -87,7 +81,7 @@ async def npc_chat(
         response = NPCChatResponse(
             response=npc_response,
             affinitas_new=updated_npc_data["affinitas"],
-            completed_quests=completed_quests,
+            completed_quests=TypeAdapter(list[PydanticObjectId]).validate_python(completed_quests)
         )
     else:
         response = Response(
@@ -112,6 +106,7 @@ async def npc_chat(
     summary="Get NPC quest and subquest data",
     description="Returns the quest and subquest data for an NPC. The first item in the list will be the main quest, "
                 "and the subsequent items will be subquests. The `X-Client-UUID` header must be provided.",
+    status_code=status.HTTP_200_OK,
 )
 async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQuestRequest,
                     x_client_uuid: XClientUUIDHeader, background_tasks: BackgroundTasks):
@@ -146,7 +141,7 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
                 quest_description=quest.get("description"),
                 keywords=", ".join(map(repr, quest.get("triggers", []))),
             )
-            await chat_service.get_response(
+            await npc_chat_service.get_response(
                 message=get_message(
                     role="system",
                     content=msg
@@ -171,10 +166,9 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
         npc_id=npc_id,
     )
 
-    return NPCQuestResponses(
-        quests=res
-    )
-
+    return TypeAdapter(NPCQuestResponses).validate_python({
+        "quests": res
+    })
 
 async def _update_document(update_query: UpdateMany):
     try:

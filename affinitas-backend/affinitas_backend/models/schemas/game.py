@@ -37,3 +37,11 @@ class GameSaveResponse(BaseModel):
 
 class GameSavesResponse(BaseModel):
     saves: list[GameSaveResponse] = Field(default_factory=list)
+
+
+class GameEndRequest(BaseModel):
+    shadow_save_id: PydanticObjectId
+
+
+class GameEndResponse(BaseModel):
+    ending: str

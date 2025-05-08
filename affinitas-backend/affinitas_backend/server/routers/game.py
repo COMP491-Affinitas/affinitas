@@ -9,10 +9,11 @@ from fastapi.routing import APIRouter
 from pymongo.errors import DuplicateKeyError
 from starlette import status
 
+from affinitas_backend.chat import master_llm_service
 from affinitas_backend.config import Config
 from affinitas_backend.models.beanie.save import Save, ShadowSave, DefaultSave
 from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadResponse, GameLoadRequest, GameSaveRequest, \
-    GameSaveResponse, GameQuitRequest, GameDataResponse
+    GameSaveResponse, GameQuitRequest, GameDataResponse, GameEndResponse, GameEndRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -241,6 +242,47 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
 
 
 @router.post(
+    "/end",
+    response_model=GameEndResponse,
+    summary="Generates a game ending.",
+    description="Generates a game ending from all the NPC info. "
+                "The `X-Client-UUID` header must be provided. The shadow save entry "
+                "is not deleted after generating the ending is returned. Thus, /game/quit "
+                "must be called to delete the shadow save entry.",
+    status_code=status.HTTP_200_OK,
+)
+async def end_game(request: Request, payload: GameEndRequest, x_client_uuid: XClientUUIDHeader):
+    npc_infos = (
+        await ShadowSave
+        .aggregate(
+            get_aggregate_pipeline({"_id": payload.shadow_save_id})
+            + [{"$project": {"npcs": 1}}]
+        )
+        .to_list()
+    )
+
+    if not npc_infos:
+        logging.info(f"Shadow save with ID {payload.shadow_save_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shadow save not found. shadow_save_id: {payload.shadow_save_id}"
+        )
+
+    npc_infos = npc_infos[0].get("npcs", [])
+
+    res = master_llm_service.generate_ending(npc_infos)
+
+    if res is None:
+        throw_500(
+            "Failed to generate game ending",
+            f"Shadow save ID: {payload.shadow_save_id}",
+            f"NPC data: {npc_infos}",
+        )
+
+    return GameEndResponse(ending=res.content)
+
+
+@router.post(
     "/chat",
     # response_model=None,
     # summary=None,
@@ -338,7 +380,8 @@ def get_aggregate_pipeline(match: dict[str, Any], ):
                                                     }
                                                 }
                                             }
-                                        }
+                                        },
+                                        # "endings": "$$npc_config.dialogue_unlocks",
                                     }
                                 ]
                             }
