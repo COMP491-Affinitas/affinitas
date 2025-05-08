@@ -1,6 +1,9 @@
 using UnityEngine;
 using TMPro;
+using System.Threading.Tasks;
 using UnityEngine.UI;
+using System.Collections.Generic;
+using System.Collections;
 
 namespace MainGame
 {
@@ -77,20 +80,40 @@ namespace MainGame
         }
 
         //Call when Get Quest is pressed
-        public void GetQuestText()
+        public async void GetQuestText()
         {
             if (MainGameManager.Instance.EnoughActionPointsForGetQuest() == false)
             {
                 MainGameUiManager.Instance.OpenWarningPanel("You do not have enough action points to get a new quest. End the day!");
                 return;
             }
+
             MainGameManager.Instance.ReduceActionPointsForGetQuest(MainGameManager.Instance.npcList[npcId - 1].npcName);
             MainGameUiManager.Instance.UpdateDaysLeftPanel();
 
-            //TODO: SERVER SYSTEM CALL
-            addDialogueBox.AddNpcDialogueBox("Hey your quest is to go adrgasd", null, null);
-            getQuestDone = true;
-            getQuestButton.interactable = false;
+            string dbNpcId = MainGameManager.Instance.npcList[npcId - 1].dbNpcId;
+
+            List<string> questDescriptions = await GameManager.Instance.CreateMessageForGetQuest(dbNpcId, npcId);
+
+            if (questDescriptions != null)
+            {
+                getQuestButton.interactable = false;
+                getQuestDone = true;
+
+                StartCoroutine(ShowQuestsOneByOne(questDescriptions));
+            } 
+        }
+
+        IEnumerator ShowQuestsOneByOne(List<string> questDescriptions)
+        {
+            for (int i = 0; i < questDescriptions.Count; i++)
+            {
+                if (i == questDescriptions.Count - 1)
+                    yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], null, null);
+                else
+                    yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], ServerConnection.Instance.OnServerMessageReceived, null);
+                scrollRectHelper.ScrollToBottom();
+            }
         }
 
         public void MakeGetQuestClickable()

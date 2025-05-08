@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System;
 using System.Linq;
 
 public class Npc
@@ -13,12 +12,19 @@ public class Npc
     public List<string> dialogueSummary = new(); // One dialogue summary for each day
 }
 
+public enum QuestStatus
+{
+    Pending,
+    InProgress,
+    Completed
+}
+
 public class Quest
 {
+    public string questId;
     public string name;
     public string description;
-    public bool started;
-    public string status;
+    public QuestStatus status;
 }
 
 public class MainGameManager : MonoBehaviour
@@ -31,8 +37,8 @@ public class MainGameManager : MonoBehaviour
     public int dailyActionPoints;
     public int dayNo;
 
-    public Dictionary<string, bool> dialoguesDict = new();
-    public Dictionary<string, bool> questDict = new();
+    public Dictionary<string, bool> hadDialogueDict = new();
+    public Dictionary<string, bool> gotQuestDict = new();
     // 0: GusMinigame, 1: CherMinigame, 2: MonaMinigame
     public bool[] minigameList = { false, false, false };
 
@@ -54,25 +60,28 @@ public class MainGameManager : MonoBehaviour
     }
 
     //Call when End Day button is pressed
-    public void EndDay()
+    public async void EndDay()
     {
         if (dayNo > 9)
             return;
-            // End game panel
+        // End game panel
         dayNo += 1;
         dailyActionPoints = 15;
         ResetVariables();
+        //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+
+        await GameManager.Instance.CreateMessageForEndDay();
     }
 
     // Call this from dialogues, minigames, quests etc. after an action is done
     // Check if action already done, if so do nothing, if not decrease action points
     public void ReduceActionPointsForDialogue(string itemKey)
     {
-        if (dialoguesDict.ContainsKey(itemKey))
+        if (hadDialogueDict.ContainsKey(itemKey))
         {
-            if (dialoguesDict[itemKey] == false)
+            if (hadDialogueDict[itemKey] == false)
             {
-                dialoguesDict[itemKey] = true;
+                hadDialogueDict[itemKey] = true;
                 dailyActionPoints -= 1;
             }
         }
@@ -90,32 +99,15 @@ public class MainGameManager : MonoBehaviour
     }
     public void ReduceActionPointsForGetQuest(string itemKey)
     {
-        if (questDict.ContainsKey(itemKey))
+        if (gotQuestDict.ContainsKey(itemKey))
         {
-            if (questDict[itemKey] == false)
+            if (gotQuestDict[itemKey] == false)
             {
-                questDict[itemKey] = true;
+                gotQuestDict[itemKey] = true;
                 dailyActionPoints -= 3;
             }
         }
     }
-
-    // TODO: This will create problems for when a game is saved mid-day and then loaded again!
-    //       Because the dictionary values are not saved in the server.
-    //void CalculateActionPoints()
-    //{
-    //    int actionPointsUsed = 0;
-    //    foreach (var item in dialoguesDict)
-    //        if (item.Value)
-    //            actionPointsUsed += 1;
-    //    foreach (var item in minigameDict)
-    //        if (item.Value)
-    //            actionPointsUsed += 2;
-    //    foreach (var item in questDict)
-    //        if (item.Value)
-    //            actionPointsUsed += 3;
-    //    dailyActionPoints = 15 - actionPointsUsed;
-    //}
 
     // Call this from dialogues, minigames, quests etc. before an action is done
     // If not enough actions points left, do not let player do things
@@ -141,11 +133,11 @@ public class MainGameManager : MonoBehaviour
     // Call this at the end of each day
     void ResetVariables()
     {
-        foreach (string key in questDict.Keys.ToList())
-            questDict[key] = false;
+        foreach (string key in gotQuestDict.Keys.ToList())
+            gotQuestDict[key] = false;
 
-        foreach (string key in dialoguesDict.Keys.ToList())
-            dialoguesDict[key] = false;
+        foreach (string key in hadDialogueDict.Keys.ToList())
+            hadDialogueDict[key] = false;
 
         for (int i = 0; i < minigameList.Length; i++)
             minigameList[i] = false;
@@ -156,16 +148,12 @@ public class MainGameManager : MonoBehaviour
         foreach (Npc npc in npcList)
         {
             MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
-
-            //foreach (Quest quest in npc.questList)
-            //{
-            //    questDict.Add(quest.name, false);
-            //}
-            questDict.Add(npc.npcName, false);
-            dialoguesDict.Add(npc.npcName, false);
+            gotQuestDict.Add(npc.npcName, false);
+            hadDialogueDict.Add(npc.npcName, false);
         }
         for (int i = 0; i < minigameList.Length; i++)
             minigameList[i] = false;
+        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
     }
 
     // Call from GoToMap function in GusMinigameScene

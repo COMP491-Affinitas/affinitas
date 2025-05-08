@@ -52,6 +52,23 @@ public class GameManager : MonoBehaviour
         OnNpcDataLoaded?.Invoke();
     }
 
+    public async Task<string> EndGame()
+    {
+        EndingRequest endRequest = new EndingRequest { shadow_save_id = shadowSaveId };
+
+
+        EndingResponse endResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(endRequest, "/game/end", HttpMethod.Post);
+
+        if (endResponse == null)
+        {
+            Debug.LogError("endResponse is null.");
+            return null;
+        }
+
+        return endResponse.ending_text;
+    }
+
     public void SubscribeToNpcDataLoaded(Action listener)
     {
         if (npcDataReady)
@@ -59,7 +76,6 @@ public class GameManager : MonoBehaviour
         else
             OnNpcDataLoaded += listener;
     }
-
 
     public async Task<string> CreateMessageForSendPlayerInput(string playerInput, string dbNpcId)
     {
@@ -104,75 +120,76 @@ public class GameManager : MonoBehaviour
         return serverResponse.response; 
     }
 
-    //public void InitializeNpc(string ncp_id) // int npcId
-    //{
-    //    // npcId should be int
+    public async Task<List<string>> CreateMessageForGetQuest(string dbNpcId, int npcId)
+    {
+        string url = $"/npcs/{dbNpcId}/quest";
 
+        // Quest Request
+        QuestRequest request = new QuestRequest
+        {
+            shadow_save_id = shadowSaveId
+        };
 
+        // Response returns quest list. Each quest has quest ID and quest description
+        QuestListResponse questResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<QuestRequest, QuestListResponse>(
+                request,url, HttpMethod.Post
+        );
 
-    //    //TODO: Get Npc information from Unity connection
-    //    //npcList = new Npc[3];
-    //    //Npc currNpc;
+        Debug.Log("questresponse " + questResponse.ToString());
 
-    //    //for (int i = 0; i < npcList.Length; i++)
-    //    //{
-    //    //    // Random affinitas values for now
-    //    //    currNpc = new Npc(i, npcNames[i], i * 10);
-    //    //    string[] questList = { "Say hello to the world." };
-    //    //    currNpc.AddQuestList(questList);
+        // Retrieved quest entries are created as Quest object
+        List<Quest> npcQuests = new();
+        List<string> questDescriptions = new();
 
-    //    //    npcUiList[i].InitializeNpc(currNpc);
+        if (questResponse == null)
+            Debug.LogError("Server returned null response.");
 
-    //    //    npcList[i] = currNpc;
-    //    //}
+        if (questResponse.quests == null)
+            Debug.Log("null :(");
 
+        foreach (QuestEntry questEntry in questResponse.quests)
+        {
+            Quest quest = new Quest
+            {
+                name = $"{questEntry.quest_id}",
+                description = questEntry.response,
+                status = QuestStatus.InProgress
+            };
 
-    //    //var alice = new Npc(1, "Alice", 10, new List<Npc.Quest>());
-    //    //var bob = new Npc(2, "Bob", 20, new List<Npc.Quest>());
+            npcQuests.Add(quest);
+            questDescriptions.Add(quest.description);
 
+            Debug.Log("quest desc no: " + quest.name + " hey " + quest.description);
+        }
 
-    //    //npcDict[alice.npcId] = alice;
-    //    //npcDict[bob.npcId] = bob;
+        // Add all quests to the corresponding NPC
+        MainGameManager.Instance.npcList[npcId - 1].questList.AddRange(npcQuests);
 
-    //}
+        return questDescriptions;
+    }
 
-    //void InitializeInteractionDicts()
-    //{
-    //    foreach (Npc npc in npcDict.Values)
-    //    {
-    //        dialoguesDict[npc.npcName] = false;
-    //        questDict[npc.npcName] = false;
-    //    }
-    //}
+    public async Task<bool> CreateMessageForEndDay()
+    {
+        // Send message to all npcs to notify that day has ended
+        string systemMessage = "A new day has begun.";
 
-    //// TODO: This info should come from server
-    //void InitializeGame()
-    //{
-    //    dailyActionPoints = 15;
-    //    dayNo = 1;
-    //}
+        ClientResponse message = new ClientResponse(
+            role: "system",
+            shadow_save_id: shadowSaveId,
+            content: systemMessage
+        );
 
-    //public async void SendAndReceiveFromServer(ClientResponse message, string directory)
-    //{
-    //    // Send player input message to server
-    //    ServerResponse serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<ClientResponse, ServerResponse>(message, directory);
+        foreach (Npc npc in MainGameManager.Instance.npcList)
+        {
+            ServerResponse serverResponse = await ServerConnection.Instance
+                .SendAndGetMessageFromServer<ClientResponse, ServerResponse>(
+                    message,
+                    $"/npcs/{npc.dbNpcId}/chat",
+                    HttpMethod.Post
+                );
+        }
 
-    //    if (serverResponse == null)
-    //    {
-    //        return;
-    //    }
-
-    //    // TODO: Write code to add NPC dialogue box on screen
-    //    // TODO: Update journal page with summary
-
-    //    // Update everything
-    //    Npc npc = npcDict[serverResponse.npcId];
-    //    npc.affinitasValue = serverResponse.affinitasChange;
-
-    //}
-
-    
-
-
-
+        return true;
+    }
 }

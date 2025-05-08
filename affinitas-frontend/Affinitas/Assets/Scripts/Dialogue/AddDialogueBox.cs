@@ -46,6 +46,17 @@ namespace MainGame
             StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete, onCompleteTwo));
         }
 
+        public IEnumerator AddNpcDialogueBoxForQuests(string npcDialogue, Action onComplete, Action onCompleteTwo)
+        {
+            GameObject newNpcDialogueBox = Instantiate(npcDialogueBoxPrefab);
+            newNpcDialogueBox.transform.SetParent(contentTransform, false);
+
+            TextMeshProUGUI dialogueTextMesh = newNpcDialogueBox.transform.GetComponentInChildren<TextMeshProUGUI>();
+            dialogueTextMesh.text = "";
+
+            yield return StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete, onCompleteTwo));
+        }
+
         IEnumerator AddTextLetterByLetter(TextMeshProUGUI textMesh, string str, Action onComplete, Action onCompleteTwo)
         {
             yield return new WaitForSeconds(0.2f);

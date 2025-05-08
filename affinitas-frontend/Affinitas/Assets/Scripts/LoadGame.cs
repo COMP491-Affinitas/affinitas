@@ -46,8 +46,7 @@ public class LoadGameQuestMeta
     public string name;
     public string description;
     public List<string> rewards;
-    public bool started;
-    public string status;
+    public QuestStatus status;
 }
 
 public static class LoadGame
@@ -88,7 +87,6 @@ public static class LoadGame
                 {
                     name = questData.name,
                     description = questData.description,
-                    started = questData.started,
                     status = questData.status
                 };
                 newNpc.questList.Add(newQuest);
