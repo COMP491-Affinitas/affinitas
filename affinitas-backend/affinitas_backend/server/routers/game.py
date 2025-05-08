@@ -15,6 +15,7 @@ from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadRes
     GameSaveResponse, GameQuitRequest, GameDataResponse
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
+from affinitas_backend.server.utils import throw_500
 
 router = APIRouter(prefix="/game", tags=["game"])
 
@@ -249,14 +250,6 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
 @limiter.limit("20/minute")
 async def master_chat(request: Request, payload, x_client_uuid: XClientUUIDHeader):
     raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented")
-
-
-def throw_500(detail: str, *msgs: str):
-    logging.error(detail)
-    for msg in msgs:
-        logging.error(msg)
-
-    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
 
 
 def get_aggregate_pipeline(match: dict[str, Any], ):

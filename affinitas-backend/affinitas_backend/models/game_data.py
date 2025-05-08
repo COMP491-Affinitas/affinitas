@@ -45,11 +45,11 @@ class Quest(BaseModel):
     name: str
     description: str
     rewards: list[str] = Field(default_factory=list)  # This needs some rework
+    linked_npc: PydanticObjectId | None = None
 
 
 class QuestSaveData(BaseModel):
     quest_id: PydanticObjectId
-    started: bool
     status: str
 
 
