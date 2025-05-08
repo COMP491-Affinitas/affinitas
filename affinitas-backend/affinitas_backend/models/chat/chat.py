@@ -53,6 +53,7 @@ class NPCState(TypedDict):
 class NPCMessagesState(MessagesState):
     npc: NPCState
     invoke_model: bool
+    completed_quests: list[str]
 
 
 class ThreadInfo(BaseModel):

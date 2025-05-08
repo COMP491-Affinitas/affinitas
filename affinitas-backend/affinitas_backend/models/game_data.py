@@ -46,6 +46,7 @@ class Quest(BaseModel):
     description: str
     rewards: list[str] = Field(default_factory=list)  # This needs some rework
     linked_npc: PydanticObjectId | None = None
+    triggers: list[str] = Field(default_factory=list)
 
 
 class QuestSaveData(BaseModel):

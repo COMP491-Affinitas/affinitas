@@ -1,4 +1,4 @@
-from typing import Literal, cast
+from typing import Literal, cast, TypedDict
 
 from beanie import PydanticObjectId
 from langchain.chat_models import init_chat_model
@@ -20,6 +20,18 @@ from affinitas_backend.config import Config
 from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo
 
+
+class UpdatedNPCData(TypedDict):
+    affinitas: int
+    occupation: str | None
+    likes: list[str]
+    dislikes: list[str]
+
+
+class GetResponse(TypedDict):
+    message: str
+    updated_npc_data: UpdatedNPCData
+    completed_quests: list[str]
 
 class NPCChatService:
     def __init__(self, config: Config):
@@ -56,7 +68,7 @@ class NPCChatService:
 
     async def get_response(
             self, message: BaseMessage, npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId,
-    ) -> None | tuple[str, dict[str, str | int]]:
+    ) -> GetResponse | None:
         thread_id = await _get_thread_id(shadow_save_id, npc_id)
 
         if thread_id is None:
@@ -79,13 +91,18 @@ class NPCChatService:
             "invoke_model": invoke_model,
         }, config=cast(RunnableConfig, {"configurable": {"thread_id": thread_id}}))
 
+        print(res)
         if invoke_model:
-            return res["messages"][-1].content, {
-                "affinitas": res["npc"]["affinitas"],
-                "occupation": res["npc"]["occupation"],
-                "likes": res["npc"]["likes"],
-                "dislikes": res["npc"]["dislikes"],
-            }
+            return cast(GetResponse, {
+                "message": res["messages"][-1].content,
+                "updated_npc_data": {
+                    "affinitas": res["npc"]["affinitas"],
+                    "occupation": res["npc"]["occupation"],
+                    "likes": res["npc"]["likes"],
+                    "dislikes": res["npc"]["dislikes"],
+                },
+                "completed_quests": res["completed_quests"],
+            })
 
         return None
 
@@ -131,6 +148,7 @@ class NPCChatService:
                 likes=likes,
                 dislikes=dislikes
             ),
+            "completed_quests": res.completed_quests,
         }
 
     def _get_state(self, thread_id: str) -> NPCMessagesState | None:

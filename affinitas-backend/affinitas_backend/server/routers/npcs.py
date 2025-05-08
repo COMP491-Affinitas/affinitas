@@ -22,10 +22,11 @@ from affinitas_backend.server.limiter import limiter
 
 router = APIRouter(prefix="/npcs", tags=["npcs"])
 
-config = Config()
+config = Config()  # noqa
 
 chat_service = NPCChatService(config=config)
 master_llm_service = MasterLLM(config=config)
+
 
 @router.post(
     "/{npc_id}/chat",
@@ -67,7 +68,9 @@ async def npc_chat(
     )
 
     if res:
-        npc_response, updated_npc_data = res
+        npc_response = res["message"]
+        updated_npc_data = res["updated_npc_data"]
+        completed_quests = res["completed_quests"]
         update_query = (
             update_query
             .update(
@@ -80,9 +83,11 @@ async def npc_chat(
             )
         )
 
+
         response = NPCChatResponse(
             response=npc_response,
             affinitas_new=updated_npc_data["affinitas"],
+            completed_quests=completed_quests,
         )
     else:
         response = Response(
@@ -135,9 +140,12 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
     for quest in quests:
         linked_npc_id = quest.get("linked_npc")
         if linked_npc_id:
-            msg = f"If the player asks about this quest, mark the quest with id {quest["quest_id"]!r} completed.\n" \
-                  "---\n" \
-                  f"The quest is: {quest["description"]!r}"
+            msg = QUEST_PROMPT_TEMPLATE.format(
+                quest_id=quest.get("quest_id"),
+                quest_name=quest.get("name"),
+                quest_description=quest.get("description"),
+                keywords=", ".join(map(repr, quest.get("triggers", []))),
+            )
             await chat_service.get_response(
                 message=get_message(
                     role="system",
@@ -177,54 +185,83 @@ async def _update_document(update_query: UpdateMany):
 
 def get_npc_quests_pipeline(npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId):
     return [
-        {"$match": {"_id": shadow_save_id}},
-        {"$unwind": "$npcs"},
-        {"$match": {"npcs.npc_id": npc_id}},
+        {"$match": {
+            "_id": shadow_save_id,
+            "npcs.npc_id": npc_id
+        }},
         {"$lookup": {
             "from": "npcs",
-            "localField": "npcs.npc_id",
-            "foreignField": "_id",
-            "as": "npcDoc",
+            "let": {"targetNpc": npc_id},
+            "pipeline": [
+                {"$match": {
+                    "$expr": {"$eq": ["$_id", "$$targetNpc"]}
+                }}
+            ],
+            "as": "npc_config"
         }},
-        {"$unwind": "$npcDoc"},
+        {"$set": {
+            "npcs": {"$map": {
+                "input": {
+                    "$filter": {
+                        "input": "$npcs",
+                        "as": "ns",
+                        "cond": {"$eq": ["$$ns.npc_id", npc_id]}
+                    }
+                },
+                "as": "ns",
+                "in": {"$let": {
+                    "vars": {"cfg": {"$arrayElemAt": ["$npc_config", 0]}},
+                    "in": {"$mergeObjects": [
+                        "$$ns",
+                        {
+                            "quests": {"$map": {
+                                "input": "$$ns.quests",
+                                "as": "qs",
+                                "in": {"$mergeObjects": [
+                                    "$$qs",
+                                    {"$let": {
+                                        "vars": {
+                                            "qcfg": {"$arrayElemAt": [
+                                                {"$filter": {
+                                                    "input": "$$cfg.quests",
+                                                    "as": "c",
+                                                    "cond": {"$eq": ["$$c._id",
+                                                                     "$$qs.quest_id"]}
+                                                }
+                                                },
+                                                0
+                                            ]
+                                            }
+                                        },
+                                        "in": {
+                                            "description": "$$qcfg.description",
+                                            "linked_npc": "$$qcfg.linked_npc",
+                                            "triggers": "$$qcfg.triggers"
+                                        }
+                                    }}
+                                ]}
+                            }}
+                        }
+                    ]}
+                }}
+            }}
+        }},
         {"$project": {
             "_id": 0,
-            "quests": {
-                "$map": {
-                    "input": "$npcs.quests",
-                    "as": "sq",
-                    "in": {
-                        "quest_id": "$$sq.quest_id",
-                        "description": {"$arrayElemAt": [
-                            {"$map": {
-                                "input": {"$filter": {
-                                    "input": "$npcDoc.quests",
-                                    "as": "dq",
-                                    "cond": {
-                                        "$eq": ["$$dq._id", "$$sq.quest_id"]
-                                    }
-                                }},
-                                "as": "match",
-                                "in": "$$match.description"
-                            }},
-                            0
-                        ]},
-                        "linked_npc": {"$arrayElemAt": [
-                            {"$map": {
-                                "input": {
-                                    "$filter": {
-                                        "input": "$npcDoc.quests",
-                                        "as": "dq",
-                                        "cond": {"$eq": ["$$dq._id", "$$sq.quest_id"]}
-                                    }
-                                },
-                                "as": "match",
-                                "in": "$$match.linked_npc"
-                            }},
-                            0
-                        ]}
-                    }
-                }
-            }
+            "quests": {"$arrayElemAt": ["$npcs.quests", 0]}
         }}
     ]
+
+
+QUEST_PROMPT_TEMPLATE = """\
+The player has accepted this quest:
+
+Quest ID: {quest_id}
+Quest Name: {quest_name}
+Quest Description: {quest_description}
+---
+When the player's message indicates they want to complete the quest, they shall mention the following keywords:
+{keywords}
+---
+If the player completes the quest, append the quest ID to the `completed_quests` array.\
+"""

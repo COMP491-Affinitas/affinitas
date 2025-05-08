@@ -42,14 +42,12 @@ class MasterLLM:
 
         messages = [
             self.model.ainvoke(
-                f"""
-                Paraphrase the following text like this person would speak:
-                {bson.json_util.dumps(npc)}
-                ---
-                {quest["description"]!r}
-                ---
-                Only include the paraphrased text and nothing else.
-                """
+                "Paraphrase the following text like this person would speak:\n"
+                f"{bson.json_util.dumps(npc)}\n"
+                "---\n"
+                f"{quest["description"]!r}\n"
+                "---\n"
+                "Only include the paraphrased text and nothing else.\n"
             ) for quest in quests
         ]
 
