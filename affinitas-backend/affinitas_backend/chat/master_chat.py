@@ -74,7 +74,11 @@ class MasterLLM:
             "How well the player interacted with the NPCs should be reflected in the ending. "
             "If the endings array is provided for an NPC, their ending is based on "
             "the ending descriptions in the array. Higher affinitas shall result in "
-            "a better ending for the NPCs. The endings should be unique and not repeated."
+            "a better ending for the NPCs. If a quest is not marked `completed` in the game state, "
+            "the NPC should not mention it positively in the ending. The may choose to skip the quest or "
+            "mention it negatively. "
+            "The endings should not necessarily be optimistic and should reflect the history and the affinitas "
+            "values of the NPCs. The endings should be unique and not repeated. "
         )
 
     def _init_langsmith(self):
