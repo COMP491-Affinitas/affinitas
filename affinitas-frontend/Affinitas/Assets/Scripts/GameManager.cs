@@ -52,13 +52,13 @@ public class GameManager : MonoBehaviour
         OnNpcDataLoaded?.Invoke();
     }
 
-    public async Task<string> EndGame()
+    public async Task<string> CreateMessageForEndGame()
     {
         EndingRequest endRequest = new EndingRequest { shadow_save_id = shadowSaveId };
-
-
         EndingResponse endResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(endRequest, "/game/end", HttpMethod.Post);
+
+        Debug.Log(endResponse);
 
         if (endResponse == null)
         {
@@ -66,7 +66,7 @@ public class GameManager : MonoBehaviour
             return null;
         }
 
-        return endResponse.ending_text;
+        return endResponse.ending;
     }
 
     public void SubscribeToNpcDataLoaded(Action listener)
