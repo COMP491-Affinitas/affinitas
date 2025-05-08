@@ -33,7 +33,7 @@ public class EndingRequest : BaseRequest
 [Serializable]
 public class EndingResponse : BaseRequest
 {
-    public string ending_text;
+    public string ending;
 }
 
 [Serializable]
