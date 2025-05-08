@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -26,6 +27,9 @@ namespace MainGame
         [SerializeField] GameObject warningPanel;
         [SerializeField] TextMeshProUGUI warningPanelTextMesh;
 
+        [SerializeField] GameObject questPanelContent;
+        [SerializeField] GameObject questPrefab;
+
         private void Start()
         {
             if (Instance != null && Instance != this)
@@ -36,9 +40,7 @@ namespace MainGame
             {
                 Instance = this;
             }
-
             InitilizeMainPanels();
-            //GameManager.Instance.SubscribeToNpcDataLoaded(SetupDialogueListeners);
         }
 
         public void InitilizeMainPanels()
@@ -143,6 +145,14 @@ namespace MainGame
         public void UpdateNpcAffinitasUi(Npc npcData)
         {
             affinitasTextMeshes[npcData.npcId - 1].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
+        }
+
+        public void AddQuestToQuestPanel(string questText)
+        {
+            GameObject newQuest = Instantiate(questPrefab);
+            newQuest.transform.SetParent(questPanelContent.transform, false);
+
+            newQuest.GetComponent<TextMeshProUGUI>().text = questText;
         }
 
     }

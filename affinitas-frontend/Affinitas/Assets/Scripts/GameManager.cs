@@ -136,35 +136,30 @@ public class GameManager : MonoBehaviour
                 request,url, HttpMethod.Post
         );
 
-        Debug.Log("questresponse " + questResponse.ToString());
-
-        // Retrieved quest entries are created as Quest object
-        List<Quest> npcQuests = new();
-        List<string> questDescriptions = new();
-
         if (questResponse == null)
             Debug.LogError("Server returned null response.");
 
-        if (questResponse.quests == null)
-            Debug.Log("null :(");
-
+        List<string> questDescriptions = new();
+        // Match quest_id from get quest to update descriptions in Quest instances
         foreach (QuestEntry questEntry in questResponse.quests)
         {
-            Quest quest = new Quest
+            foreach (Quest quest in MainGameManager.Instance.npcList[npcId - 1].questList)
             {
-                name = $"{questEntry.quest_id}",
-                description = questEntry.response,
-                status = QuestStatus.InProgress
-            };
+                Debug.Log("Quest from server no: " + questEntry.quest_id + ", description: " + questEntry.response);
+                Debug.Log("Quest from game no: " + quest.questId + ", description: " + quest.description);
 
-            npcQuests.Add(quest);
-            questDescriptions.Add(quest.description);
+                if (quest.questId.Equals(questEntry.quest_id))
+                {
+                    quest.description = questEntry.response;
+                    quest.status = QuestStatus.InProgress;
 
-            Debug.Log("quest desc no: " + quest.name + " hey " + quest.description);
+                    questDescriptions.Add(quest.description);
+
+                    Debug.Log("Quest no: " + quest.questId + ", name: " + quest.name + ", description: " + quest.description);
+                }
+            }            
         }
-
-        // Add all quests to the corresponding NPC
-        MainGameManager.Instance.npcList[npcId - 1].questList.AddRange(npcQuests);
+        MainGameManager.Instance.HandleGivenQuests(npcId);
 
         return questDescriptions;
     }

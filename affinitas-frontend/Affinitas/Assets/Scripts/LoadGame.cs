@@ -85,6 +85,7 @@ public static class LoadGame
             {
                 Quest newQuest = new()
                 {
+                    questId = questData.quest_id,
                     name = questData.name,
                     description = questData.description,
                     status = questData.status

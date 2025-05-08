@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System;
 
 public class Npc
 {
@@ -168,9 +169,26 @@ public class MainGameManager : MonoBehaviour
         cherMinigameScore = cherMinigameScoreVal;
     }
 
+    public void HandleGivenQuests(int npcId)
+    {
+        List<Quest> npcQuests = npcList[npcId - 1].questList;
 
+        if (npcQuests.Count < 1)
+        {
+            Debug.Log("Npc has no quests.");
+            return;
+        }
+            
+        string questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
 
+        for (int i = 1; i < npcQuests.Count; i++)
+        {
+            questText += $@"\n• <size=24>{npcQuests[i].name}</size>";
+        }
 
+        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(questText);
 
+        // This is <s>crossed out</s>. This is <b>bold</b> text.
 
+    }
 }
