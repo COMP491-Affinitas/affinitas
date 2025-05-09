@@ -63,18 +63,21 @@ public class MainGameManager : MonoBehaviour
     //Call when End D ay button is pressed
     public async void EndDay()
     {
-        if (dayNo > 9) {
+        if (dayNo > 9)
+        {
+            UIManager.Instance.OpenEndingPanel();
             string endingText = await GameManager.Instance.CreateMessageForEndGame();
             Debug.Log(endingText);
+            UIManager.Instance.PutEndingTextToPanel(endingText);
         }
-        // End game panel
-
-        else {
-        dayNo += 1;
-        dailyActionPoints = 15;
-        ResetVariables();
-        //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
-        await GameManager.Instance.CreateMessageForEndDay();}
+        else
+        {
+            dayNo += 1;
+            dailyActionPoints = 15;
+            ResetVariables();
+            //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+            await GameManager.Instance.CreateMessageForEndDay();
+        }
     }
 
     // Call this from dialogues, minigames, quests etc. after an action is done
