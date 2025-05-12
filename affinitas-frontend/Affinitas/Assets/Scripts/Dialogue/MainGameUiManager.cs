@@ -29,6 +29,7 @@ namespace MainGame
 
         [SerializeField] GameObject questPanelContent;
         [SerializeField] GameObject questPrefab;
+        [SerializeField] Dictionary<string, TextMeshProUGUI> instantiatedQuests = new();
 
         private void Start()
         {
@@ -51,6 +52,10 @@ namespace MainGame
             UpdateDaysLeftPanel();
             OpenCharacterDialogue(-1);
             OpenMapPanel();
+            for (int i = 0; i < journalTextMeshes.Length; i++)
+            {
+                journalTextMeshes[i].text = "";
+            }
         }
 
         // Call from Open Journal button
@@ -147,12 +152,43 @@ namespace MainGame
             affinitasTextMeshes[npcData.npcId - 1].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
         }
 
-        public void AddQuestToQuestPanel(string questText)
+        public void AddQuestToQuestPanel(string questId, string questText)
         {
+            // TODO: Add the main quest and subquests one by one by calling this function again and again
+            // This way all quests are in dictionary, and when a quest is completed we can just surround it with <s></s> to cross it out.
+
             GameObject newQuest = Instantiate(questPrefab);
             newQuest.transform.SetParent(questPanelContent.transform, false);
 
-            newQuest.GetComponent<TextMeshProUGUI>().text = questText;
+            TextMeshProUGUI newQuestTextMesh = newQuest.GetComponent<TextMeshProUGUI>();
+            newQuestTextMesh.text = questText;
+
+            instantiatedQuests[questId] = newQuestTextMesh;
+        }
+
+        public void AddQuestToJournal(int npcId, string questText)
+        {
+            journalTextMeshes[npcId - 1].text += questText;
+        }
+
+        public void UpdateQuestInQuestPanel(string questId, QuestStatus status)
+        {
+            TextMeshProUGUI questTextMesh = instantiatedQuests[questId];
+            string oldQuestText = questTextMesh.text;
+            string newQuestText;
+            switch (status)
+            {
+                case QuestStatus.Pending:
+                    break;
+                case QuestStatus.InProgress:
+                    break;
+                case QuestStatus.Completed:
+                    newQuestText = "<s>" + oldQuestText + "</s>";
+                    questTextMesh.text = newQuestText;
+                    break;
+                default:
+                    break;
+            }
         }
 
     }

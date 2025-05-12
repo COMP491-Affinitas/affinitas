@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using System;
 
 public class Npc
 {
@@ -186,15 +185,45 @@ public class MainGameManager : MonoBehaviour
         }
             
         string questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
+        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[0].questId, questText);
 
         for (int i = 1; i < npcQuests.Count; i++)
         {
-            questText += $@"\n• <size=24>{npcQuests[i].name}</size>";
+            questText = $@"\n• <size=24>{npcQuests[i].name}</size>";
+            MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[i].questId, questText);
         }
 
-        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(questText);
+        questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
+        questText += $@"\n<size=24>{npcQuests[0].description}</size>\n";
+        for (int i = 1; i < npcQuests.Count; i++)
+        {
+            questText += $@"\n<b>• <size=26>{npcQuests[i].name}</size></b>";
+            questText += $@"\n<size=24>{npcQuests[i].description}</size>";
+        }
+        MainGame.MainGameUiManager.Instance.AddQuestToJournal(npcId, questText + "\n\n");
 
         // This is <s>crossed out</s>. This is <b>bold</b> text.
+    }
 
+    void UpdateQuestStatus(int npcId, string questId, QuestStatus newStatus)
+    {
+        // TODO: Quest completion game logic code etc. here
+        // ...
+
+        Quest questToUpdate = null;
+        foreach (Quest quest in npcList[npcId - 1].questList)
+        {
+            if (quest.questId.Equals(questId))
+                questToUpdate = quest;
+        }
+
+        if (questToUpdate == null)
+        {
+            Debug.Log("Quest with id: " + questId + " does not exist for NPC" + npcId);
+            return;
+        }
+
+        questToUpdate.status = newStatus;
+        MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(questId, newStatus);
     }
 }
