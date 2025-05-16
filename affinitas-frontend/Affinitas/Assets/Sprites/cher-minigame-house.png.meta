@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 61388a39d353549328594d2c18baca86
+guid: f90b3d53edb4c4b7f9fdaa3d6d627497
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8083715098017096577
-    second: ending-panel-text-bg_0
+      213: 4250592245742740147
+    second: cher-minigame-house_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: ending-panel-text-bg_0
+      name: cher-minigame-house_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 396
-        height: 452
+        x: 3
+        y: 3
+        width: 395
+        height: 322
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 67, y: 92, z: 52, w: 84}
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f7c9a3d92ffd0df80800000000000000
-      internalID: -8083715098017096577
+      spriteID: 3b2a68c70232dfa30800000000000000
+      internalID: 4250592245742740147
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 14d75a6dd6430446d931b7000a3b12b3
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -134,8 +134,7 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable:
-      ending-panel-text-bg_0: -8083715098017096577
+    nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

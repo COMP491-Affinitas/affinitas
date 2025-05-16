@@ -1,3 +1,5 @@
+using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,6 +19,11 @@ public class UIManager : MonoBehaviour
 
     [SerializeField]
     Toggle fullscreenToggle;
+
+    [SerializeField]
+    TextMeshProUGUI endingTextMesh;
+    [SerializeField]
+    ScrollRectHelper endingPanelScrollRectHelper;
 
     private void Start()
     {
@@ -57,12 +64,19 @@ public class UIManager : MonoBehaviour
         menuPanel.SetActive(true);
     }
 
+    // Open panel and put ending text from server
     public void OpenEndingPanel()
     {
         mainPanel.SetActive(false);
         settingsPanel.SetActive(false);
         menuPanel.SetActive(false);
         endingPanel.SetActive(true);
+        endingTextMesh.text = "";
+    }
+
+    public void PutEndingTextToPanel(string endingText)
+    {
+        StartCoroutine(AddTextLetterByLetter(endingTextMesh, endingPanelScrollRectHelper, endingText));
     }
 
     // Make sure that SettingsPanel is above all other panels in hierarchy (at the bottom of list)
@@ -81,8 +95,6 @@ public class UIManager : MonoBehaviour
 
     public void QuitGame()
     {
-        // TODO: Stop Python/LLM Connection before quitting!
-        // Also handle this at user quitting via the close button.
         Application.Quit();
     }
 
@@ -106,6 +118,19 @@ public class UIManager : MonoBehaviour
             fullscreenToggle.isOn = true;
         else
             fullscreenToggle.isOn = false;
+    }
+
+    IEnumerator AddTextLetterByLetter(TextMeshProUGUI textMesh, ScrollRectHelper scrollRectHelper, string str)
+    {
+        textMesh.text = "";
+        yield return null;
+
+        for (int i = 0; i < str.Length; i++)
+        {
+            textMesh.text += str[i];
+            scrollRectHelper.ScrollToBottom();
+            yield return new WaitForSeconds(0.05f);
+        }
     }
 
 

@@ -62,18 +62,21 @@ public class MainGameManager : MonoBehaviour
     //Call when End D ay button is pressed
     public async void EndDay()
     {
-        if (dayNo > 9) {
+        if (dayNo > 9)
+        {
+            UIManager.Instance.OpenEndingPanel();
             string endingText = await GameManager.Instance.CreateMessageForEndGame();
             Debug.Log(endingText);
+            UIManager.Instance.PutEndingTextToPanel(endingText);
         }
-        // End game panel
-
-        else {
-        dayNo += 1;
-        dailyActionPoints = 15;
-        ResetVariables();
-        //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
-        await GameManager.Instance.CreateMessageForEndDay();}
+        else
+        {
+            dayNo += 1;
+            dailyActionPoints = 15;
+            ResetVariables();
+            //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+            await GameManager.Instance.CreateMessageForEndDay();
+        }
     }
 
     // Call this from dialogues, minigames, quests etc. after an action is done
@@ -171,9 +174,56 @@ public class MainGameManager : MonoBehaviour
         cherMinigameScore = cherMinigameScoreVal;
     }
 
+    public void HandleGivenQuests(int npcId)
+    {
+        List<Quest> npcQuests = npcList[npcId - 1].questList;
 
+        if (npcQuests.Count < 1)
+        {
+            Debug.Log("Npc has no quests.");
+            return;
+        }
+            
+        string questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
+        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[0].questId, questText);
 
+        for (int i = 1; i < npcQuests.Count; i++)
+        {
+            questText = $@"\n• <size=24>{npcQuests[i].name}</size>";
+            MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[i].questId, questText);
+        }
 
+        questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
+        questText += $@"\n<size=24>{npcQuests[0].description}</size>\n";
+        for (int i = 1; i < npcQuests.Count; i++)
+        {
+            questText += $@"\n<b>• <size=26>{npcQuests[i].name}</size></b>";
+            questText += $@"\n<size=24>{npcQuests[i].description}</size>";
+        }
+        MainGame.MainGameUiManager.Instance.AddQuestToJournal(npcId, questText + "\n\n");
 
+        // This is <s>crossed out</s>. This is <b>bold</b> text.
+    }
 
+    void UpdateQuestStatus(int npcId, string questId, QuestStatus newStatus)
+    {
+        // TODO: Quest completion game logic code etc. here
+        // ...
+
+        Quest questToUpdate = null;
+        foreach (Quest quest in npcList[npcId - 1].questList)
+        {
+            if (quest.questId.Equals(questId))
+                questToUpdate = quest;
+        }
+
+        if (questToUpdate == null)
+        {
+            Debug.Log("Quest with id: " + questId + " does not exist for NPC" + npcId);
+            return;
+        }
+
+        questToUpdate.status = newStatus;
+        MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(questId, newStatus);
+    }
 }
