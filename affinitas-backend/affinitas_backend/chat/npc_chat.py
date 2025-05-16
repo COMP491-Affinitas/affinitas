@@ -1,3 +1,4 @@
+import copy
 from typing import Literal, cast, TypedDict
 
 from beanie import PydanticObjectId
@@ -101,7 +102,7 @@ class NPCChatService:
                     "likes": res["npc"]["likes"],
                     "dislikes": res["npc"]["dislikes"],
                 },
-                "completed_quests": res["completed_quests"],
+                "completed_quests": res["npc"]["completed_quests"][len(npc["completed_quests"]):],
             })
 
         return None
@@ -146,9 +147,9 @@ class NPCChatService:
                 affinitas_change=AFFINITAS_CHANGE_MAP[affinitas_change],
                 occupation=occupation,
                 likes=likes,
-                dislikes=dislikes
+                dislikes=dislikes,
+                completed_quests=res.completed_quests
             ),
-            "completed_quests": res.completed_quests,
         }
 
     def _get_state(self, thread_id: str) -> NPCMessagesState | None:
@@ -191,8 +192,8 @@ def _get_next_node(state: NPCMessagesState) -> Literal["call", "__end__"]:
 
 
 def _update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | None = None, likes: list[str] = None,
-                dislikes: list[str] = None) -> NPCState:
-    npc = npc.copy()
+                dislikes: list[str] = None, completed_quests: list[str] = None) -> NPCState:
+    npc = copy.deepcopy(npc)
 
     if affinitas_change:
         npc["affinitas"] += affinitas_change
@@ -208,6 +209,10 @@ def _update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | N
     if dislikes:
         npc["dislikes"].extend(dislikes)
         npc["dislikes"] = list(set(npc["dislikes"]))
+
+    if completed_quests:
+        npc["completed_quests"].extend(completed_quests)
+        npc["completed_quests"] = list(set(npc["completed_quests"]))
 
     return npc
 

@@ -62,7 +62,8 @@ class NPCSaveData(BaseModel):
     occupation: str | None = None
     quests: list[QuestSaveData] = Field(default_factory=list)
     chat_history: list[tuple[Literal["user", "system", "ai"], str]] = Field(default_factory=list)
-
+    completed_quests: list[PydanticObjectId] = Field(default_factory=list)  # Quests completed by this NPC, the quest
+    # does not have to belong to this NPC
 
 class Journal(BaseModel):
     quests: list[dict[PydanticObjectId, Any]] = Field(default_factory=list)

@@ -18,7 +18,8 @@ class OpenAI_NPCChatResponse(BaseModel):
                     "`very positive`, `positive`, `neutral`, `negative`, `very negative`."
     )
     delta: NPCDataDelta = Field(...,
-                                description="Optional changes to the NPC's likes, dislikes and occupation. Occupation is only changed when the NPC is missing it.")
+                                description="Optional changes to the NPC's likes, dislikes and occupation. "
+                                            "Occupation is only changed when the NPC is missing it.")
     completed_quests: list[str] = Field(default_factory=list,
                                         description="List of completed quest IDs that are completed in the current turn")
 
@@ -48,12 +49,12 @@ class NPCState(TypedDict):
     })
     endings: list[str]
     dialogue_unlocks: list[str]
+    completed_quests: list[str]
 
 
 class NPCMessagesState(MessagesState):
     npc: NPCState
     invoke_model: bool
-    completed_quests: list[str]
 
 
 class ThreadInfo(BaseModel):

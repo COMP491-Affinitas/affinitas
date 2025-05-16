@@ -73,7 +73,10 @@ async def npc_chat(
                     "npcs.$.occupation": updated_npc_data["occupation"],
                     "npcs.$.likes": updated_npc_data["likes"]
                 }),
-                Push({"npcs.$.chat_history": {"$each": [(payload.role, payload.content), ("ai", npc_response)]}})
+                Push({
+                    "npcs.$.chat_history": {"$each": [(payload.role, payload.content), ("ai", npc_response)]},
+                    "npcs.$.completed_quests": {"$each": completed_quests},
+                }),
             )
         )
 

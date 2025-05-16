@@ -80,8 +80,8 @@ def get_message(role: Literal["user", "ai", "system"], content: str) -> BaseMess
             return AIMessage(content)
         case "system":
             return SystemMessage(content)
-        case _:
-            raise ValueError(f"Unknown message type: {role}")
+
+    raise ValueError(f"Unknown message type: {role}")
 
 
 def _pretty_quests(quests: list[QuestState]) -> str:
@@ -133,6 +133,7 @@ def _get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: Pydanti
                         'affinitas_config': '$npc_config.affinitas_config',
                         'affinitas': '$npcs.affinitas',
                         'chat_history': '$npcs.chat_history',
+                        'completed_quests': '$npcs.completed_quests',
                         'quests': {
                             '$map': {
                                 'input': '$npcs.quests',
