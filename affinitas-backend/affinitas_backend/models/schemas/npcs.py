@@ -8,7 +8,7 @@ from affinitas_backend.models.game_data import QuestSaveData
 
 class QuestSaveDataResponse(QuestSaveData):
     name: str
-    description: str
+    description: str | None
     rewards: list[str] = Field(default_factory=list)
 
 

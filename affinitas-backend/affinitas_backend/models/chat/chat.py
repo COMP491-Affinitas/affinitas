@@ -26,7 +26,7 @@ class OpenAI_NPCChatResponse(BaseModel):
 class QuestState(TypedDict):
     status: Literal["pending", "active", "completed"]
     name: str
-    description: str
+    description: str | None
     rewards: list[str]
 
 

@@ -288,6 +288,7 @@ async def end_game(request: Request, payload: GameEndRequest, x_client_uuid: XCl
     # summary=None,
     # description=None,
     status_code=status.HTTP_200_OK,
+    deprecated=True,
 )
 @limiter.limit("20/minute")
 async def master_chat(request: Request, payload, x_client_uuid: XClientUUIDHeader):

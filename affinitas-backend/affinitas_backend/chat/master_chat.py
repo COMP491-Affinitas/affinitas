@@ -49,7 +49,7 @@ class MasterLLM:
                 f"{quest['description']!r}\n"
                 "---\n"
                 "Only include the paraphrased text and nothing else.\n"
-            ) for quest in quests
+            ) for quest in quests if quest["description"] is not None
         ]
 
         res = await asyncio.gather(*messages)
