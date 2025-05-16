@@ -77,7 +77,6 @@ async def npc_chat(
             )
         )
 
-
         response = NPCChatResponse(
             response=npc_response,
             affinitas_new=updated_npc_data["affinitas"],
@@ -170,6 +169,7 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
         "quests": res
     })
 
+
 async def _update_document(update_query: UpdateMany):
     try:
         await update_query
@@ -229,6 +229,7 @@ def get_npc_quests_pipeline(npc_id: PydanticObjectId, shadow_save_id: PydanticOb
                                         },
                                         "in": {
                                             "description": "$$qcfg.description",
+                                            "name": "$$qcfg.name",
                                             "linked_npc": "$$qcfg.linked_npc",
                                             "triggers": "$$qcfg.triggers"
                                         }
@@ -254,7 +255,8 @@ Quest ID: {quest_id}
 Quest Name: {quest_name}
 Quest Description: {quest_description}
 ---
-When the player's message indicates they want to complete the quest, they shall mention the following keywords:
+Make use of the keywords below and the quest name and description (if non-null) \
+to decide whether the quest is completed.
 {keywords}
 ---
 If the player completes the quest, append the quest ID to the `completed_quests` array.\
