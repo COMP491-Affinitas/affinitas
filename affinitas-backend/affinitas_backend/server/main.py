@@ -4,11 +4,13 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .lifespan import lifespan
-from .limiter import limiter
-from .routers.auth import router as auth_router
-from .routers.game import router as game_router
-from .routers.npcs import router as npcs_router
+from affinitas_backend.server.lifespan import lifespan
+from affinitas_backend.server.limiter import limiter
+from affinitas_backend.server.routers.auth import router as auth_router
+from affinitas_backend.server.routers.game import router as game_router
+from affinitas_backend.server.routers.npcs import router as npcs_router
+from affinitas_backend.server.routers.saves import router as saves_router
+from affinitas_backend.server.routers.session import router as session_router
 
 DESCRIPTION = """
 Backend API for **Affinitas: A Ten Day Tale**
@@ -100,5 +102,7 @@ app.add_middleware(
 app.add_middleware(SlowAPIMiddleware)  # noqa
 
 app.include_router(auth_router)
-app.include_router(game_router)
 app.include_router(npcs_router)
+app.include_router(session_router)
+app.include_router(saves_router)
+app.include_router(game_router)

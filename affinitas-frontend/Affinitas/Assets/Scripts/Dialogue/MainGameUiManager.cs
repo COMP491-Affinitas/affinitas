@@ -1,7 +1,7 @@
-using System.Collections;
-using System.Linq;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace MainGame
 {
@@ -11,11 +11,12 @@ namespace MainGame
         public static MainGameUiManager Instance { get; private set; }
 
         [SerializeField] GameObject mapPanel;
+        [SerializeField] GameObject[] mapButtons; // all map buttons except for Bart Ender's house
         [SerializeField] GameObject daysLeftPanel;
 
         [SerializeField] TextMeshProUGUI[] affinitasTextMeshes;
 
-        [SerializeField] GameObject[] npcDialoguePanels;
+        [SerializeField] CanvasGroup[] npcDialoguePanels;
         [SerializeField] TMP_InputField[] dialogueInputFields;
         [SerializeField] TextMeshProUGUI[] dialoguePanelNameTextMeshes;
 
@@ -24,6 +25,15 @@ namespace MainGame
         [SerializeField] TextMeshProUGUI[] journalTabButtonTextMeshes;
         [SerializeField] TextMeshProUGUI[] journalTextMeshes;
 
+        [SerializeField] GameObject warningPanel;
+        [SerializeField] TextMeshProUGUI warningPanelTextMesh;
+
+        [SerializeField] GameObject questPanelContent;
+        [SerializeField] GameObject questPrefab;
+        Dictionary<string, TextMeshProUGUI> instantiatedQuests = new();
+
+        [SerializeField] GameObject gusFishItem;
+        [SerializeField] GameObject[] moraPieceItems;
 
         private void Start()
         {
@@ -35,61 +45,20 @@ namespace MainGame
             {
                 Instance = this;
             }
-
             InitilizeMainPanels();
-            //GameManager.Instance.SubscribeToNpcDataLoaded(SetupDialogueListeners);
         }
-
-        
-        //private void SetupDialogueListeners()
-        //{
-        //    MainGameManager manager = MainGameManager.Instance;
-
-        //    for (int i = 0; i < dialogueInputFields.Length; i++)
-        //    {
-        //        int capturedIndex = i;
-        //        Npc npc = manager.npcList[i];
-        //        AddDialogueBox dialogueUI = npcDialoguePanels[i].GetComponent<AddDialogueBox>();
-
-        //        dialogueInputFields[i].onSubmit.AddListener((str) => SendMessageGetNpcResponse(str, npc));
-
-        //        dialogueInputFields[i].onSubmit.AddListener(async (str) =>
-        //        {
-        //            //dialogueUI.AddPlayerDialogueBox(str, () => { });
-        //            string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(str, npc.dbNpcId);
-
-        //            Debug.Log("npc says: " + npcResponse);
-
-        //            if (!string.IsNullOrEmpty(npcResponse))
-        //            {
-        //                Debug.Log("npc adds: boxxx");
-        //                dialogueUI.AddNpcDialogueBox(npcResponse, null);//ServerConnection.Instance.OnServerMessageReceived);
-        //            }
-        //        });
-        //    }
-        //}
-
-        //public async void SendMessageGetNpcResponse(string playerInput, Npc npc)
-        //{
-        //    string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(playerInput, npc.dbNpcId);
-
-        //    Debug.Log("npc says: " + npcResponse);
-
-        //    if (!string.IsNullOrEmpty(npcResponse))
-        //    {
-        //        Debug.Log("npc adds: boxxx");
-        //        dialogueUI.AddNpcDialogueBox(npcResponse, null);//ServerConnection.Instance.OnServerMessageReceived);
-        //    }
-        //}
-
 
         public void InitilizeMainPanels()
         {
             CloseJournalPanel();
+            CloseWarningPanel();
             OpenJournalTab(1);
             UpdateDaysLeftPanel();
-            OpenCharacterDialogue(-1);
             OpenMapPanel();
+            for (int i = 0; i < journalTextMeshes.Length; i++)
+            {
+                journalTextMeshes[i].text = "";
+            }
         }
 
         // Call from Open Journal button
@@ -104,11 +73,24 @@ namespace MainGame
             journalPanel.SetActive(false);
         }
 
+        public void OpenWarningPanel(string warningText)
+        {
+            warningPanel.SetActive(true);
+            warningPanelTextMesh.text = warningText;
+        }
+
+        // Call from close (x) button on the Warning panel
+        public void CloseWarningPanel()
+        {
+            warningPanel.SetActive(false);
+        }
+
         //Call when End Day button is pressed
         // TODO: if days left is zero, also update End Day button to say End Game!!!
         public void UpdateDaysLeftPanel()
         {
-            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = "Day No: " + MainGameManager.Instance.dayNo.ToString();
+            string panelText = "Day No: " + MainGameManager.Instance.dayNo.ToString() + "\n\nAction Points Left: " + MainGameManager.Instance.dailyActionPoints.ToString();
+            daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = panelText;
         }
 
         // Call when Tab buttons are clicked
@@ -128,7 +110,11 @@ namespace MainGame
             mapPanel.SetActive(false);
             for (int i = 0; i < npcDialoguePanels.Length; i++)
             {
-                npcDialoguePanels[i].SetActive(i == (index-1));
+                //npcDialoguePanels[i].SetActive(i == (index-1));
+                bool isActive = i == index-1;
+                npcDialoguePanels[i].alpha = isActive ? 1f : 0f;
+                npcDialoguePanels[i].interactable = isActive;
+                npcDialoguePanels[i].blocksRaycasts = isActive;
             }
         }
 
@@ -137,6 +123,27 @@ namespace MainGame
         {
             mapPanel.SetActive(true);
         }
+
+        // Call from minigame buttons with correct indexing (starts from 1 since 0 is main game index)
+        public void OpenMinigameScene(int minigameSceneIndex)
+        {
+            if (MainGameManager.Instance.EnoughActionPointsForMinigame() == false)
+            {
+                OpenWarningPanel("You do not have enough action points to play this minigame. End the day!");
+                return;
+            }
+            MainGameManager.Instance.ReduceActionPointsForMinigame(minigameSceneIndex-1);
+            UpdateDaysLeftPanel();
+            //SceneManager.LoadScene(minigameSceneIndex);
+            SceneManager.LoadScene(minigameSceneIndex, LoadSceneMode.Additive);
+        }
+
+        // Call from End Day button
+        public void EndDayButton()
+        {
+            MainGameManager.Instance.EndDay();
+        }
+
 
         // npcId indexing starts from 1
         public void InitializeNpcUIs(Npc npcData)
@@ -150,6 +157,87 @@ namespace MainGame
         public void UpdateNpcAffinitasUi(Npc npcData)
         {
             affinitasTextMeshes[npcData.npcId - 1].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
+        }
+
+        public void AddQuestToQuestPanel(string questId, string questText)
+        {
+            // TODO: Add the main quest and subquests one by one by calling this function again and again
+            // This way all quests are in dictionary, and when a quest is completed we can just surround it with <s></s> to cross it out.
+
+            GameObject newQuest = Instantiate(questPrefab);
+            newQuest.transform.SetParent(questPanelContent.transform, false);
+
+            TextMeshProUGUI newQuestTextMesh = newQuest.GetComponent<TextMeshProUGUI>();
+            newQuestTextMesh.text = questText;
+
+            instantiatedQuests[questId] = newQuestTextMesh;
+        }
+
+        public void AddQuestToJournal(int npcId, string questText)
+        {
+            journalTextMeshes[npcId - 1].text += questText;
+        }
+
+        public void UpdateQuestInQuestPanel(string questId, QuestStatus status)
+        {
+            TextMeshProUGUI questTextMesh = instantiatedQuests[questId];
+            string oldQuestText = questTextMesh.text;
+            string newQuestText;
+            if (status == QuestStatus.Completed)
+            {
+                newQuestText = "<s>" + oldQuestText + "</s>";
+                questTextMesh.text = newQuestText;
+            }
+        }
+
+        // Make everyone but Bart Ender's houses invisible at the beginning of the game
+        public void ToggleMapButtonsVisibility(bool visibility)
+        {
+            foreach (GameObject mapButton in mapButtons)
+            {
+                mapButton.SetActive(visibility);
+            }
+        }
+
+        public void AddMoraPieceToInventory()
+        {
+            foreach (GameObject moraPiece in moraPieceItems)
+            {
+                if (moraPiece.activeSelf == false)
+                {
+                    moraPiece.SetActive(true);
+                    return;
+                }
+            }
+        }
+
+        public void AddGusFishToInventory()
+        {
+            gusFishItem.SetActive(true);
+        }
+
+        public void RemoveAllItemsFromInventory()
+        {
+            gusFishItem.SetActive(false);
+            foreach (GameObject moraPiece in moraPieceItems)
+            {
+                moraPiece.SetActive(false);
+            }
+        }
+
+        //TODO: write code to give only a number of items from mora pieces for load game
+
+        public void GiveItemToMora()
+        {
+            foreach (GameObject moraPiece in moraPieceItems)
+            {
+                moraPiece.SetActive(false);
+            }
+        }
+
+        public void GiveItemToGus()
+        {
+            gusFishItem.SetActive(false);
         }
 
     }
