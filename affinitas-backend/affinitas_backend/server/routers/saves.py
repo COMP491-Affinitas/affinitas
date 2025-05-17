@@ -1,12 +1,13 @@
 import logging
 
+from beanie import SortDirection
 from fastapi import HTTPException, status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.config import Config
-from affinitas_backend.db.utils import get_aggregate_pipeline
+from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import Save, ShadowSave
 from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadResponse, GameLoadRequest, \
     GameSaveResponse, \
@@ -31,17 +32,15 @@ config = Config()  # noqa
 )
 @limiter.limit("3/minute")
 async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
-    saves = await Save.aggregate([
-        {"$match": {"client_uuid": x_client_uuid}},
-        {"$sort": {"saved_at": -1}},
-        {"$project": {
-            "_id": 1,
-            "name": 1,
-            "saved_at": 1,
-        }},
-        {"$set": {"save_id": "$_id"}},
-        {"$unset": ["_id"]},
-    ]).to_list()
+    saves = await (
+        Save
+        .find(
+            Save.client_uuid == x_client_uuid,
+            projection={"save_id": "$_id", "name": 1, "saved_at": 1, "_id": 0}
+        )
+        .sort(("saved_at", SortDirection.DESCENDING))
+        .to_list()
+    )
 
     return GameSavesResponse(saves=[
         GameSaveResponse.model_validate(save) for save in saves
@@ -62,7 +61,7 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
 @limiter.limit("3/minute")
 async def load_game_save(request: Request, payload: GameLoadRequest, x_client_uuid: XClientUUIDHeader):
     save = await Save.aggregate(
-        get_aggregate_pipeline({"_id": payload.save_id})
+        get_save_pipeline({"_id": payload.save_id})
     ).to_list(1)
 
     if not save:

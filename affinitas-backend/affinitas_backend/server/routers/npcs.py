@@ -2,11 +2,10 @@ import logging
 
 from beanie import PydanticObjectId
 from beanie.odm.operators.update.array import Push
-from beanie.odm.operators.update.general import Set, Inc
-from beanie.odm.queries.update import UpdateMany, UpdateResponse
-from fastapi import Response, HTTPException
+from beanie.odm.operators.update.general import Inc
 from beanie.odm.operators.update.general import Set
 from beanie.odm.queries.update import UpdateMany
+from beanie.odm.queries.update import UpdateResponse
 from fastapi import Response, HTTPException, status
 from fastapi.background import BackgroundTasks
 from fastapi.requests import Request
@@ -15,6 +14,7 @@ from pydantic import TypeAdapter
 
 from affinitas_backend.chat import get_message
 from affinitas_backend.chat import npc_chat_service, master_llm_service
+from affinitas_backend.db.utils import get_npc_quests_pipeline
 from affinitas_backend.models.beanie.npc import NPC
 from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.schemas.chat import NPCChatRequest, NPCChatResponse
@@ -243,147 +243,6 @@ async def _update_document(update_query: UpdateMany):
         await update_query
     except Exception as e:
         logging.error(f"Background update failed: {e}")
-
-
-def get_npc_quests_pipeline(npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId):
-    return [
-        {"$match": {
-            "_id": shadow_save_id,
-            "npcs.npc_id": npc_id
-        }},
-        {"$lookup": {
-            "from": "npcs",
-            "let": {"targetNpc": npc_id},
-            "pipeline": [
-                {"$match": {
-                    "$expr": {"$eq": ["$_id", "$$targetNpc"]}
-                }}
-            ],
-            "as": "npc_config"
-        }},
-        {"$set": {
-            "npcs": {"$map": {
-                "input": {
-                    "$filter": {
-                        "input": "$npcs",
-                        "as": "ns",
-                        "cond": {"$eq": ["$$ns.npc_id", npc_id]}
-                    }
-                },
-                "as": "ns",
-                "in": {"$let": {
-                    "vars": {"cfg": {"$arrayElemAt": ["$npc_config", 0]}},
-                    "in": {"$mergeObjects": [
-                        "$$ns",
-                        {
-                            "quests": {"$map": {
-                                "input": "$$ns.quests",
-                                "as": "qs",
-                                "in": {"$mergeObjects": [
-                                    "$$qs",
-                                    {"$let": {
-                                        "vars": {
-                                            "qcfg": {"$arrayElemAt": [
-                                                {"$filter": {
-                                                    "input": "$$cfg.quests",
-                                                    "as": "c",
-                                                    "cond": {"$eq": ["$$c._id",
-                                                                     "$$qs.quest_id"]}
-                                                }
-                                                },
-                                                0
-                                            ]
-                                            }
-                                        },
-                                        "in": {
-                                            "description": "$$qcfg.description",
-                                            "name": "$$qcfg.name",
-                                            "linked_npc": "$$qcfg.linked_npc",
-                                            "triggers": "$$qcfg.triggers"
-                                        }
-                                    }}
-                                ]}
-                            }}
-                        }
-                    ]}
-                }}
-            }}
-        }},
-        {"$project": {
-            "_id": 0,
-            "quests": {"$arrayElemAt": ["$npcs.quests", 0]}
-        }}
-    ]
-
-
-def get_complete_quest_pipeline(quest_id: PydanticObjectId, npc_id: PydanticObjectId, completion_message: str,
-                                shadow_save_id: PydanticObjectId):
-    return [
-        {"$match": {"_id": shadow_save_id}},
-
-        # 2) Find the correct quest and ensure it is marked active
-        {"$unwind": "$npcs"},
-        {"$match": {"npcs.npc_id": npc_id}},
-        {"$unwind": "$npcs.quests"},
-        {"$match": {
-            "npcs.quests.quest_id": quest_id,
-            "npcs.quests.status": "active"
-        }},
-
-        # 3) Get the affinitas reward of the quest
-        {"$lookup": {
-            "from": "npcs",
-            "let": {
-                "npcId": "$npcs.npc_id",
-                "questId": "$npcs.quests.quest_id"
-            },
-            "pipeline": [
-                {"$match": {
-                    "$expr": {"$eq": ["$_id", "$$npcId"]}  # Finds the NPC
-                }},
-                {"$unwind": "$quests"},
-                {"$match": {
-                    "$expr": {"$eq": ["$quests._id", "$$questId"]}  # Finds the quest
-                }},
-                {"$project": {
-                    "_id": 0,
-                    "affinitas_reward": "$quests.affinitas_reward"  # Only take the affinitas reward
-                }}
-            ],
-            "as": "reward_doc"
-        }},
-        {"$unwind": "$reward_doc"},
-
-        # 4) Apply the three updates to this NPC subdocument
-        {"$set": {
-            "npcs.affinitas": {
-                "$add": ["$npcs.affinitas", "$reward_doc.affinitas_reward"]
-            },
-            "npcs.quests.status": "complete",
-            "npcs.chat_history": {
-                "$concatArrays": [
-                    "$npcs.chat_history",
-                    [["system", completion_message]]
-                ]
-            }
-        }},
-
-        # 5) Re-group the NPCs back into an array under the same shadow_save _id
-        {"$group": {
-            "_id": "$_id",
-            "npcs": {"$push": "$npcs"}
-            # (If you have other top-level fields you want to preserve,
-            #  add them here too with accumulators like $first or $max)
-        }},
-
-        # 6) Merge the modified document back into shadow_saves atomically
-        {"$merge": {
-            "into": ShadowSave.Settings.name,
-            "on": "_id",
-            "whenMatched": "replace",
-            "whenNotMatched": "fail"
-        }}
-    ]
 
 
 QUEST_PROMPT_TEMPLATE = """\

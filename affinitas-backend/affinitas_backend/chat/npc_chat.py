@@ -16,8 +16,9 @@ from openai import OpenAI
 from pydantic import TypeAdapter
 
 from affinitas_backend.chat.utils import NPC_PROMPT_TEMPLATE, AFFINITAS_CHANGE_MAP, get_message, \
-    _pretty_quests, _get_shadow_save_npc_state
+    _pretty_quests
 from affinitas_backend.config import Config
+from affinitas_backend.db.utils import get_shadow_save_npc_state
 from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo
 
@@ -159,7 +160,7 @@ class NPCChatService:
 
     async def _get_npc_state(self, shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> tuple[
         NPCState | None, list[BaseMessage]]:
-        npc_data = await _get_shadow_save_npc_state(shadow_save_id, npc_id)
+        npc_data = await get_shadow_save_npc_state(shadow_save_id, npc_id)
 
         if npc_data:
             npc = npc_data[0]

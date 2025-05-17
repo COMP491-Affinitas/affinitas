@@ -7,7 +7,7 @@ from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.chat import master_llm_service
 from affinitas_backend.config import Config
-from affinitas_backend.db.utils import get_aggregate_pipeline
+from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import DefaultSave, ShadowSave, Save
 from affinitas_backend.models.schemas.game import GameLoadResponse, GameDataResponse, GameSaveResponse, GameSaveRequest, \
     GameQuitRequest, GameEndResponse, GameEndRequest
@@ -32,7 +32,7 @@ config = Config()  # noqa
 @limiter.limit("3/minute")
 async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     save = await DefaultSave.aggregate(
-        get_aggregate_pipeline({"_id": config.default_save_version})
+        get_save_pipeline({"_id": config.default_save_version})
     ).to_list(1)
 
     if not save:
@@ -74,7 +74,7 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
             shadow_save_id=res.id,
         )
     except Exception:
-        await res.delete()  # Delete the shadow save if the merge fails since we don't want to keep it now
+        await res.delete()
         raise
 
 
@@ -163,7 +163,7 @@ async def generate_ending(request: Request, payload: GameEndRequest, x_client_uu
     npc_infos = (
         await ShadowSave
         .aggregate(
-            get_aggregate_pipeline({"_id": payload.shadow_save_id})
+            get_save_pipeline({"_id": payload.shadow_save_id})
             + [{"$project": {"npcs": 1}}]
         )
         .to_list()
