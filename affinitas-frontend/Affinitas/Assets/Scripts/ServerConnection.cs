@@ -65,6 +65,25 @@ public class QuestCompleteResponse : BaseResponse
     public int affinitas;
 }
 
+[Serializable]
+public class TakeItemRequest : BaseRequest
+{
+    public string item_name;
+    public string shadow_save_id;
+}
+
+[Serializable]
+public class GiveItemRequest : BaseRequest
+{
+    public string quest_id;
+    public string shadow_save_id;
+}
+[Serializable]
+public class GiveItemResponse : BaseResponse
+{
+    public string response;
+}
+
 
 [Serializable]
 public class PlayerRequest : BaseRequest

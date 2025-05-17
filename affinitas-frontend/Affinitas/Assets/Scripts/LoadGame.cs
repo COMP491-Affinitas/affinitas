@@ -98,6 +98,11 @@ public static class LoadGame
             Debug.Log("Npc no " + newNpc.npcId.ToString() + ": " + newNpc.npcName + " with Affinitas " + newNpc.affinitasValue.ToString());
         }
 
+
+        // TODO: DELETE LATER!!!!
+
+        MainGameManager.Instance.npcList[2].questList[0].status = QuestStatus.Completed;
+
         return;
 
         // TODO: Initialize journal info

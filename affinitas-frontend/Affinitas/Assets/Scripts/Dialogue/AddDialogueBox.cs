@@ -17,6 +17,8 @@ namespace MainGame
         Transform contentTransform;
         ScrollRectHelper scrollRectHelper;
 
+        float writingSpeed = 0.01f; //0.05f;
+
         private void Start()
         {
             scrollRectHelper = GetComponent<ScrollRectHelper>();
@@ -65,7 +67,7 @@ namespace MainGame
             {
                 textMesh.text += str[i];
                 scrollRectHelper.ScrollToBottom();
-                yield return new WaitForSeconds(0.05f);
+                yield return new WaitForSeconds(writingSpeed);
             }
 
             onComplete?.Invoke();

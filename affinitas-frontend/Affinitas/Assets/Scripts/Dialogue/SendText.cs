@@ -10,17 +10,17 @@ namespace MainGame
     public class SendText : MonoBehaviour
     {
         // This code needs to be on DialogueScrollView
-        [SerializeField]
-        int npcId;
-        [SerializeField]
-        TMP_InputField dialogueInputField;
+        [SerializeField] int npcId;
+        [SerializeField] TMP_InputField dialogueInputField;
         string playerInput;
         AddDialogueBox addDialogueBox;
         ScrollRectHelper scrollRectHelper;
 
-        [SerializeField]
-        Button getQuestButton;
+        [SerializeField] Button getQuestButton;
         bool getQuestDone;
+
+        [SerializeField] Button giveItemButton;
+        [SerializeField] Button sendTextButton;
 
         void Start()
         {
@@ -42,10 +42,10 @@ namespace MainGame
             if (ServerConnection.Instance.canSendMessage == false)
                 return;
 
+            MakeButtonsUnclickable();
+
             MainGameManager.Instance.ReduceActionPointsForDialogue(MainGameManager.Instance.npcList[npcId - 1].npcName);
             MainGameUiManager.Instance.UpdateDaysLeftPanel();
-
-            getQuestButton.interactable = false;
 
             playerInput = dialogueInputField.text;
             if (playerInput == "")
@@ -74,7 +74,7 @@ namespace MainGame
 
             if (!string.IsNullOrEmpty(npcResponse))
             {
-                addDialogueBox.AddNpcDialogueBox(npcResponse, ServerConnection.Instance.OnServerMessageReceived, MakeGetQuestClickable);
+                addDialogueBox.AddNpcDialogueBox(npcResponse, ServerConnection.Instance.OnServerMessageReceived, MakeButtonsClickable);
                 scrollRectHelper.ScrollToBottom();
             }
         }
@@ -88,6 +88,7 @@ namespace MainGame
                 return;
             }
 
+            MakeButtonsUnclickable();
             MainGameManager.Instance.ReduceActionPointsForGetQuest(MainGameManager.Instance.npcList[npcId - 1].npcName);
             MainGameUiManager.Instance.UpdateDaysLeftPanel();
 
@@ -97,7 +98,6 @@ namespace MainGame
 
             if (questDescriptions != null)
             {
-                getQuestButton.interactable = false;
                 getQuestDone = true;
 
                 StartCoroutine(ShowQuestsOneByOne(questDescriptions));
@@ -115,17 +115,58 @@ namespace MainGame
             for (int i = 0; i < questDescriptions.Count; i++)
             {
                 if (i == questDescriptions.Count - 1)
-                    yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], null, null);
+                    yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], ServerConnection.Instance.OnServerMessageReceived, MakeButtonsClickable);
                 else
-                    yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], ServerConnection.Instance.OnServerMessageReceived, null);
+                    yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], null, null);
                 scrollRectHelper.ScrollToBottom();
             }
         }
 
-        public void MakeGetQuestClickable()
+        public void MakeButtonsUnclickable()
+        {
+            getQuestButton.interactable = false;
+            giveItemButton.interactable = false;
+            sendTextButton.interactable = false;
+        }
+
+        public void MakeButtonsClickable()
         {
             if (!getQuestDone)
                 getQuestButton.interactable = true;
+            giveItemButton.interactable = true;
+            sendTextButton.interactable = true;
+        }
+
+
+        // Call when Give Item button pressed for an Npc
+        public async void GiveItem()
+        {
+            // If not Gus or Mora, no item can be given
+            if ((npcId != 1 && npcId != 2)
+                || (npcId == 1 && MainGameManager.Instance.moraItems <= 0)
+                || (npcId == 2 && MainGameManager.Instance.gusItem <= 0))
+            {
+                Debug.Log("Npc id is " + npcId + " and " + MainGameManager.Instance.moraItems.ToString() + " mora and " + MainGameManager.Instance.gusItem.ToString() + " gus.");
+                MainGameUiManager.Instance.OpenWarningPanel("You have no items to give!");
+                return;
+            }
+            if (npcId == 1)
+                MainGameManager.Instance.GiveMoraItem();
+            else if (npcId == 2)
+                MainGameManager.Instance.GiveGusItem();
+            else
+                return;
+
+            MakeButtonsUnclickable();
+
+            string dbNpcId = MainGameManager.Instance.npcList[npcId - 1].dbNpcId;
+            string npcResponse = await GameManager.Instance.NotifyForItemGiven(dbNpcId);
+
+            if(!string.IsNullOrEmpty(npcResponse))
+            {
+                addDialogueBox.AddNpcDialogueBox(npcResponse, ServerConnection.Instance.OnServerMessageReceived, MakeButtonsClickable);
+                scrollRectHelper.ScrollToBottom();
+            }
         }
 
     }
