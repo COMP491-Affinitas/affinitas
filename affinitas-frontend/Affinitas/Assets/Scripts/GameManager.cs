@@ -69,6 +69,38 @@ public class GameManager : MonoBehaviour
         return endResponse.ending;
     }
 
+    public async Task SaveGame() {
+
+        string saveName = null; // input will come from pop-up 
+
+        SaveRequest saveRequest = new SaveRequest { name = saveName, shadow_save_id = shadowSaveId };
+        SaveResponse endResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<SaveRequest, SaveResponse>(saveRequest, "/game/save", HttpMethod.Post);
+ 
+        Debug.Log("Game saved");
+        Save newSave = new Save{ save_id = endResponse.save_id, name = saveName, saved_at = endResponse.saved_at};
+        MainGameManager.Instance.saveList.Add(newSave);
+
+    }
+
+    // Where should we put this?
+    public async Task QuitGame() {
+
+        // If Save is clicked
+        await SaveGame();
+
+        // Else: open the menu without saving 
+
+        // Add go to menu part
+
+        // Delete the shadow save
+        QuitRequest quitRequest= new QuitRequest { shadow_save_id = shadowSaveId};
+        BaseResponse quitResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<QuitRequest, BaseResponse>(quitRequest, "/game/quit", HttpMethod.Post);
+  
+
+    }
+
     public void SubscribeToNpcDataLoaded(Action listener)
     {
         if (npcDataReady)

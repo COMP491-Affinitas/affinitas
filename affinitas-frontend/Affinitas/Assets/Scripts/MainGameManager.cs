@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System;
 
 public class Npc
 {
@@ -10,6 +11,13 @@ public class Npc
     public int affinitasValue;
     public List<Quest> questList = new(); // First quest is main quest, others subquests
     public List<string> dialogueSummary = new(); // One dialogue summary for each day
+}
+
+public class Save
+{
+    public string save_id; 
+    public string name;
+    public DateTime saved_at;
 }
 
 public enum QuestStatus
@@ -33,6 +41,8 @@ public class MainGameManager : MonoBehaviour
     public static MainGameManager Instance { get; private set; }
 
     public List<Npc> npcList = new(6);
+    public List<Save> saveList = new List<Save>();
+    
     //public Dictionary<string, Npc> npcDict = new();
     public int dailyActionPoints;
     public int dayNo;

@@ -53,6 +53,27 @@ public class QuestListResponse : BaseResponse
     public List<QuestEntry> quests;
 }
 
+[Serializable]
+public class SaveRequest : BaseRequest
+{   
+    public string name;
+    public string shadow_save_id;
+}
+
+[Serializable]
+public class SaveResponse : BaseRequest
+{
+    public string save_id;
+    public string name;
+    public DateTime saved_at;
+}
+
+[Serializable]
+public class QuitRequest : BaseRequest
+{   
+    public string shadow_save_id;
+}
+
 
 [Serializable]
 public class ClientResponse
@@ -93,7 +114,7 @@ public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
 
-    const string serverURL = "https://affinitas-pr-13.onrender.com";
+    const string serverURL = "https://affinitas.onrender.com/";
     //static readonly HttpClient client = new HttpClient(); 
     static HttpClient client = new HttpClient();
 
