@@ -7,10 +7,11 @@ requires-python = ">=3.13"
 dependencies = [
     "beanie>=1.29.0",
     "fastapi[standard]>=0.115.12",
-    "langchain[openai]>=0.3.24",
-    "langgraph>=0.4.3",
-    "motor>=3.7.0",
+    "langchain[openai]>=0.3.25",
+    "langgraph>=0.4.5",
+    "langsmith>=0.3.42",
+    "motor>=3.7.1",
     "pydantic-settings>=2.9.1",
-    "pymongo>=4.12.1",
+    "pymongo>=4.13.0",
     "slowapi>=0.1.9",
 ]
