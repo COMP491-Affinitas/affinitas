@@ -101,7 +101,6 @@ async def npc_chat(
 
 @router.post(
     "/{npc_id}/quest",
-
     response_model=NPCQuestResponses,
     summary="Get NPC quest and subquest data",
     description="Returns the quest and subquest data for an NPC. The first item in the list will be the main quest, "
