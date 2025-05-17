@@ -16,7 +16,7 @@ namespace MainGame
 
         [SerializeField] TextMeshProUGUI[] affinitasTextMeshes;
 
-        [SerializeField] GameObject[] npcDialoguePanels;
+        [SerializeField] CanvasGroup[] npcDialoguePanels;
         [SerializeField] TMP_InputField[] dialogueInputFields;
         [SerializeField] TextMeshProUGUI[] dialoguePanelNameTextMeshes;
 
@@ -51,7 +51,6 @@ namespace MainGame
             CloseWarningPanel();
             OpenJournalTab(1);
             UpdateDaysLeftPanel();
-            OpenCharacterDialogue(-1);
             OpenMapPanel();
             for (int i = 0; i < journalTextMeshes.Length; i++)
             {
@@ -108,7 +107,11 @@ namespace MainGame
             mapPanel.SetActive(false);
             for (int i = 0; i < npcDialoguePanels.Length; i++)
             {
-                npcDialoguePanels[i].SetActive(i == (index-1));
+                //npcDialoguePanels[i].SetActive(i == (index-1));
+                bool isActive = i == index-1;
+                npcDialoguePanels[i].alpha = isActive ? 1f : 0f;
+                npcDialoguePanels[i].interactable = isActive;
+                npcDialoguePanels[i].blocksRaycasts = isActive;
             }
         }
 
