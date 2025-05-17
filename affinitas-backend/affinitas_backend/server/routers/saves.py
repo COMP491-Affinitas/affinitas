@@ -1,10 +1,9 @@
 import logging
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from pymongo.errors import DuplicateKeyError
-from starlette import status
 
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_aggregate_pipeline

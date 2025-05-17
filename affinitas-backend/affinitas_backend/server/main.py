@@ -102,7 +102,6 @@ app.add_middleware(
 app.add_middleware(SlowAPIMiddleware)  # noqa
 
 app.include_router(auth_router)
-app.include_router(game_router)
 app.include_router(npcs_router)
 app.include_router(session_router)
 app.include_router(saves_router)

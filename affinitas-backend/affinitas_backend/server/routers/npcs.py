@@ -4,12 +4,11 @@ from beanie import PydanticObjectId
 from beanie.odm.operators.update.array import Push
 from beanie.odm.operators.update.general import Set
 from beanie.odm.queries.update import UpdateMany
-from fastapi import Response, HTTPException
+from fastapi import Response, HTTPException, status
 from fastapi.background import BackgroundTasks
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from pydantic import TypeAdapter
-from starlette import status
 
 from affinitas_backend.chat import get_message
 from affinitas_backend.chat import npc_chat_service, master_llm_service
@@ -76,7 +75,6 @@ async def npc_chat(
                 Push({"npcs.$.chat_history": {"$each": [(payload.role, payload.content), ("ai", npc_response)]}})
             )
         )
-
 
         response = NPCChatResponse(
             response=npc_response,
@@ -168,6 +166,7 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
     return TypeAdapter(NPCQuestResponses).validate_python({
         "quests": res
     })
+
 
 async def _update_document(update_query: UpdateMany):
     try:

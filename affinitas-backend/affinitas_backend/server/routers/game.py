@@ -1,6 +1,6 @@
+from fastapi import status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
-from starlette import status
 
 from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadResponse, GameLoadRequest, GameSaveRequest, \
     GameSaveResponse, GameQuitRequest, GameEndResponse, GameEndRequest

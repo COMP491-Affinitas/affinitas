@@ -1,7 +1,7 @@
 from typing import Any
 
 
-def get_aggregate_pipeline(match: dict[str, Any], ):
+def get_aggregate_pipeline(match: dict[str, Any]):
     """
     Returns the aggregation pipeline for the game save data.
     The pipeline is used to transform the save data stored in ShadowSave, DefaultSave, and Save documents.
