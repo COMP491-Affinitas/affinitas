@@ -374,7 +374,7 @@ def get_aggregate_pipeline(match: dict[str, Any], ):
                                                                 {
                                                                     "name": "$$quest_config.name",
                                                                     "description": "$$quest_config.description",
-                                                                    "rewards": "$$quest_config.rewards"
+                                                                    "affinitas_reward": "$$quest_config.affinitas_reward"
                                                                 }
                                                             ]
                                                         }
@@ -382,7 +382,6 @@ def get_aggregate_pipeline(match: dict[str, Any], ):
                                                 }
                                             }
                                         },
-                                        # "endings": "$$npc_config.dialogue_unlocks",
                                     }
                                 ]
                             }

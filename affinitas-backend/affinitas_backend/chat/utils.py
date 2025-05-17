@@ -92,10 +92,8 @@ def _pretty_quests(quests: list[QuestState]) -> str:
         icon = QUEST_STATUS_ICON.get(q["status"].lower(), "•")
         name = q["name"]
         desc = q["description"]
-        reward_str = ", ".join(q["rewards"]) if q["rewards"] else None
         lines.append(f"{icon} **{name}**: {desc}")
-        if reward_str:
-            lines.append(f"    – Rewards: {reward_str}")
+        lines.append(f"    – Affinitas Reward: {q["affinitas_reward"]}")
 
     return "\n".join(lines)
 
@@ -162,7 +160,7 @@ def _get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: Pydanti
                                                 '$$quest_save', {
                                                     'name': '$$quest_config.name',
                                                     'description': '$$quest_config.description',
-                                                    'rewards': '$$quest_config.rewards'
+                                                    'affinitas_reward': '$$quest_config.affinitas_reward'
                                                 }
                                             ]
                                         }

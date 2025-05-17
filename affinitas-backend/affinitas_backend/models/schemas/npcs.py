@@ -9,7 +9,7 @@ from affinitas_backend.models.game_data import QuestSaveData
 class QuestSaveDataResponse(QuestSaveData):
     name: str
     description: str | None
-    rewards: list[str] = Field(default_factory=list)
+    affinitas_reward: int
 
 
 class NPCResponse(BaseModel):
@@ -33,7 +33,10 @@ class NPCQuestResponses(BaseModel):
     quests: list[NPCQuestResponse] = Field(default_factory=list)
 
 
-class NPCQuest(BaseModel):
+class NPCQuestCompleteRequest(BaseModel):
     quest_id: PydanticObjectId
-    description: str
-    linked_npc: PydanticObjectId | None = None
+    shadow_save_id: PydanticObjectId
+
+
+class NPCQuestCompleteResponse(BaseModel):
+    affinitas: int

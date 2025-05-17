@@ -44,7 +44,7 @@ class Quest(BaseModel):
     id: PydanticObjectId = Field(..., alias="_id")
     name: str
     description: str | None
-    rewards: list[str] = Field(default_factory=list)  # This needs some rework
+    affinitas_reward: int
     linked_npc: PydanticObjectId | None = None
     triggers: list[str] = Field(default_factory=list)
 

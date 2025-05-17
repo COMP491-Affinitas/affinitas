@@ -2,8 +2,8 @@ import logging
 
 from beanie import PydanticObjectId
 from beanie.odm.operators.update.array import Push
-from beanie.odm.operators.update.general import Set
-from beanie.odm.queries.update import UpdateMany
+from beanie.odm.operators.update.general import Set, Inc
+from beanie.odm.queries.update import UpdateMany, UpdateResponse
 from fastapi import Response, HTTPException
 from fastapi.background import BackgroundTasks
 from fastapi.requests import Request
@@ -13,9 +13,11 @@ from starlette import status
 
 from affinitas_backend.chat import get_message
 from affinitas_backend.chat import npc_chat_service, master_llm_service
+from affinitas_backend.models.beanie.npc import NPC
 from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.schemas.chat import NPCChatRequest, NPCChatResponse
-from affinitas_backend.models.schemas.npcs import NPCQuestResponses, NPCQuestRequest
+from affinitas_backend.models.schemas.npcs import NPCQuestResponses, NPCQuestRequest, NPCQuestCompleteRequest, \
+    NPCQuestCompleteResponse
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 
@@ -103,13 +105,13 @@ async def npc_chat(
 
 @router.post(
     "/{npc_id}/quest",
-
     response_model=NPCQuestResponses,
     summary="Get NPC quest and subquest data",
     description="Returns the quest and subquest data for an NPC. The first item in the list will be the main quest, "
                 "and the subsequent items will be subquests. The `X-Client-UUID` header must be provided.",
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("10/minute")
 async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQuestRequest,
                     x_client_uuid: XClientUUIDHeader, background_tasks: BackgroundTasks):
     quests = (
@@ -171,6 +173,66 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
     return TypeAdapter(NPCQuestResponses).validate_python({
         "quests": res
     })
+
+
+@router.post(
+    "/{npc_id}/quest/complete",
+    summary="Complete an NPC quest",
+    description="Completes an NPC quest. The quest with the given ID will be marked as completed. "
+                "Returns 204 No Content if the quest is completed successfully. "
+                "The `X-Client-UUID` header must be provided.",
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("10/minute")
+async def complete_quest(
+        request: Request,
+        npc_id: PydanticObjectId,
+        payload: NPCQuestCompleteRequest,
+        x_client_uuid: XClientUUIDHeader,
+        background_tasks: BackgroundTasks,
+):
+    quest_id = payload.quest_id
+    shadow_save_id = payload.shadow_save_id
+
+    sys_msg = f"Quest with ID `{quest_id!r}` completed."
+
+    affinitas_reward = await (
+        NPC
+        .get_motor_collection()
+        .find_one({"_id": npc_id, "quests._id": quest_id}, {"quests.$": 1, "_id": 0})
+    )
+
+    if not affinitas_reward:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found")
+
+    affinitas_reward = affinitas_reward["quests"][0]["affinitas_reward"]
+
+    res: ShadowSave = await (
+        ShadowSave
+        .find_one(ShadowSave.id == shadow_save_id)
+        .update_one(
+            Inc({"npcs.$[npc].affinitas": affinitas_reward}),
+            Set({"npcs.$[npc].quests.$[quest].status": "completed"}),
+            Push({"npcs.$[npc].chat_history": {"$each": [("system", sys_msg)]}}),
+            array_filters=[
+                {"npc.npc_id": npc_id},
+                {"quest.quest_id": quest_id}
+            ],
+            response_type=UpdateResponse.NEW_DOCUMENT
+        )
+    )
+
+    if not res:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found")
+
+    await npc_chat_service.get_response(
+        message=get_message("system", sys_msg),
+        npc_id=npc_id,
+        shadow_save_id=shadow_save_id,
+    )
+
+    npc = next(npc for npc in res.npcs if npc.npc_id == npc_id)
+    return NPCQuestCompleteResponse(affinitas=npc.affinitas)
 
 
 async def _update_document(update_query: UpdateMany):
@@ -247,6 +309,76 @@ def get_npc_quests_pipeline(npc_id: PydanticObjectId, shadow_save_id: PydanticOb
         {"$project": {
             "_id": 0,
             "quests": {"$arrayElemAt": ["$npcs.quests", 0]}
+        }}
+    ]
+
+
+def get_complete_quest_pipeline(quest_id: PydanticObjectId, npc_id: PydanticObjectId, completion_message: str,
+                                shadow_save_id: PydanticObjectId):
+    return [
+        {"$match": {"_id": shadow_save_id}},
+
+        # 2) Find the correct quest and ensure it is marked active
+        {"$unwind": "$npcs"},
+        {"$match": {"npcs.npc_id": npc_id}},
+        {"$unwind": "$npcs.quests"},
+        {"$match": {
+            "npcs.quests.quest_id": quest_id,
+            "npcs.quests.status": "active"
+        }},
+
+        # 3) Get the affinitas reward of the quest
+        {"$lookup": {
+            "from": "npcs",
+            "let": {
+                "npcId": "$npcs.npc_id",
+                "questId": "$npcs.quests.quest_id"
+            },
+            "pipeline": [
+                {"$match": {
+                    "$expr": {"$eq": ["$_id", "$$npcId"]}  # Finds the NPC
+                }},
+                {"$unwind": "$quests"},
+                {"$match": {
+                    "$expr": {"$eq": ["$quests._id", "$$questId"]}  # Finds the quest
+                }},
+                {"$project": {
+                    "_id": 0,
+                    "affinitas_reward": "$quests.affinitas_reward"  # Only take the affinitas reward
+                }}
+            ],
+            "as": "reward_doc"
+        }},
+        {"$unwind": "$reward_doc"},
+
+        # 4) Apply the three updates to this NPC subdocument
+        {"$set": {
+            "npcs.affinitas": {
+                "$add": ["$npcs.affinitas", "$reward_doc.affinitas_reward"]
+            },
+            "npcs.quests.status": "complete",
+            "npcs.chat_history": {
+                "$concatArrays": [
+                    "$npcs.chat_history",
+                    [["system", completion_message]]
+                ]
+            }
+        }},
+
+        # 5) Re-group the NPCs back into an array under the same shadow_save _id
+        {"$group": {
+            "_id": "$_id",
+            "npcs": {"$push": "$npcs"}
+            # (If you have other top-level fields you want to preserve,
+            #  add them here too with accumulators like $first or $max)
+        }},
+
+        # 6) Merge the modified document back into shadow_saves atomically
+        {"$merge": {
+            "into": ShadowSave.Settings.name,
+            "on": "_id",
+            "whenMatched": "replace",
+            "whenNotMatched": "fail"
         }}
     ]
 

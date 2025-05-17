@@ -28,7 +28,7 @@ class QuestState(TypedDict):
     status: Literal["pending", "active", "completed"]
     name: str
     description: str | None
-    rewards: list[str]
+    affinitas_reward: int
 
 
 class NPCState(TypedDict):
