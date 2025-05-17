@@ -216,14 +216,15 @@ async def complete_quest(
             Push({"npcs.$[npc].chat_history": {"$each": [("system", sys_msg)]}}),
             array_filters=[
                 {"npc.npc_id": npc_id},
-                {"quest.quest_id": quest_id}
+                {"quest.quest_id": quest_id},
+                {"quest.status": "active"}
             ],
             response_type=UpdateResponse.NEW_DOCUMENT
         )
     )
 
     if not res:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Active quest not found")
 
     await npc_chat_service.get_response(
         message=get_message("system", sys_msg),
