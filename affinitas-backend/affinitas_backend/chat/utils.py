@@ -93,7 +93,7 @@ def _pretty_quests(quests: list[QuestState]) -> str:
         name = q["name"]
         desc = q["description"]
         lines.append(f"{icon} **{name}**: {desc}")
-        lines.append(f"    – Affinitas Reward: {q["affinitas_reward"]}")
+        lines.append(f"    – Affinitas Reward: {q['affinitas_reward']}")
 
     return "\n".join(lines)
 
