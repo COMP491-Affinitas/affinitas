@@ -27,12 +27,6 @@ public class Quest
     public QuestStatus status;
 }
 
-public class CompleteQuestInfo
-{
-    public Npc npc;
-    public string questId;
-}
-
 public class MainGameManager : MonoBehaviour
 {
     // Singleton
@@ -42,6 +36,9 @@ public class MainGameManager : MonoBehaviour
     //public Dictionary<string, Npc> npcDict = new();
     public int dailyActionPoints;
     public int dayNo;
+
+    public int gusItem;
+    public int moraItems;
 
     public Dictionary<string, bool> hadDialogueDict = new();
     public Dictionary<string, bool> gotQuestDict = new();
@@ -235,22 +232,15 @@ public class MainGameManager : MonoBehaviour
         // This is <s>crossed out</s>. This is <b>bold</b> text.
     }
 
-    public List<CompleteQuestInfo> UpdateQuestStatus(string questId, QuestStatus newStatus)
+    public List<string> UpdateQuestStatus(Npc npc, string questId, QuestStatus newStatus)
     {
-        List<CompleteQuestInfo> completeQuestInfos = new();
-
-        Npc npcWithQuest = null;
+        List<string> completeQuestIds = new();
         Quest questToUpdate = null;
-        foreach (Npc npc in npcList)
+
+        foreach (Quest quest in npc.questList)
         {
-            foreach (Quest quest in npc.questList)
-            {
-                if (quest.questId.Equals(questId))
-                {
-                    questToUpdate = quest;
-                    npcWithQuest = npc;
-                }   
-            }
+            if (quest.questId.Equals(questId))
+                questToUpdate = quest;
         }
 
         if (questToUpdate == null)
@@ -259,32 +249,78 @@ public class MainGameManager : MonoBehaviour
             return null;
         }
 
-        CompleteQuestInfo completeQuestInfo = new CompleteQuestInfo { npc = npcWithQuest, questId = questToUpdate.questId };
-        completeQuestInfos.Add(completeQuestInfo);
+        completeQuestIds.Add(questToUpdate.questId);
         questToUpdate.status = newStatus;
         MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(questId, newStatus);
 
 
         // Check main quest completion as well
         bool allSubquestsCompleted = true;
-        if (npcWithQuest.questList.Count > 1)
+        if (npc.questList.Count > 1)
         {
-            for (int i = 1; i < npcWithQuest.questList.Count; i++)
+            for (int i = 1; i < npc.questList.Count; i++)
             {
-                if (npcWithQuest.questList[i].status != QuestStatus.Completed)
+                if (npc.questList[i].status != QuestStatus.Completed)
                 {
                     allSubquestsCompleted = false;
                 }
             }
             if (allSubquestsCompleted)
             {
-                npcWithQuest.questList[0].status = newStatus;
-                MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(npcWithQuest.questList[0].questId, newStatus);
-                CompleteQuestInfo completeMainQuestInfo = new CompleteQuestInfo { npc = npcWithQuest, questId = npcWithQuest.questList[0].questId };
-                completeQuestInfos.Add(completeMainQuestInfo);
+                npc.questList[0].status = newStatus;
+                MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(npc.questList[0].questId, newStatus);
+                completeQuestIds.Add(npc.questList[0].questId);
             }
         }
 
-        return completeQuestInfos;
+        return completeQuestIds;
     }
+
+    public Npc MatchQuestToNpc(string questId)
+    {
+        foreach (Npc npc in npcList)
+        {
+            foreach (Quest quest in npc.questList)
+            {
+                if (quest.questId.Equals(questId))
+                    return npc;
+            }
+        }
+        return null;
+    }
+
+    // Call from Gus Give item button
+    public void GiveGusItem()
+    {
+        if (gusItem > 0)
+        {
+            gusItem -= 1;
+            MainGame.MainGameUiManager.Instance.GiveItemToGus();
+        }
+    }
+
+    // Call from Mora Give item button
+    public void GiveMoraItem()
+    {
+        if (moraItems > 0)
+        {
+            moraItems -= 1;
+            MainGame.MainGameUiManager.Instance.GiveItemToMora();
+        }
+    }
+
+    public void GetMoraItem()
+    {
+        moraItems += 1;
+        MainGame.MainGameUiManager.Instance.AddMoraPieceToInventory();
+    }
+
+    public void GetGusItem()
+    {
+        gusItem += 1;
+        MainGame.MainGameUiManager.Instance.AddGusFishToInventory();
+    }
+
+
+
 }

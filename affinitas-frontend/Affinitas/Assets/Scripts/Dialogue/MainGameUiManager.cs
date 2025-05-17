@@ -30,7 +30,10 @@ namespace MainGame
 
         [SerializeField] GameObject questPanelContent;
         [SerializeField] GameObject questPrefab;
-        [SerializeField] Dictionary<string, TextMeshProUGUI> instantiatedQuests = new();
+        Dictionary<string, TextMeshProUGUI> instantiatedQuests = new();
+
+        [SerializeField] GameObject gusFishItem;
+        [SerializeField] GameObject[] moraPieceItems;
 
         private void Start()
         {
@@ -194,6 +197,47 @@ namespace MainGame
             {
                 mapButton.SetActive(visibility);
             }
+        }
+
+        public void AddMoraPieceToInventory()
+        {
+            foreach (GameObject moraPiece in moraPieceItems)
+            {
+                if (moraPiece.activeSelf == false)
+                {
+                    moraPiece.SetActive(true);
+                    return;
+                }
+            }
+        }
+
+        public void AddGusFishToInventory()
+        {
+            gusFishItem.SetActive(true);
+        }
+
+        public void RemoveAllItemsFromInventory()
+        {
+            gusFishItem.SetActive(false);
+            foreach (GameObject moraPiece in moraPieceItems)
+            {
+                moraPiece.SetActive(false);
+            }
+        }
+
+        //TODO: write code to give only a number of items from mora pieces for load game
+
+        public void GiveItemToMora()
+        {
+            foreach (GameObject moraPiece in moraPieceItems)
+            {
+                moraPiece.SetActive(false);
+            }
+        }
+
+        public void GiveItemToGus()
+        {
+            gusFishItem.SetActive(false);
         }
 
     }

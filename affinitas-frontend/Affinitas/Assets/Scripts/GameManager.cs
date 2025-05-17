@@ -126,23 +126,38 @@ public class GameManager : MonoBehaviour
 
             if (npcResponse.completed_quests.Count != 0)
             {
-                List<CompleteQuestInfo> completeQuestInfos = null;
-
+                Npc npcMatchedToQuest = null;
+                List<string> completeQuestIds = null;
+                // For Mora Lysa quest where we get items from other npcs
                 for (int i = 0; i < npcResponse.completed_quests.Count; i++)
                 {
-                    completeQuestInfos = MainGameManager.Instance.UpdateQuestStatus(npcResponse.completed_quests[i], QuestStatus.Completed);
-                    if (completeQuestInfos != null)
+                    npcMatchedToQuest = MainGameManager.Instance.MatchQuestToNpc(npcResponse.completed_quests[i]);
+                    if (npcMatchedToQuest == null)
                     {
-                        foreach (CompleteQuestInfo completeQuestInfo in completeQuestInfos)
+                        Debug.Log("No npc mathced to quest error.");
+                        return null;
+                    }
+                    Debug.Log("Npc matched: " + npcMatchedToQuest.npcName);
+                    if (npcMatchedToQuest.npcId == 1)
+                    {
+                        MainGameManager.Instance.GetMoraItem();
+                    }
+                    else
+                    {
+                        completeQuestIds = MainGameManager.Instance.UpdateQuestStatus(npcMatchedToQuest, npcResponse.completed_quests[i], QuestStatus.Completed);
+                        if (completeQuestIds != null)
                         {
-                            await NotifyForQuestComplete(completeQuestInfo.npc, completeQuestInfo.questId);
-                        } 
+                            foreach (string completeQuestId in completeQuestIds)
+                            {
+                                await NotifyForQuestComplete(npcMatchedToQuest, completeQuestId);
+                            }
+                        }
                     }
                 }
+
             }
 
         }
-
         Debug.Log(npcResponse.response);
         return npcResponse.response; 
     }
@@ -224,6 +239,8 @@ public class GameManager : MonoBehaviour
             shadow_save_id = shadowSaveId
         };
 
+        Debug.Log("npc name from notifywuerstcomplete: " + npc.npcName);
+
         QuestCompleteResponse serverResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<QuestCompleteRequest, QuestCompleteResponse>(
                 message,
@@ -236,5 +253,48 @@ public class GameManager : MonoBehaviour
         Debug.Log("updated affinitas is: " + npc.affinitasValue);
 
         return true;
+    }
+
+    public async Task<bool> NotifyForItemTaken(string itemName, string dbNpcId)
+    {
+        // Send message that player has taken an item from an npc
+        Npc npc = MainGameManager.Instance.npcList.Find(n => n.dbNpcId == dbNpcId);
+
+        TakeItemRequest message = new()
+        {
+            item_name = itemName,
+            shadow_save_id = shadowSaveId
+        };
+
+        BaseResponse npcResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<TakeItemRequest, BaseResponse>(
+                message,
+                $"/npcs/{npc.dbNpcId}/?????????????????????", // TODO: CHANGE
+                HttpMethod.Post
+            );
+
+        Debug.Log("player has been given an item from npc " + npc.npcName);
+        return true;
+    }
+
+    public async Task<string> NotifyForItemGiven(string dbNpcId)
+    {
+        // Send message that player has given an item to an npc
+        Npc npc = MainGameManager.Instance.npcList.Find(n => n.dbNpcId == dbNpcId);
+
+        GiveItemRequest message = new GiveItemRequest
+        {
+            shadow_save_id = shadowSaveId
+        };
+
+        GiveItemResponse npcResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<GiveItemRequest, GiveItemResponse>(
+                message,
+                $"/npcs/{npc.dbNpcId}/?????????????????????", // TODO: CHANGE
+                HttpMethod.Post
+            );
+
+        Debug.Log("given item to npc " + npc.npcName);
+        return npcResponse.response;
     }
 }
