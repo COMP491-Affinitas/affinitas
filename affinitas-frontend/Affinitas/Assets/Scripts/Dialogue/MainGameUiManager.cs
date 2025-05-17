@@ -11,6 +11,7 @@ namespace MainGame
         public static MainGameUiManager Instance { get; private set; }
 
         [SerializeField] GameObject mapPanel;
+        [SerializeField] GameObject[] mapButtons; // all map buttons except for Bart Ender's house
         [SerializeField] GameObject daysLeftPanel;
 
         [SerializeField] TextMeshProUGUI[] affinitasTextMeshes;
@@ -176,18 +177,19 @@ namespace MainGame
             TextMeshProUGUI questTextMesh = instantiatedQuests[questId];
             string oldQuestText = questTextMesh.text;
             string newQuestText;
-            switch (status)
+            if (status == QuestStatus.Completed)
             {
-                case QuestStatus.Pending:
-                    break;
-                case QuestStatus.InProgress:
-                    break;
-                case QuestStatus.Completed:
-                    newQuestText = "<s>" + oldQuestText + "</s>";
-                    questTextMesh.text = newQuestText;
-                    break;
-                default:
-                    break;
+                newQuestText = "<s>" + oldQuestText + "</s>";
+                questTextMesh.text = newQuestText;
+            }
+        }
+
+        // Make everyone but Bart Ender's houses invisible at the beginning of the game
+        public void ToggleMapButtonsVisibility(bool visibility)
+        {
+            foreach (GameObject mapButton in mapButtons)
+            {
+                mapButton.SetActive(visibility);
             }
         }
 

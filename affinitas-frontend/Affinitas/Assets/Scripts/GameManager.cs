@@ -31,7 +31,6 @@ public class GameManager : MonoBehaviour
     private async void Start()
     {
         await GetAuthenticationUUID();
-        await LoadGameWithUUID();
     }
 
     // Get New UUID from server
@@ -43,8 +42,18 @@ public class GameManager : MonoBehaviour
         Debug.Log(gameId);
     }
 
+
+    // TODO: Also save client_uuid using PlayerPrefs
+    // TODO: get load from server (dropdown)
+
+    // call from Start New Game button
+    public async void CallLoadNewGame()
+    {
+        await LoadNewGame();
+    }
+
     // Get game information from server
-    public async Task LoadGameWithUUID()
+    public async Task LoadNewGame()
     {
         await LoadGame.GetLoadGameInfo(gameId);
         MainGameManager.Instance.InitializeNpcsUisAndVariables();
@@ -81,20 +90,20 @@ public class GameManager : MonoBehaviour
     {
         string url = $"/npcs/{dbNpcId}/chat";   
          
-        ClientResponse message = new ClientResponse(
+        PlayerRequest message = new PlayerRequest(
             role: "user",
             shadow_save_id: shadowSaveId,
             content: playerInput
         );
 
         
-        ServerResponse serverResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<ClientResponse, ServerResponse>(
+        NpcResponse npcResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<PlayerRequest, NpcResponse>(
                 message, url, HttpMethod.Post
             );
         
 
-        if (serverResponse == null)
+        if (npcResponse == null)
         {
             Debug.LogError("Server returned null response.");
             return null; 
@@ -106,18 +115,36 @@ public class GameManager : MonoBehaviour
         if (npc != null)
         {
             int oldAffinitas = npc.affinitasValue;
-            npc.affinitasValue = serverResponse.affinitas_new;
-            npc.dialogueSummary.Add(serverResponse.response);
+            npc.affinitasValue = npcResponse.affinitas_new;
+            npc.dialogueSummary.Add(npcResponse.response);
 
             if (oldAffinitas != npc.affinitasValue)
             {
                 MainGame.MainGameUiManager.Instance.UpdateNpcAffinitasUi(npc);
                 Debug.Log("old affinitas was:" + oldAffinitas + "updated affinitas is: " + npc.affinitasValue);
             }
+
+            if (npcResponse.completed_quests.Count != 0)
+            {
+                List<CompleteQuestInfo> completeQuestInfos = null;
+
+                for (int i = 0; i < npcResponse.completed_quests.Count; i++)
+                {
+                    completeQuestInfos = MainGameManager.Instance.UpdateQuestStatus(npcResponse.completed_quests[i], QuestStatus.Completed);
+                    if (completeQuestInfos != null)
+                    {
+                        foreach (CompleteQuestInfo completeQuestInfo in completeQuestInfos)
+                        {
+                            await NotifyForQuestComplete(completeQuestInfo.npc, completeQuestInfo.questId);
+                        } 
+                    }
+                }
+            }
+
         }
 
-        Debug.Log(serverResponse.response);
-        return serverResponse.response; 
+        Debug.Log(npcResponse.response);
+        return npcResponse.response; 
     }
 
     public async Task<List<string>> CreateMessageForGetQuest(string dbNpcId, int npcId)
@@ -164,12 +191,12 @@ public class GameManager : MonoBehaviour
         return questDescriptions;
     }
 
-    public async Task<bool> CreateMessageForEndDay()
+    public async Task<bool> NotifyForEndDay()
     {
         // Send message to all npcs to notify that day has ended
         string systemMessage = "A new day has begun.";
 
-        ClientResponse message = new ClientResponse(
+        PlayerRequest message = new PlayerRequest(
             role: "system",
             shadow_save_id: shadowSaveId,
             content: systemMessage
@@ -177,13 +204,36 @@ public class GameManager : MonoBehaviour
 
         foreach (Npc npc in MainGameManager.Instance.npcList)
         {
-            ServerResponse serverResponse = await ServerConnection.Instance
-                .SendAndGetMessageFromServer<ClientResponse, ServerResponse>(
+            NpcResponse serverResponse = await ServerConnection.Instance
+                .SendAndGetMessageFromServer<PlayerRequest, NpcResponse>(
                     message,
                     $"/npcs/{npc.dbNpcId}/chat",
                     HttpMethod.Post
                 );
         }
+
+        return true;
+    }
+
+    public async Task<bool> NotifyForQuestComplete(Npc npc, string questId)
+    {
+        // Send message to notify npc with quest completed
+        QuestCompleteRequest message = new QuestCompleteRequest
+        {
+            quest_id = questId,
+            shadow_save_id = shadowSaveId
+        };
+
+        QuestCompleteResponse serverResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<QuestCompleteRequest, QuestCompleteResponse>(
+                message,
+                $"/npcs/{npc.dbNpcId}/quest/complete",
+                HttpMethod.Post
+            );
+
+        npc.affinitasValue = serverResponse.affinitas;
+        MainGame.MainGameUiManager.Instance.UpdateNpcAffinitasUi(npc);
+        Debug.Log("updated affinitas is: " + npc.affinitasValue);
 
         return true;
     }

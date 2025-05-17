@@ -27,6 +27,12 @@ public class Quest
     public QuestStatus status;
 }
 
+public class CompleteQuestInfo
+{
+    public Npc npc;
+    public string questId;
+}
+
 public class MainGameManager : MonoBehaviour
 {
     // Singleton
@@ -59,10 +65,27 @@ public class MainGameManager : MonoBehaviour
         }
     }
 
-    //Call when End D ay button is pressed
+    public void CheckBartEnderQuest()
+    {
+        if (dayNo > 1)
+            MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
+
+        // if Bart Ender quest has not begun, then that means first day has not ended
+        else if (npcList[2].questList[0].status == QuestStatus.Pending)
+            MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(false);
+        else
+            MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
+    }
+
+    //Call when End Day button is pressed
     public async void EndDay()
     {
-        if (dayNo > 9)
+        // If Bart Ender Quest not completed, do not let the day pass
+        if (npcList[2].questList[0].status != QuestStatus.Completed)
+        {
+            MainGame.MainGameUiManager.Instance.OpenWarningPanel("You should complete Bart Ender's quest first!");
+        }
+        else if (dayNo > 10)
         {
             UIManager.Instance.OpenEndingPanel();
             string endingText = await GameManager.Instance.CreateMessageForEndGame();
@@ -75,7 +98,7 @@ public class MainGameManager : MonoBehaviour
             dailyActionPoints = 15;
             ResetVariables();
             //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
-            await GameManager.Instance.CreateMessageForEndDay();
+            await GameManager.Instance.NotifyForEndDay();
         }
     }
 
@@ -83,6 +106,8 @@ public class MainGameManager : MonoBehaviour
     // Check if action already done, if so do nothing, if not decrease action points
     public void ReduceActionPointsForDialogue(string itemKey)
     {
+        if (dayNo == 1)
+            return;
         if (hadDialogueDict.ContainsKey(itemKey))
         {
             if (hadDialogueDict[itemKey] == false)
@@ -94,6 +119,8 @@ public class MainGameManager : MonoBehaviour
     }
     public void ReduceActionPointsForMinigame(int minigameNo)
     {
+        if (dayNo == 1)
+            return;
         if (minigameNo < minigameList.Length) //number of minigames is 3
         {
             if (minigameList[minigameNo] == false)
@@ -105,6 +132,8 @@ public class MainGameManager : MonoBehaviour
     }
     public void ReduceActionPointsForGetQuest(string itemKey)
     {
+        if (dayNo == 1)
+            return;
         if (gotQuestDict.ContainsKey(itemKey))
         {
             if (gotQuestDict[itemKey] == false)
@@ -159,6 +188,7 @@ public class MainGameManager : MonoBehaviour
         }
         for (int i = 0; i < minigameList.Length; i++)
             minigameList[i] = false;
+        CheckBartEnderQuest();
         MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
     }
 
@@ -205,25 +235,56 @@ public class MainGameManager : MonoBehaviour
         // This is <s>crossed out</s>. This is <b>bold</b> text.
     }
 
-    void UpdateQuestStatus(int npcId, string questId, QuestStatus newStatus)
+    public List<CompleteQuestInfo> UpdateQuestStatus(string questId, QuestStatus newStatus)
     {
-        // TODO: Quest completion game logic code etc. here
-        // ...
+        List<CompleteQuestInfo> completeQuestInfos = new();
 
+        Npc npcWithQuest = null;
         Quest questToUpdate = null;
-        foreach (Quest quest in npcList[npcId - 1].questList)
+        foreach (Npc npc in npcList)
         {
-            if (quest.questId.Equals(questId))
-                questToUpdate = quest;
+            foreach (Quest quest in npc.questList)
+            {
+                if (quest.questId.Equals(questId))
+                {
+                    questToUpdate = quest;
+                    npcWithQuest = npc;
+                }   
+            }
         }
 
         if (questToUpdate == null)
         {
-            Debug.Log("Quest with id: " + questId + " does not exist for NPC" + npcId);
-            return;
+            Debug.Log("Quest with id: " + questId + " does not exist");
+            return null;
         }
 
+        CompleteQuestInfo completeQuestInfo = new CompleteQuestInfo { npc = npcWithQuest, questId = questToUpdate.questId };
+        completeQuestInfos.Add(completeQuestInfo);
         questToUpdate.status = newStatus;
         MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(questId, newStatus);
+
+
+        // Check main quest completion as well
+        bool allSubquestsCompleted = true;
+        if (npcWithQuest.questList.Count > 1)
+        {
+            for (int i = 1; i < npcWithQuest.questList.Count; i++)
+            {
+                if (npcWithQuest.questList[i].status != QuestStatus.Completed)
+                {
+                    allSubquestsCompleted = false;
+                }
+            }
+            if (allSubquestsCompleted)
+            {
+                npcWithQuest.questList[0].status = newStatus;
+                MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(npcWithQuest.questList[0].questId, newStatus);
+                CompleteQuestInfo completeMainQuestInfo = new CompleteQuestInfo { npc = npcWithQuest, questId = npcWithQuest.questList[0].questId };
+                completeQuestInfos.Add(completeMainQuestInfo);
+            }
+        }
+
+        return completeQuestInfos;
     }
 }

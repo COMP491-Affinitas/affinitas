@@ -20,7 +20,7 @@ public class UuidRequest : BaseRequest
     public string x_client_uuid;
 }
 [Serializable]
-public class UuidResponse : BaseRequest
+public class UuidResponse : BaseResponse
 {
     public string uuid;
 }
@@ -31,7 +31,7 @@ public class EndingRequest : BaseRequest
     public string shadow_save_id;
 }
 [Serializable]
-public class EndingResponse : BaseRequest
+public class EndingResponse : BaseResponse
 {
     public string ending;
 }
@@ -53,15 +53,27 @@ public class QuestListResponse : BaseResponse
     public List<QuestEntry> quests;
 }
 
+[Serializable]
+public class QuestCompleteRequest : BaseRequest
+{
+    public string quest_id;
+    public string shadow_save_id;
+}
+[Serializable]
+public class QuestCompleteResponse : BaseResponse
+{
+    public int affinitas;
+}
+
 
 [Serializable]
-public class ClientResponse
+public class PlayerRequest : BaseRequest
 {
     public string role;     //"system" or "user"
     public string shadow_save_id;
     public string content;
 
-    public ClientResponse(string role, string shadow_save_id, string content)
+    public PlayerRequest(string role, string shadow_save_id, string content)
     {
         this.role = role;
         this.shadow_save_id = shadow_save_id;
@@ -71,10 +83,11 @@ public class ClientResponse
 }
 
 [Serializable]
-public class ServerResponse
+public class NpcResponse : BaseResponse
 {
     public string response;
     public int affinitas_new;
+    public List<string> completed_quests;
 }
 
 //  JSON body should be sent to POST/game/quit endpoint; becasue it expects save_id not x_client_uuid
@@ -93,7 +106,7 @@ public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
 
-    const string serverURL = "https://affinitas-pr-13.onrender.com";
+    const string serverURL = "https://affinitas-pr-16.onrender.com";
     //static readonly HttpClient client = new HttpClient(); 
     static HttpClient client = new HttpClient();
 

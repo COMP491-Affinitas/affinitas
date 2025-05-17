@@ -101,7 +101,13 @@ namespace MainGame
                 getQuestDone = true;
 
                 StartCoroutine(ShowQuestsOneByOne(questDescriptions));
-            } 
+            }
+
+            // if Bart Ender's get quest button is pressed, then make all map buttons visible
+            if (npcId == 3)
+            {
+                MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
+            }
         }
 
         IEnumerator ShowQuestsOneByOne(List<string> questDescriptions)
