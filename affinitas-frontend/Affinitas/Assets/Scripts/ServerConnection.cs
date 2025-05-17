@@ -25,6 +25,34 @@ public class UuidResponse : BaseRequest
     public string uuid;
 }
 
+[Serializable]
+public class EndingRequest : BaseRequest
+{
+    public string shadow_save_id;
+}
+[Serializable]
+public class EndingResponse : BaseRequest
+{
+    public string ending;
+}
+
+[Serializable]
+public class QuestRequest : BaseRequest
+{
+    public string shadow_save_id;
+}
+[Serializable]
+public class QuestEntry
+{
+    public string quest_id;
+    public string response;
+}
+[Serializable]
+public class QuestListResponse : BaseResponse
+{
+    public List<QuestEntry> quests;
+}
+
 
 [Serializable]
 public class ClientResponse
@@ -49,30 +77,30 @@ public class ServerResponse
     public int affinitas_new;
 }
 
-
-public enum ServerDirectory
+//  JSON body should be sent to POST/game/quit endpoint; becasue it expects save_id not x_client_uuid
+[Serializable]
+public class SerializableSaveId
 {
-    init,
-    load,
-    npc
+    public string save_id;
+
+    public SerializableSaveId(string saveId)
+    {
+        save_id = saveId;
+    }
 }
 
 public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
 
-    const string serverURL = "https://affinitas.onrender.com";
-    static readonly HttpClient client = new HttpClient();
+    const string serverURL = "https://affinitas-pr-13.onrender.com";
+    //static readonly HttpClient client = new HttpClient(); 
+    static HttpClient client = new HttpClient();
 
     public bool canSendMessage = true;
+    private bool clientDisposed = false;
 
-    public Dictionary<int, string> serverDirectoriesDict = new Dictionary<int, string>{
-        { (int)ServerDirectory.load, "/game/load" },
-        { (int)ServerDirectory.npc, "/npcs/" },
-        { (int)ServerDirectory.init, "/auth/uuid"}
-    };
-
-    HttpResponseMessage response;
+    //HttpResponseMessage response;
 
     private void Awake()
     {
@@ -93,31 +121,29 @@ public class ServerConnection : MonoBehaviour
         canSendMessage = true;
     }
 
+    // It is automatically called by Unity when application is quitting.
+    // Used to ensure that the HTTP client is properly disposed and server connection is closed.
+    private async void OnApplicationQuit()
+    {
+        if (!string.IsNullOrEmpty(GameManager.Instance.shadowSaveId))
+        {
+            await SendQuitGameRequest(GameManager.Instance.shadowSaveId);
+        }
 
-    //async void Start()
-    //{
-    //    await LoadGame();
-    //}
+        CloseServerConnection();
+    }
 
-    //async void InitGame()
-    //{
-    //    LoadGameRequest message = new LoadGameRequest("");
-    //    ServerResponse serverResponse = await SendLoadGameRequest(message, ServerDirectory.init);
-    //    if (serverResponse != null)
-    //    {
-    //        GameManager.Instance.gameId = serverResponse.
-    //    }
-
-    //}
-
-    //async void LoadGame()
-    //{
-
-    //    LoadGameRequest message = new LoadGameRequest("")
-
-    //    await SendLoadGameRequest(message, ServerDirectory.load);
-    //}
-
+    // Disposes of the HTTP client to release network resources and close any open connections.
+    // This prevents potential memory leaks or lingering connections after the application exits.
+    public void CloseServerConnection()
+    {
+        if (!clientDisposed)
+        {
+            client.Dispose();
+            clientDisposed = true;
+            Debug.Log("Server connection closed on quit.");
+        }
+    }
 
     // Send and Get Generic Response from Server
     public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath, HttpMethod method = null)
@@ -145,11 +171,19 @@ public class ServerConnection : MonoBehaviour
         {
             // Send request and wait for response
             var response = await client.SendAsync(requestMessage);
-            string result = await response.Content.ReadAsStringAsync();
-
+            
             if (response.IsSuccessStatusCode)
-                // Change back from JSON
-                serverResponse = JsonUtility.FromJson<BaseResponse>(result);
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                    Debug.Log("204 status code returned.");
+                else
+                {
+                    string result = await response.Content.ReadAsStringAsync();
+                    // Change back from JSON
+                    Debug.Log("Got message from server.");
+                    serverResponse = JsonUtility.FromJson<BaseResponse>(result);
+                }  
+            }
             else
                 Debug.LogError($"Request failed: {response.StatusCode} - {response.ReasonPhrase}");
         }
@@ -158,5 +192,39 @@ public class ServerConnection : MonoBehaviour
             Debug.LogError($"Exception occurred: {ex.Message}");
         }
         return serverResponse;
+    }
+
+    public async Task SendQuitGameRequest(string saveId)
+    {
+        if (string.IsNullOrEmpty(GameManager.Instance.gameId))
+        {
+            Debug.LogError("Game ID (UUID) is missing. Cannot send quit request.");
+            return;
+        }
+
+        var requestJson = JsonUtility.ToJson(new SerializableSaveId(saveId));
+        var request = new HttpRequestMessage(HttpMethod.Post, serverURL + "/game/quit")
+        {
+            Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
+        };
+
+        request.Headers.Add("X-Client-UUID", GameManager.Instance.gameId);
+
+        try
+        {
+            var response = await client.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                Debug.Log("Quit request successful.");
+            }
+            else
+            {
+                Debug.LogWarning($"Quit request failed: {response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Exception during quit request: {ex.Message}");
+        }
     }
 }

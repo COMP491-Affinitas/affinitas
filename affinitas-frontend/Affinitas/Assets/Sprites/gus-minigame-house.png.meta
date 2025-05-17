@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: e7a13fd75f192412c9417c61ff838ecc
+guid: 2f61eec0fdec3440d829609f2ed2c985
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -4925832402046526473
-    second: npc-2_0
+      213: -3556168686506303227
+    second: gus-minigame-house_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: npc-2_0
+      name: gus-minigame-house_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 1024
-        height: 1024
+        x: 2
+        y: 3
+        width: 470
+        height: 272
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 7fb58ec478de3abb0800000000000000
-      internalID: -4925832402046526473
+      spriteID: 501ac67cb63f5aec0800000000000000
+      internalID: -3556168686506303227
       vertices: []
       indices: 
       edges: []
@@ -134,8 +134,7 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable:
-      npc-2_0: -4925832402046526473
+    nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -46,8 +46,7 @@ public class LoadGameQuestMeta
     public string name;
     public string description;
     public List<string> rewards;
-    public bool started;
-    public string status;
+    public QuestStatus status;
 }
 
 public static class LoadGame
@@ -66,7 +65,7 @@ public static class LoadGame
 
 
         Debug.Log("Game Info");
-        Debug.Log(manager.dailyActionPoints);
+        Debug.Log("action points: " + manager.dailyActionPoints);
         Debug.Log(manager.dayNo);
 
         List<LoadGameNpcData> npcDatas = rootResponse.data.npcs;
@@ -86,9 +85,9 @@ public static class LoadGame
             {
                 Quest newQuest = new()
                 {
+                    questId = questData.quest_id,
                     name = questData.name,
                     description = questData.description,
-                    started = questData.started,
                     status = questData.status
                 };
                 newNpc.questList.Add(newQuest);

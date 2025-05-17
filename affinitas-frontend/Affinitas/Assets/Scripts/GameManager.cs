@@ -47,9 +47,26 @@ public class GameManager : MonoBehaviour
     public async Task LoadGameWithUUID()
     {
         await LoadGame.GetLoadGameInfo(gameId);
-        MainGameManager.Instance.InitializeNpcsUis();
+        MainGameManager.Instance.InitializeNpcsUisAndVariables();
         npcDataReady = true;
         OnNpcDataLoaded?.Invoke();
+    }
+
+    public async Task<string> CreateMessageForEndGame()
+    {
+        EndingRequest endRequest = new EndingRequest { shadow_save_id = shadowSaveId };
+        EndingResponse endResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(endRequest, "/game/end", HttpMethod.Post);
+
+        Debug.Log(endResponse);
+
+        if (endResponse == null)
+        {
+            Debug.LogError("endResponse is null.");
+            return null;
+        }
+
+        return endResponse.ending;
     }
 
     public void SubscribeToNpcDataLoaded(Action listener)
@@ -59,7 +76,6 @@ public class GameManager : MonoBehaviour
         else
             OnNpcDataLoaded += listener;
     }
-
 
     public async Task<string> CreateMessageForSendPlayerInput(string playerInput, string dbNpcId)
     {
@@ -104,86 +120,71 @@ public class GameManager : MonoBehaviour
         return serverResponse.response; 
     }
 
-    //public void InitializeNpc(string ncp_id) // int npcId
-    //{
-    //    // npcId should be int
-
-
-
-    //    //TODO: Get Npc information from Unity connection
-    //    //npcList = new Npc[3];
-    //    //Npc currNpc;
-
-    //    //for (int i = 0; i < npcList.Length; i++)
-    //    //{
-    //    //    // Random affinitas values for now
-    //    //    currNpc = new Npc(i, npcNames[i], i * 10);
-    //    //    string[] questList = { "Say hello to the world." };
-    //    //    currNpc.AddQuestList(questList);
-
-    //    //    npcUiList[i].InitializeNpc(currNpc);
-
-    //    //    npcList[i] = currNpc;
-    //    //}
-
-
-    //    //var alice = new Npc(1, "Alice", 10, new List<Npc.Quest>());
-    //    //var bob = new Npc(2, "Bob", 20, new List<Npc.Quest>());
-
-
-    //    //npcDict[alice.npcId] = alice;
-    //    //npcDict[bob.npcId] = bob;
-
-    //}
-
-    //void InitializeInteractionDicts()
-    //{
-    //    foreach (Npc npc in npcDict.Values)
-    //    {
-    //        dialoguesDict[npc.npcName] = false;
-    //        questDict[npc.npcName] = false;
-    //    }
-    //}
-
-    //// TODO: This info should come from server
-    //void InitializeGame()
-    //{
-    //    dailyActionPoints = 15;
-    //    dayNo = 1;
-    //}
-
-    //public async void SendAndReceiveFromServer(ClientResponse message, string directory)
-    //{
-    //    // Send player input message to server
-    //    ServerResponse serverResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<ClientResponse, ServerResponse>(message, directory);
-
-    //    if (serverResponse == null)
-    //    {
-    //        return;
-    //    }
-
-    //    // TODO: Write code to add NPC dialogue box on screen
-    //    // TODO: Update journal page with summary
-
-    //    // Update everything
-    //    Npc npc = npcDict[serverResponse.npcId];
-    //    npc.affinitasValue = serverResponse.affinitasChange;
-
-    //}
-
-    
-
-    // calculate how mnay actşon points left
-    void CalculateActionPoints()
+    public async Task<List<string>> CreateMessageForGetQuest(string dbNpcId, int npcId)
     {
-        int actionPointsUsed = 0;
+        string url = $"/npcs/{dbNpcId}/quest";
 
+        // Quest Request
+        QuestRequest request = new QuestRequest
+        {
+            shadow_save_id = shadowSaveId
+        };
+
+        // Response returns quest list. Each quest has quest ID and quest description
+        QuestListResponse questResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<QuestRequest, QuestListResponse>(
+                request,url, HttpMethod.Post
+        );
+
+        if (questResponse == null)
+            Debug.LogError("Server returned null response.");
+
+        List<string> questDescriptions = new();
+        // Match quest_id from get quest to update descriptions in Quest instances
+        foreach (QuestEntry questEntry in questResponse.quests)
+        {
+            foreach (Quest quest in MainGameManager.Instance.npcList[npcId - 1].questList)
+            {
+                Debug.Log("Quest from server no: " + questEntry.quest_id + ", description: " + questEntry.response);
+                Debug.Log("Quest from game no: " + quest.questId + ", description: " + quest.description);
+
+                if (quest.questId.Equals(questEntry.quest_id))
+                {
+                    quest.description = questEntry.response;
+                    quest.status = QuestStatus.InProgress;
+
+                    questDescriptions.Add(quest.description);
+
+                    Debug.Log("Quest no: " + quest.questId + ", name: " + quest.name + ", description: " + quest.description);
+                }
+            }            
+        }
+        MainGameManager.Instance.HandleGivenQuests(npcId);
+
+        return questDescriptions;
     }
 
-    // If not enough actions points left, do not let player do things
-    void CheckActionPoints()
+    public async Task<bool> CreateMessageForEndDay()
     {
+        // Send message to all npcs to notify that day has ended
+        string systemMessage = "A new day has begun.";
 
+        ClientResponse message = new ClientResponse(
+            role: "system",
+            shadow_save_id: shadowSaveId,
+            content: systemMessage
+        );
+
+        foreach (Npc npc in MainGameManager.Instance.npcList)
+        {
+            ServerResponse serverResponse = await ServerConnection.Instance
+                .SendAndGetMessageFromServer<ClientResponse, ServerResponse>(
+                    message,
+                    $"/npcs/{npc.dbNpcId}/chat",
+                    HttpMethod.Post
+                );
+        }
+
+        return true;
     }
-
 }
