@@ -1,7 +1,6 @@
 import logging
 
-from fastapi import HTTPException
-from starlette import status
+from fastapi import HTTPException, status
 
 
 def throw_500(detail: str, *msgs: str):

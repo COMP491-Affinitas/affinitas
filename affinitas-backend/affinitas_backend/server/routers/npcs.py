@@ -4,12 +4,11 @@ from beanie import PydanticObjectId
 from beanie.odm.operators.update.array import Push
 from beanie.odm.operators.update.general import Set
 from beanie.odm.queries.update import UpdateMany
-from fastapi import Response, HTTPException
+from fastapi import Response, HTTPException, status
 from fastapi.background import BackgroundTasks
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from pydantic import TypeAdapter
-from starlette import status
 
 from affinitas_backend.chat import get_message
 from affinitas_backend.chat import npc_chat_service, master_llm_service
@@ -77,7 +76,6 @@ async def npc_chat(
             )
         )
 
-
         response = NPCChatResponse(
             response=npc_response,
             affinitas_new=updated_npc_data["affinitas"],
@@ -101,7 +99,6 @@ async def npc_chat(
 
 @router.post(
     "/{npc_id}/quest",
-
     response_model=NPCQuestResponses,
     summary="Get NPC quest and subquest data",
     description="Returns the quest and subquest data for an NPC. The first item in the list will be the main quest, "
@@ -169,6 +166,7 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
     return TypeAdapter(NPCQuestResponses).validate_python({
         "quests": res
     })
+
 
 async def _update_document(update_query: UpdateMany):
     try:

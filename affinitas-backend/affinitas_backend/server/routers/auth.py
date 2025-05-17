@@ -1,9 +1,9 @@
 import logging
 from uuid import uuid4
 
+from fastapi import status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
-from starlette import status
 
 from affinitas_backend.models.schemas.auth import UUIDResponse
 from affinitas_backend.server.dependencies import XClientUUIDHeader
