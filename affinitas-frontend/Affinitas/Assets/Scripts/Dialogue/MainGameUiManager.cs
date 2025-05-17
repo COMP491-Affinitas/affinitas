@@ -28,6 +28,9 @@ namespace MainGame
         [SerializeField] GameObject warningPanel;
         [SerializeField] TextMeshProUGUI warningPanelTextMesh;
 
+        [SerializeField] GameObject saveGamePanel;
+        [SerializeField] TMP_InputField saveGameInputField;
+
         [SerializeField] GameObject questPanelContent;
         [SerializeField] GameObject questPrefab;
         Dictionary<string, TextMeshProUGUI> instantiatedQuests = new();
@@ -52,6 +55,7 @@ namespace MainGame
         {
             CloseJournalPanel();
             CloseWarningPanel();
+            CloseSaveGamePanel();
             OpenJournalTab(1);
             UpdateDaysLeftPanel();
             OpenMapPanel();
@@ -83,6 +87,22 @@ namespace MainGame
         public void CloseWarningPanel()
         {
             warningPanel.SetActive(false);
+        }
+
+        public void OpenSaveGamePanel()
+        {
+            saveGamePanel.SetActive(true);
+        }
+
+        public string GetSaveNameFromPanel()
+        {
+            return saveGameInputField.text;
+        }
+
+        // Call from close (x) button on the Warning panel
+        public void CloseSaveGamePanel()
+        {
+            saveGamePanel.SetActive(false);
         }
 
         //Call when End Day button is pressed
@@ -161,9 +181,6 @@ namespace MainGame
 
         public void AddQuestToQuestPanel(string questId, string questText)
         {
-            // TODO: Add the main quest and subquests one by one by calling this function again and again
-            // This way all quests are in dictionary, and when a quest is completed we can just surround it with <s></s> to cross it out.
-
             GameObject newQuest = Instantiate(questPrefab);
             newQuest.transform.SetParent(questPanelContent.transform, false);
 

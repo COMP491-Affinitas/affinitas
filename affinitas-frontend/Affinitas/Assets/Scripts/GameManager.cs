@@ -14,8 +14,6 @@ public class GameManager : MonoBehaviour
 
     public string gameId;
     public string shadowSaveId;
-    //ServerResponse serverResponse;
-
 
     private void Awake()
     {
@@ -61,6 +59,29 @@ public class GameManager : MonoBehaviour
         OnNpcDataLoaded?.Invoke();
     }
 
+    // Call from Saved Games button in Menu Panel
+    public async void CreateGameSavesList()
+    {
+        List<Save> gameSaves = await GetGameSaves();
+
+        string saveText;
+        foreach (Save save in gameSaves)
+        {
+            //DateTime dateTime = DateTime.Parse(save.saved_at);
+            saveText = "Save name: " + save.name + "\nSave time: " + save.saved_at.ToShortTimeString();
+            UIManager.Instance.AddSaveToSavesListPanel(save.save_id, saveText);
+        }
+    }
+
+    public async Task<List<Save>> GetGameSaves()
+    {
+        GetSavesRequest getSavesRequest = new();
+        GetSavesResponse getSavesResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<GetSavesRequest, GetSavesResponse>(getSavesRequest, "/game/load", HttpMethod.Get);
+
+        return getSavesResponse.saves;
+    }
+
     public async Task<string> CreateMessageForEndGame()
     {
         EndingRequest endRequest = new EndingRequest { shadow_save_id = shadowSaveId };
@@ -88,13 +109,13 @@ public class GameManager : MonoBehaviour
 
     public async Task<string> CreateMessageForSendPlayerInput(string playerInput, string dbNpcId)
     {
-        string url = $"/npcs/{dbNpcId}/chat";   
-         
-        PlayerRequest message = new PlayerRequest(
-            role: "user",
-            shadow_save_id: shadowSaveId,
-            content: playerInput
-        );
+        string url = $"/npcs/{dbNpcId}/chat";
+
+        PlayerRequest message = new() {
+            role = "user",
+            shadow_save_id = shadowSaveId,
+            content = playerInput
+        };
 
         
         NpcResponse npcResponse = await ServerConnection.Instance
@@ -211,11 +232,11 @@ public class GameManager : MonoBehaviour
         // Send message to all npcs to notify that day has ended
         string systemMessage = "A new day has begun.";
 
-        PlayerRequest message = new PlayerRequest(
-            role: "system",
-            shadow_save_id: shadowSaveId,
-            content: systemMessage
-        );
+        PlayerRequest message = new () { 
+            role = "system",
+            shadow_save_id = shadowSaveId,
+            content = systemMessage
+        };
 
         foreach (Npc npc in MainGameManager.Instance.npcList)
         {
@@ -296,5 +317,52 @@ public class GameManager : MonoBehaviour
 
         Debug.Log("given item to npc " + npc.npcName);
         return npcResponse.response;
+    }
+
+    // Call from Save Game button inside the Save Game panel
+    public async void SaveGame()
+    {
+        await SendGameSave();
+    }
+
+    async Task<bool> SendGameSave()
+    {
+        string saveName = MainGame.MainGameUiManager.Instance.GetSaveNameFromPanel();
+
+        if (saveName == null || saveName == "")
+        {
+            Debug.Log("Save name is null");
+            return false;
+        }
+
+        Debug.Log("Saved game name is " + saveName);
+
+        SaveRequest saveRequest = new SaveRequest { name = saveName, shadow_save_id = shadowSaveId };
+        SaveResponse saveResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<SaveRequest, SaveResponse>(saveRequest, "/game/save", HttpMethod.Post);
+
+        Debug.Log("Game saved");
+        Debug.Log("Save id: " + saveResponse.save_id + " saved at: " + saveResponse.saved_at);
+        Save newSave = new Save { save_id = saveResponse.save_id, name = saveName, saved_at = saveResponse.saved_at };
+        return true;
+    }
+
+    // Where should we put this?
+    public async Task QuitGame()
+    {
+
+        // If Save is clicked
+        await SendGameSave();
+
+        // Else: open the menu without saving 
+
+        // Add go to menu part
+
+        // Delete the shadow save
+        QuitRequest quitRequest = new QuitRequest { shadow_save_id = shadowSaveId };
+        BaseResponse quitResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<QuitRequest, BaseResponse>(quitRequest, "/game/quit", HttpMethod.Post);
+
+
     }
 }

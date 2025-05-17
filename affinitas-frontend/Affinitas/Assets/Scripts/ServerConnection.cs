@@ -26,6 +26,41 @@ public class UuidResponse : BaseResponse
 }
 
 [Serializable]
+public class GetSavesRequest : BaseRequest
+{
+}
+[Serializable]
+public class GetSavesResponse : BaseRequest
+{
+    public List<Save> saves;
+}
+[Serializable]
+public class Save
+{
+    public string save_id;
+    public string name;
+    public DateTime saved_at;
+}
+[Serializable]
+public class SaveRequest : BaseRequest
+{
+    public string name;
+    public string shadow_save_id;
+}
+[Serializable]
+public class SaveResponse : BaseRequest
+{
+    public string save_id;
+    public string name;
+    public DateTime saved_at;
+}
+[Serializable]
+public class QuitRequest : BaseRequest
+{
+    public string shadow_save_id;
+}
+
+[Serializable]
 public class EndingRequest : BaseRequest
 {
     public string shadow_save_id;
@@ -84,23 +119,13 @@ public class GiveItemResponse : BaseResponse
     public string response;
 }
 
-
 [Serializable]
 public class PlayerRequest : BaseRequest
 {
     public string role;     //"system" or "user"
     public string shadow_save_id;
     public string content;
-
-    public PlayerRequest(string role, string shadow_save_id, string content)
-    {
-        this.role = role;
-        this.shadow_save_id = shadow_save_id;
-        //this.requestId = requestId;
-        this.content = content;
-    }
 }
-
 [Serializable]
 public class NpcResponse : BaseResponse
 {
