@@ -9,7 +9,7 @@ from pymongo.errors import DuplicateKeyError
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import Save, ShadowSave
-from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, LoadGameRequest, \
+from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, SaveIdRequest, \
     GameSessionData, GameSaveSummary
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
@@ -54,7 +54,7 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("3/minute")
-async def load_game_save(request: Request, payload: LoadGameRequest, x_client_uuid: XClientUUIDHeader):
+async def load_game_save(request: Request, payload: SaveIdRequest, x_client_uuid: XClientUUIDHeader):
     save = await Save.aggregate(
         get_save_pipeline({"_id": payload.save_id})
     ).to_list(1)
@@ -103,3 +103,37 @@ async def load_game_save(request: Request, payload: LoadGameRequest, x_client_uu
     except Exception:
         await res.delete()
         raise
+
+
+@router.delete(
+    "/",
+    summary="Deletes a game save",
+    description="Deletes a game save by ID. "
+                "The `X-Client-UUID` header must be provided. If a game save "
+                "with the given ID belonging to the client is not found, a 404 "
+                "status is returned.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@limiter.limit("10/minute")
+async def delete_game_save(request: Request, payload: SaveIdRequest, x_client_uuid: XClientUUIDHeader):
+    save = await (
+        Save
+        .find(Save.id == payload.save_id)
+        .find(Save.client_uuid == x_client_uuid)
+        .first_or_none()
+    )
+
+    if not save:
+        logging.info(f"Save with ID {payload.save_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Save not found. Save ID: {payload.save_id}"
+        )
+
+    res = await save.delete()  # noqa
+
+    if res is None:
+        throw_500(
+            "Failed to delete game save",
+            f"Save ID: {payload.save_id}",
+        )

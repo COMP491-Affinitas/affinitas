@@ -2,7 +2,7 @@ from fastapi import status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 
-from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, LoadGameRequest, \
+from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, SaveIdRequest, \
     SaveSessionRequest, \
     GameSaveSummary, DeleteSessionRequest, GameEndingResponse, GenerateGameEndingRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
@@ -34,7 +34,7 @@ async def _list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("3/minute")
-async def _load_game(request: Request, payload: LoadGameRequest, x_client_uuid: XClientUUIDHeader):
+async def _load_game(request: Request, payload: SaveIdRequest, x_client_uuid: XClientUUIDHeader):
     return await load_game_save(request, payload, x_client_uuid)
 
 

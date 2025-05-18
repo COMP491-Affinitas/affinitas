@@ -191,7 +191,6 @@ async def complete_quest(
         npc_id: PydanticObjectId,
         payload: NPCQuestCompleteRequest,
         x_client_uuid: XClientUUIDHeader,
-        background_tasks: BackgroundTasks,
 ):
     quest_id = payload.quest_id
     shadow_save_id = payload.shadow_save_id
