@@ -7,29 +7,29 @@ from affinitas_backend.models.game_data import GameData
 from affinitas_backend.models.schemas.npcs import NPCResponse
 
 
-class GameSaveRequest(BaseModel):
+class SaveSessionRequest(BaseModel):
     name: str
     shadow_save_id: PydanticObjectId
 
 
-class GameDataResponse(GameData):
+class GameSessionData(GameData):
     npcs: list[NPCResponse]
 
 
-class GameLoadResponse(BaseModel):
-    data: GameDataResponse
+class GameSessionResponse(BaseModel):
+    data: GameSessionData
     shadow_save_id: PydanticObjectId
 
 
-class GameLoadRequest(BaseModel):
+class LoadGameRequest(BaseModel):
     save_id: PydanticObjectId
 
 
-class GameQuitRequest(BaseModel):
+class DeleteSessionRequest(BaseModel):
     save_id: PydanticObjectId
 
 
-class GameSaveResponse(BaseModel):
+class GameSaveSummary(BaseModel):
     save_id: PydanticObjectId
     name: str
     saved_at: datetime
@@ -39,12 +39,12 @@ class GameSaveResponse(BaseModel):
 
 
 class GameSavesResponse(BaseModel):
-    saves: list[GameSaveResponse] = Field(default_factory=list)
+    saves: list[GameSaveSummary] = Field(default_factory=list)
 
 
-class GameEndRequest(BaseModel):
+class GenerateGameEndingRequest(BaseModel):
     shadow_save_id: PydanticObjectId
 
 
-class GameEndResponse(BaseModel):
+class GameEndingResponse(BaseModel):
     ending: str

@@ -9,8 +9,8 @@ from pymongo.errors import DuplicateKeyError
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import Save, ShadowSave
-from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadResponse, GameLoadRequest, \
-    GameDataResponse, GameSaveResponse
+from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, LoadGameRequest, \
+    GameSessionData, GameSaveSummary
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -34,7 +34,7 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     saves = await (
         Save
         .find(Save.client_uuid == x_client_uuid)
-        .project(GameSaveResponse)
+        .project(GameSaveSummary)
         .sort(("saved_at", SortDirection.DESCENDING))
         .to_list()
     )
@@ -44,7 +44,7 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
 
 @router.post(
     "/",
-    response_model=GameLoadResponse,
+    response_model=GameSessionResponse,
     summary="Loads a game save",
     description="Loads a game save by ID. "
                 "The `X-Client-UUID` header must be provided. If a game save "
@@ -54,7 +54,7 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("3/minute")
-async def load_game_save(request: Request, payload: GameLoadRequest, x_client_uuid: XClientUUIDHeader):
+async def load_game_save(request: Request, payload: LoadGameRequest, x_client_uuid: XClientUUIDHeader):
     save = await Save.aggregate(
         get_save_pipeline({"_id": payload.save_id})
     ).to_list(1)
@@ -96,8 +96,8 @@ async def load_game_save(request: Request, payload: GameLoadRequest, x_client_uu
             npc.pop("dislikes", None)
             npc.pop("occupation", None)
 
-        return GameLoadResponse(
-            data=GameDataResponse(**save),
+        return GameSessionResponse(
+            data=GameSessionData(**save),
             shadow_save_id=res.id,
         )
     except Exception:
