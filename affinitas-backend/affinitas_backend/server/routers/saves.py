@@ -132,7 +132,7 @@ async def delete_game_save(request: Request, payload: SaveIdRequest, x_client_uu
 
     res = await save.delete()  # noqa
 
-    if res is None:
+    if res.deleted_count != 1:
         throw_500(
             "Failed to delete game save",
             f"Save ID: {payload.save_id}",
