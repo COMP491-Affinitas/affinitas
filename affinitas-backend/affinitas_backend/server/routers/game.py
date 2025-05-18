@@ -2,7 +2,7 @@ from fastapi import status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 
-from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, LoadGameRequest, \
+from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, SaveIdRequest, \
     SaveSessionRequest, \
     GameSaveSummary, DeleteSessionRequest, GameEndingResponse, GenerateGameEndingRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/game", tags=["game"])
     description="Deprecated. Use `GET /saves/` instead.",
     status_code=status.HTTP_200_OK,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def _list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     return await list_game_saves(request, x_client_uuid)
 
@@ -33,8 +33,8 @@ async def _list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     description="Deprecated. Use `POST /saves/` instead.",
     status_code=status.HTTP_201_CREATED,
 )
-@limiter.limit("3/minute")
-async def _load_game(request: Request, payload: LoadGameRequest, x_client_uuid: XClientUUIDHeader):
+@limiter.limit("10/minute")
+async def _load_game(request: Request, payload: SaveIdRequest, x_client_uuid: XClientUUIDHeader):
     return await load_game_save(request, payload, x_client_uuid)
 
 
@@ -59,7 +59,7 @@ async def _save_game(request: Request, payload: SaveSessionRequest, x_client_uui
     description="Deprecated. Use `DELETE /session/` instead.",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def _quit_game(request: Request, payload: DeleteSessionRequest, x_client_uuid: XClientUUIDHeader):
     return await quit_game(request, payload, x_client_uuid)
 
@@ -72,7 +72,7 @@ async def _quit_game(request: Request, payload: DeleteSessionRequest, x_client_u
     description="Deprecated. Use `GET /session/new` instead.",
     status_code=status.HTTP_201_CREATED,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def _new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     return await new_game(request, x_client_uuid)
 

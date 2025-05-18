@@ -21,12 +21,12 @@ class GameSessionResponse(BaseModel):
     shadow_save_id: PydanticObjectId
 
 
-class LoadGameRequest(BaseModel):
+class SaveIdRequest(BaseModel):
     save_id: PydanticObjectId
 
 
-class DeleteSessionRequest(BaseModel):
-    save_id: PydanticObjectId
+class DeleteSessionRequest(SaveIdRequest):
+    pass  # TODO: Would be nice if this had shadow_save_id instead of save_id
 
 
 class GameSaveSummary(BaseModel):
