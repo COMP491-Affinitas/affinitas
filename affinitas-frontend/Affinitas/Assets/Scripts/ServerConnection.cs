@@ -26,6 +26,12 @@ public class UuidResponse : BaseResponse
 }
 
 [Serializable]
+public class LoadSaveRequest : BaseRequest
+{
+    public string save_id;
+}
+
+[Serializable]
 public class GetSavesRequest : BaseRequest
 {
 }
@@ -39,7 +45,7 @@ public class Save
 {
     public string save_id;
     public string name;
-    public DateTime saved_at;
+    public string saved_at;
 }
 [Serializable]
 public class SaveRequest : BaseRequest
@@ -52,12 +58,12 @@ public class SaveResponse : BaseRequest
 {
     public string save_id;
     public string name;
-    public DateTime saved_at;
+    public string saved_at;
 }
 [Serializable]
 public class QuitRequest : BaseRequest
 {
-    public string shadow_save_id;
+    public string save_id;
 }
 
 [Serializable]
@@ -139,11 +145,6 @@ public class NpcResponse : BaseResponse
 public class SerializableSaveId
 {
     public string save_id;
-
-    public SerializableSaveId(string saveId)
-    {
-        save_id = saveId;
-    }
 }
 
 public class ServerConnection : MonoBehaviour
@@ -151,13 +152,11 @@ public class ServerConnection : MonoBehaviour
     public static ServerConnection Instance { get; private set; }
 
     const string serverURL = "https://affinitas-pr-16.onrender.com";
-    //static readonly HttpClient client = new HttpClient(); 
+
     static HttpClient client = new HttpClient();
 
     public bool canSendMessage = true;
     private bool clientDisposed = false;
-
-    //HttpResponseMessage response;
 
     private void Awake()
     {
@@ -178,18 +177,6 @@ public class ServerConnection : MonoBehaviour
         canSendMessage = true;
     }
 
-    // It is automatically called by Unity when application is quitting.
-    // Used to ensure that the HTTP client is properly disposed and server connection is closed.
-    private async void OnApplicationQuit()
-    {
-        if (!string.IsNullOrEmpty(GameManager.Instance.shadowSaveId))
-        {
-            await SendQuitGameRequest(GameManager.Instance.shadowSaveId);
-        }
-
-        CloseServerConnection();
-    }
-
     // Disposes of the HTTP client to release network resources and close any open connections.
     // This prevents potential memory leaks or lingering connections after the application exits.
     public void CloseServerConnection()
@@ -205,18 +192,23 @@ public class ServerConnection : MonoBehaviour
     // Send and Get Generic Response from Server
     public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath, HttpMethod method = null)
     {
-        
-        if (method == null) method = HttpMethod.Post;
+        if (method == null)
+            method = HttpMethod.Post;
+
         var requestMessage = new HttpRequestMessage(method, serverURL + directoryPath);
 
-        if (method == HttpMethod.Post) {
+        if (method == HttpMethod.Post || method == HttpMethod.Delete)
+        {
             requestMessage.Content = new StringContent(
                 JsonUtility.ToJson(message), Encoding.UTF8, "application/json");
         }
 
+        Debug.Log("Sending message to server with x-client-uuid: " + GameManager.Instance.playerId);
+        Debug.Log("Sending message to server with shadow-save-id: " + GameManager.Instance.shadowSaveId);
+
         // Set the header x-client-uuid
-        if (!string.IsNullOrEmpty(GameManager.Instance.gameId)) {
-            requestMessage.Headers.Add("x-client-uuid", GameManager.Instance.gameId);
+        if (!string.IsNullOrEmpty(GameManager.Instance.playerId)) {
+            requestMessage.Headers.Add("x-client-uuid", GameManager.Instance.playerId);
         }
 
         if (directoryPath.StartsWith("/npcs/")) {
@@ -251,37 +243,4 @@ public class ServerConnection : MonoBehaviour
         return serverResponse;
     }
 
-    public async Task SendQuitGameRequest(string saveId)
-    {
-        if (string.IsNullOrEmpty(GameManager.Instance.gameId))
-        {
-            Debug.LogError("Game ID (UUID) is missing. Cannot send quit request.");
-            return;
-        }
-
-        var requestJson = JsonUtility.ToJson(new SerializableSaveId(saveId));
-        var request = new HttpRequestMessage(HttpMethod.Post, serverURL + "/game/quit")
-        {
-            Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
-        };
-
-        request.Headers.Add("X-Client-UUID", GameManager.Instance.gameId);
-
-        try
-        {
-            var response = await client.SendAsync(request);
-            if (response.IsSuccessStatusCode)
-            {
-                Debug.Log("Quit request successful.");
-            }
-            else
-            {
-                Debug.LogWarning($"Quit request failed: {response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"Exception during quit request: {ex.Message}");
-        }
-    }
 }

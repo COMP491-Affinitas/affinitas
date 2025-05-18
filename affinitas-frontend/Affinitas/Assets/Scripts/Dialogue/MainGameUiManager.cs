@@ -17,6 +17,7 @@ namespace MainGame
         [SerializeField] TextMeshProUGUI[] affinitasTextMeshes;
 
         [SerializeField] CanvasGroup[] npcDialoguePanels;
+        [SerializeField] SendText[] npcDialogueSendTexts;
         [SerializeField] TMP_InputField[] dialogueInputFields;
         [SerializeField] TextMeshProUGUI[] dialoguePanelNameTextMeshes;
 
@@ -29,6 +30,7 @@ namespace MainGame
         [SerializeField] TextMeshProUGUI warningPanelTextMesh;
 
         [SerializeField] GameObject saveGamePanel;
+        [SerializeField] GameObject saveGameText;
         [SerializeField] TMP_InputField saveGameInputField;
 
         [SerializeField] GameObject questPanelContent;
@@ -51,6 +53,7 @@ namespace MainGame
             InitilizeMainPanels();
         }
 
+        // Every time a game is started new or saved
         public void InitilizeMainPanels()
         {
             CloseJournalPanel();
@@ -59,6 +62,16 @@ namespace MainGame
             OpenJournalTab(1);
             UpdateDaysLeftPanel();
             OpenMapPanel();
+            InitializeDialoguePanels();
+        }
+
+        public void InitializeMainPanelsForNewGame()
+        {
+            EmptyJournal();
+        }
+
+        public void EmptyJournal()
+        {
             for (int i = 0; i < journalTextMeshes.Length; i++)
             {
                 journalTextMeshes[i].text = "";
@@ -92,11 +105,16 @@ namespace MainGame
         public void OpenSaveGamePanel()
         {
             saveGamePanel.SetActive(true);
+            saveGameText.SetActive(false);
         }
 
         public string GetSaveNameFromPanel()
         {
-            return saveGameInputField.text;
+            string saveName = saveGameInputField.text;
+            saveGameInputField.text = "";
+            saveGameText.GetComponent<TextMeshProUGUI>().text = "Game saved as \"" + saveName + "\"";
+            saveGameText.SetActive(true);
+            return saveName;
         }
 
         // Call from close (x) button on the Warning panel
@@ -179,6 +197,14 @@ namespace MainGame
             affinitasTextMeshes[npcData.npcId - 1].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
         }
 
+        public void EmptyQuestPanel()
+        {
+            for (int i = questPanelContent.transform.childCount - 1; i >= 0; i--)
+            {
+                Destroy(questPanelContent.transform.GetChild(i).gameObject);
+            }
+        }
+
         public void AddQuestToQuestPanel(string questId, string questText)
         {
             GameObject newQuest = Instantiate(questPrefab);
@@ -195,12 +221,12 @@ namespace MainGame
             journalTextMeshes[npcId - 1].text += questText;
         }
 
-        public void UpdateQuestInQuestPanel(string questId, QuestStatus status)
+        public void UpdateQuestInQuestPanel(string questId, string status)
         {
             TextMeshProUGUI questTextMesh = instantiatedQuests[questId];
             string oldQuestText = questTextMesh.text;
             string newQuestText;
-            if (status == QuestStatus.Completed)
+            if (status.Equals("completed"))
             {
                 newQuestText = "<s>" + oldQuestText + "</s>";
                 questTextMesh.text = newQuestText;
@@ -255,6 +281,24 @@ namespace MainGame
         public void GiveItemToGus()
         {
             gusFishItem.SetActive(false);
+        }
+
+
+        public void InitializeDialoguePanels()
+        {
+            foreach (SendText sendText in npcDialogueSendTexts)
+            {
+                // TODO: main game manager dan current Npc quests al ve npc id lerine göre Get quest butonunu inaktif yap
+                sendText.InitializeDialoguePanels();
+            }
+        }
+
+        public void LoadSavedChatHistories()
+        {
+            foreach (SendText sendText in npcDialogueSendTexts)
+            {
+                sendText.LoadChatHistory();
+            }
         }
 
     }

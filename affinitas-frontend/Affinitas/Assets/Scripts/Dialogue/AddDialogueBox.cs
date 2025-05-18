@@ -25,7 +25,7 @@ namespace MainGame
             contentTransform = transform.GetChild(0).transform.GetChild(0).transform;
         }
 
-        public void AddPlayerDialogueBox(string playerInp, Action onComplete, Action onCompleteTwo)
+        public void AddPlayerDialogueBox(string playerInp, Action onComplete, Action onCompleteTwo, bool writeSlow)
         {
             GameObject newPlayerDialogueBox = Instantiate(playerDialogueBoxPrefab);
             // Using parent:false in SetParent fixes sizing issues for 4K resolution. 
@@ -34,10 +34,11 @@ namespace MainGame
             TextMeshProUGUI dialogueTextMesh = newPlayerDialogueBox.transform.GetComponentInChildren<TextMeshProUGUI>();
             dialogueTextMesh.text = "";
 
-            StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, playerInp, onComplete, onCompleteTwo));
+            if (writeSlow)
+                StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, playerInp, onComplete, onCompleteTwo));
         }
 
-        public void AddNpcDialogueBox(string npcDialogue, Action onComplete, Action onCompleteTwo)
+        public void AddNpcDialogueBox(string npcDialogue, Action onComplete, Action onCompleteTwo, bool writeSlow)
         {
             GameObject newNpcDialogueBox = Instantiate(npcDialogueBoxPrefab);
             newNpcDialogueBox.transform.SetParent(contentTransform, false);
@@ -45,7 +46,8 @@ namespace MainGame
             TextMeshProUGUI dialogueTextMesh = newNpcDialogueBox.transform.GetComponentInChildren<TextMeshProUGUI>();
             dialogueTextMesh.text = "";
 
-            StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete, onCompleteTwo));
+            if (writeSlow)
+                StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete, onCompleteTwo));
         }
 
         public IEnumerator AddNpcDialogueBoxForQuests(string npcDialogue, Action onComplete, Action onCompleteTwo)
@@ -90,6 +92,14 @@ namespace MainGame
 
             onComplete?.Invoke();
             onCompleteTwo?.Invoke();
+        }
+
+        public void DeleteAllDialogueBoxes()
+        {
+            for (int i = contentTransform.childCount - 1; i >= 0; i--)
+            {
+                Destroy(contentTransform.GetChild(i).gameObject);
+            }
         }
 
     }

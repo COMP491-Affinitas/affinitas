@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,6 +24,8 @@ public class UIManager : MonoBehaviour
     TextMeshProUGUI endingTextMesh;
     [SerializeField]
     ScrollRectHelper endingPanelScrollRectHelper;
+
+    List<string> savedGameIds = new();
 
     private void Start()
     {
@@ -58,7 +61,14 @@ public class UIManager : MonoBehaviour
     public void StartGame()
     {
         MakeActive(3); // main panel
-        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+        MainGame.MainGameUiManager.Instance.InitilizeMainPanels();
+    }
+
+    // call from Start New Game button
+    public async void LoadNewGame()
+    {
+        await GameManager.Instance.LoadNewGame();
+        StartGame();
     }
 
     public void GoToMenu()
@@ -66,18 +76,24 @@ public class UIManager : MonoBehaviour
         MakeActive(0);
     }
 
-    public void OpenSavesListPanel()
+    // Call from Saved Games button in Menu Panel
+    public async void OpenSavesListPanel()
     {
         MakeActive(1);
-    }
 
-    public void AddSaveToSavesListPanel(string saveName, string saveText)
-    {
-        GameObject newSave = Instantiate(savePrefab);
-        newSave.transform.SetParent(savesListContent.transform, false);
+        List<(string, string)> savesTexts = await GameManager.Instance.CreateGameSavesList();
 
-        SavedGame savedGame = newSave.GetComponent<SavedGame>();
-        savedGame.AddSavedGameText(saveName, saveText);
+        foreach ((string,string) saveText in savesTexts)
+        {
+            if (savedGameIds.Contains(saveText.Item1))
+                continue;
+
+            GameObject newSave = Instantiate(savePrefab);
+            newSave.transform.SetParent(savesListContent.transform, false);
+            newSave.GetComponent<SavedGame>().AddSavedGameText(saveText.Item1, saveText.Item2);
+
+            savedGameIds.Add(saveText.Item1);
+        }
     }
 
     // Open panel and put ending text from server

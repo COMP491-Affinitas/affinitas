@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using System;
 
 public class Npc
 {
@@ -10,14 +9,7 @@ public class Npc
     public string npcName;
     public int affinitasValue;
     public List<Quest> questList = new(); // First quest is main quest, others subquests
-    public List<string> dialogueSummary = new(); // One dialogue summary for each day
-}
-
-public enum QuestStatus
-{
-    Pending,
-    InProgress,
-    Completed
+    public List<LoadGameChat> chatHistory = new();
 }
 
 public class Quest
@@ -25,7 +17,8 @@ public class Quest
     public string questId;
     public string name;
     public string description;
-    public QuestStatus status;
+    public string status;
+    public int affinitasReward;
 }
 
 public class MainGameManager : MonoBehaviour
@@ -36,7 +29,7 @@ public class MainGameManager : MonoBehaviour
     public List<Npc> npcList = new(6);
     //public Dictionary<string, Npc> npcDict = new();
     public int dailyActionPoints;
-    public int dayNo;
+    public int dayNo = -1;
 
     public int gusItem;
     public int moraItems;
@@ -45,6 +38,8 @@ public class MainGameManager : MonoBehaviour
     public Dictionary<string, bool> gotQuestDict = new();
     // 0: GusMinigame, 1: CherMinigame, 2: MonaMinigame
     public bool[] minigameList = { false, false, false };
+
+    public List<Npc> currentNpcQuests = new();
 
     // Temporary
     public int gusMinigameScore;
@@ -63,13 +58,31 @@ public class MainGameManager : MonoBehaviour
         }
     }
 
+    public void InitializeNpcsUisAndVariables()
+    {
+        gotQuestDict = new();
+        hadDialogueDict = new();
+        foreach (Npc npc in npcList)
+        {
+            MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
+            gotQuestDict.Add(npc.npcName, false);
+            hadDialogueDict.Add(npc.npcName, false);
+        }
+        for (int i = 0; i < minigameList.Length; i++)
+            minigameList[i] = false;
+
+        ResetVariables();
+        CheckBartEnderQuest();
+        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+    }
+
     public void CheckBartEnderQuest()
     {
         if (dayNo > 1)
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
 
         // if Bart Ender quest has not begun, then that means first day has not ended
-        else if (npcList[2].questList[0].status == QuestStatus.Pending)
+        else if (!npcList[2].questList[0].status.Equals("pending"))
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(false);
         else
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
@@ -79,7 +92,7 @@ public class MainGameManager : MonoBehaviour
     public async void EndDay()
     {
         // If Bart Ender Quest not completed, do not let the day pass
-        if (npcList[2].questList[0].status != QuestStatus.Completed)
+        if (!npcList[2].questList[0].status.Equals("completed"))
         {
             MainGame.MainGameUiManager.Instance.OpenWarningPanel("You should complete Bart Ender's quest first!");
         }
@@ -176,20 +189,6 @@ public class MainGameManager : MonoBehaviour
             minigameList[i] = false;
     }
 
-    public void InitializeNpcsUisAndVariables()
-    {
-        foreach (Npc npc in npcList)
-        {
-            MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
-            gotQuestDict.Add(npc.npcName, false);
-            hadDialogueDict.Add(npc.npcName, false);
-        }
-        for (int i = 0; i < minigameList.Length; i++)
-            minigameList[i] = false;
-        CheckBartEnderQuest();
-        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
-    }
-
     // Call from GoToMap function in GusMinigameScene
     public void ReturnFromGusMinigame(int gusMinigameScoreVal)
     {
@@ -233,7 +232,7 @@ public class MainGameManager : MonoBehaviour
         // This is <s>crossed out</s>. This is <b>bold</b> text.
     }
 
-    public List<string> UpdateQuestStatus(Npc npc, string questId, QuestStatus newStatus)
+    public List<string> UpdateQuestStatus(Npc npc, string questId, string newStatus)
     {
         List<string> completeQuestIds = new();
         Quest questToUpdate = null;
@@ -261,7 +260,7 @@ public class MainGameManager : MonoBehaviour
         {
             for (int i = 1; i < npc.questList.Count; i++)
             {
-                if (npc.questList[i].status != QuestStatus.Completed)
+                if (!npc.questList[i].status.Equals("Completed"))
                 {
                     allSubquestsCompleted = false;
                 }
@@ -323,5 +322,26 @@ public class MainGameManager : MonoBehaviour
     }
 
 
+    public void LoadSavedQuestsToQuestPanel()
+    {
+        currentNpcQuests = new();
+        MainGame.MainGameUiManager.Instance.EmptyQuestPanel();
+        foreach (Npc npc in npcList)
+        {
+            Debug.Log("npc name: " + npc.npcName);
+            foreach (Quest quest in npc.questList)
+            {
+                Debug.Log("quest name: " + quest.name + " with status: " + quest.status.ToString());
+                if (!quest.status.Equals("pending"))
+                {
+                    currentNpcQuests.Add(npc);
+                    HandleGivenQuests(npc.npcId);
+                    if (!quest.status.Equals("completed"))
+                        UpdateQuestStatus(npc, quest.questId, "completed");
+                    break;
+                }
+            }
+        }
+    }
 
 }

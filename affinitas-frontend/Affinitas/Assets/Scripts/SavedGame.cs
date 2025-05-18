@@ -3,24 +3,33 @@ using TMPro;
 
 public class SavedGame : MonoBehaviour
 {
-    public string savedGameName;
+    string saveId;
     [SerializeField] TextMeshProUGUI savedGameTextMesh;
 
-    public void AddSavedGameText(string saveName, string saveText)
+    public void AddSavedGameText(string saveIdVal, string saveText)
     {
-        savedGameName = saveName;
+        saveId = saveIdVal;
         savedGameTextMesh.text = saveText;
     }
 
     // Call from Continue Game button on saved game instance panel
-    public void LoadSavedGame()
+    public async void LoadSavedGame()
     {
-        //TODO
+        await GameManager.Instance.LoadSavedGame(saveId);
+        UIManager.Instance.StartGame();
+
+        //MainGame.MainGameUiManager.Instance.LoadSavedChatHistories();
+
+        //TODO: Load journal info
+
+        MainGameManager.Instance.LoadSavedQuestsToQuestPanel();
     }
 
     // Call from delete (X) button on saved game instance panel
     public void DeleteSavedGame()
     {
-        //TODO
+        //TODO delete from server
+         
+        Destroy(gameObject);
     }
 }

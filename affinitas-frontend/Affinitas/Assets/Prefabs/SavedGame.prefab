@@ -91,7 +91,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bbddf6c917f5e4d0aa1f0d7299189459, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  savedGameName: 
   savedGameTextMesh: {fileID: 8451731173929947255}
 --- !u!1 &6650496877829027986
 GameObject:
@@ -349,7 +348,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1764070493117881471}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 2146842220387593219}
+        m_TargetAssemblyTypeName: SavedGame, Assembly-CSharp
+        m_MethodName: LoadSavedGame
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!1 &8146557074194152329
 GameObject:
   m_ObjectHideFlags: 0
@@ -470,7 +481,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 697464673002973941}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 2146842220387593219}
+        m_TargetAssemblyTypeName: SavedGame, Assembly-CSharp
+        m_MethodName: DeleteSavedGame
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!1 &8290038150471055621
 GameObject:
   m_ObjectHideFlags: 0
