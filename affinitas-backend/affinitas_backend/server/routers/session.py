@@ -30,7 +30,7 @@ config = Config()  # noqa
                 "is created with default values.",
     status_code=status.HTTP_201_CREATED,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     save = await DefaultSave.aggregate(
         get_save_pipeline({"_id": config.default_save_version})
@@ -137,7 +137,7 @@ async def save_game(request: Request, payload: SaveSessionRequest, x_client_uuid
                 "`X-Client-UUID` header must be provided. No data is returned.",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def quit_game(request: Request, payload: DeleteSessionRequest, x_client_uuid: XClientUUIDHeader):
     shadow_save = await ShadowSave.get(payload.save_id)
     if not shadow_save:

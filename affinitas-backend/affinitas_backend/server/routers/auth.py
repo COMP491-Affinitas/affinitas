@@ -21,7 +21,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
                 " a new UUID if the header is missing.",
     status_code=status.HTTP_200_OK
 )
-@limiter.limit("5/minute")
+@limiter.limit("100/minute")
 async def auth(request: Request, x_client_uuid: XClientUUIDHeader = None):
     if x_client_uuid:
         return UUIDResponse(uuid=x_client_uuid)

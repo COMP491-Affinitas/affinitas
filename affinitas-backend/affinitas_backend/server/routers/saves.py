@@ -29,7 +29,7 @@ config = Config()  # noqa
                 "The `X-Client-UUID` header must be provided.",
     status_code=status.HTTP_200_OK,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     saves = await (
         Save
@@ -53,7 +53,7 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
                 "is created and returned.",
     status_code=status.HTTP_201_CREATED,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def load_game_save(request: Request, payload: SaveIdRequest, x_client_uuid: XClientUUIDHeader):
     save = await Save.aggregate(
         get_save_pipeline({"_id": payload.save_id})
