@@ -1,6 +1,6 @@
 import logging
 
-from beanie import SortDirection
+from beanie import SortDirection, PydanticObjectId
 from fastapi import HTTPException, status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
@@ -106,7 +106,7 @@ async def load_game_save(request: Request, payload: SaveIdRequest, x_client_uuid
 
 
 @router.delete(
-    "/",
+    "/{save_id}",
     summary="Deletes a game save",
     description="Deletes a game save by ID. "
                 "The `X-Client-UUID` header must be provided. If a game save "
@@ -115,19 +115,19 @@ async def load_game_save(request: Request, payload: SaveIdRequest, x_client_uuid
     status_code=status.HTTP_204_NO_CONTENT,
 )
 @limiter.limit("10/minute")
-async def delete_game_save(request: Request, payload: SaveIdRequest, x_client_uuid: XClientUUIDHeader):
+async def delete_game_save(request: Request, save_id: PydanticObjectId, x_client_uuid: XClientUUIDHeader):
     save = await (
         Save
-        .find(Save.id == payload.save_id)
+        .find(Save.id == save_id)
         .find(Save.client_uuid == x_client_uuid)
         .first_or_none()
     )
 
     if not save:
-        logging.info(f"Save with ID {payload.save_id} not found")
+        logging.info(f"Save with ID {save_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Save not found. Save ID: {payload.save_id}"
+            detail=f"Save not found. Save ID: {save_id}"
         )
 
     res = await save.delete()  # noqa
@@ -135,5 +135,5 @@ async def delete_game_save(request: Request, payload: SaveIdRequest, x_client_uu
     if res.deleted_count != 1:
         throw_500(
             "Failed to delete game save",
-            f"Save ID: {payload.save_id}",
+            f"Save ID: {save_id}",
         )
