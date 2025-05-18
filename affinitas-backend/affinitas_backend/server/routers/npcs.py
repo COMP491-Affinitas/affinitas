@@ -181,7 +181,7 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
     "/{npc_id}/quest/complete",
     summary="Complete an NPC quest",
     description="Completes an NPC quest. The quest with the given ID will be marked as completed. "
-                "Returns 204 No Content if the quest is completed successfully. "
+                "Returns the new affinitas value if the quest is completed successfully. "
                 "The `X-Client-UUID` header must be provided.",
     status_code=status.HTTP_200_OK,
 )
