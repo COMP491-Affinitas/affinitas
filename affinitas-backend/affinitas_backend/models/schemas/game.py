@@ -34,6 +34,9 @@ class GameSaveResponse(BaseModel):
     name: str
     saved_at: datetime
 
+    class Settings:
+        projection = {"save_id": "$_id", "name": 1, "saved_at": 1, "_id": 0}
+
 
 class GameSavesResponse(BaseModel):
     saves: list[GameSaveResponse] = Field(default_factory=list)

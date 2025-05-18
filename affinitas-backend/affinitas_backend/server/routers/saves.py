@@ -10,8 +10,7 @@ from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import Save, ShadowSave
 from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadResponse, GameLoadRequest, \
-    GameSaveResponse, \
-    GameDataResponse
+    GameDataResponse, GameSaveResponse
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -34,17 +33,13 @@ config = Config()  # noqa
 async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
     saves = await (
         Save
-        .find(
-            Save.client_uuid == x_client_uuid,
-            projection={"save_id": "$_id", "name": 1, "saved_at": 1, "_id": 0}
-        )
+        .find(Save.client_uuid == x_client_uuid)
+        .project(GameSaveResponse)
         .sort(("saved_at", SortDirection.DESCENDING))
         .to_list()
     )
 
-    return GameSavesResponse(saves=[
-        GameSaveResponse.model_validate(save) for save in saves
-    ])
+    return GameSavesResponse(saves=saves)
 
 
 @router.post(

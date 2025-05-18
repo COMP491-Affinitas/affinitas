@@ -10,8 +10,8 @@ from affinitas_backend.models.game_data import GameData
 
 
 class Save(Document, GameData):
-    client_uuid: Annotated[UUID4, Indexed()]  # directly using `Indexed(UUId4)` does not work here
-    chat_id: Annotated[UUID4, Indexed(unqiue=True)]
+    client_uuid: Annotated[UUID4, Indexed()]  # directly using `Indexed(UUID4)` does not work here
+    chat_id: UUID4
 
     name: str | None
     saved_at: datetime | None
@@ -20,30 +20,28 @@ class Save(Document, GameData):
         name = "save"
         indexes = [
             IndexModel(
-                [("saved_at", pymongo.DESCENDING)]
+                [("saved_at", pymongo.DESCENDING)],
+                name="saved_at_desc",
             ),
             IndexModel(
-                [("chat_id", pymongo.DESCENDING)],
-                unique=True,
-            )
+                [("client_uuid", pymongo.ASCENDING)],
+                name="client_uuid_asc",
+            ),
         ]
 
 
 class ShadowSave(Document, GameData):
     client_uuid: Annotated[UUID4, Indexed(unique=True)]  # We want only one active game per user
-    chat_id: Annotated[UUID4, Indexed(unqiue=True)]
+    chat_id: UUID4
 
     class Settings:
         name = "shadow_save"
         indexes = [
             IndexModel(
                 [("client_uuid", pymongo.ASCENDING)],
+                name="client_uuid_asc",
                 unique=True,
             ),
-            IndexModel(
-                [("chat_id", pymongo.ASCENDING)],
-                unique=True,
-            )
         ]
 
 
