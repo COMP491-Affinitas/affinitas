@@ -48,3 +48,8 @@ class GenerateGameEndingRequest(BaseModel):
 
 class GameEndingResponse(BaseModel):
     ending: str
+
+
+class GiveItemRequest(BaseModel):
+    item_name: str
+    shadow_save_id: PydanticObjectId

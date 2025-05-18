@@ -2,7 +2,8 @@ import datetime
 import logging
 import uuid
 
-from fastapi import HTTPException, APIRouter, Request, status
+from beanie.odm.operators.update.array import Push
+from fastapi import HTTPException, APIRouter, Request, status, BackgroundTasks
 from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.chat import master_llm_service
@@ -10,8 +11,7 @@ from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import DefaultSave, ShadowSave, Save
 from affinitas_backend.models.schemas.game import GameSessionResponse, GameSessionData, GameSaveSummary, \
-    SaveSessionRequest, \
-    DeleteSessionRequest, GameEndingResponse, GenerateGameEndingRequest
+    SaveSessionRequest, DeleteSessionRequest, GameEndingResponse, GenerateGameEndingRequest, GiveItemRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -77,6 +77,35 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     except Exception:
         await res.delete()
         raise
+
+
+@router.post(
+    "/item",
+    response_model=None,
+    summary="Gives an item to the player.",
+    description="Gives an item to the player. The `X-Client-UUID` header must be provided. ",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@limiter.limit("10/minute")
+async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: XClientUUIDHeader,
+                    background_tasks: BackgroundTasks):
+    shadow_save_id = payload.shadow_save_id
+    item_name = payload.item_name
+
+    update_res = await (
+        ShadowSave
+        .find(ShadowSave.id == shadow_save_id)
+        .find(ShadowSave.client_uuid == x_client_uuid)
+        .update(
+            Push({"item_list": item_name}),
+        )
+    )
+
+    if update_res.modified_count == 0:
+        raise HTTPException(
+            detail=f"Shadow save not found. shadow_save_id: {shadow_save_id}",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
 
 @router.post(

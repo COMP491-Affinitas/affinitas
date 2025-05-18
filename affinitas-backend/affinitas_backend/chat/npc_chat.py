@@ -71,6 +71,7 @@ class NPCChatService:
 
     async def get_response(
             self, message: BaseMessage, npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId,
+            *, invoke_model: bool = False
     ) -> GetResponse | None:
         thread_id = await _get_thread_id(shadow_save_id, npc_id)
 
@@ -87,7 +88,7 @@ class NPCChatService:
             if npc is None:
                 raise ValueError(f"NPC with ID {npc_id} not found")
 
-        invoke_model = isinstance(message, HumanMessage)
+        invoke_model = invoke_model or isinstance(message, HumanMessage)
         res = self.app.invoke({
             "messages": chat_history + [message],
             "npc": npc,
