@@ -10,7 +10,7 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance { get; private set; }
 
     [SerializeField] CanvasGroup[] gamePanels;
-    // 0: menuPanel, 1: savesListPanel, 2: settingsPanel, 3: mainPanel, 4: endingPanel
+    // 0: menuPanel, 1: savesListPanel, 2: settingsPanel, 3: mainPanel, 4: endingPanel, 5: creditsPanel
 
     [SerializeField]
     GameObject savesListContent;
@@ -118,6 +118,11 @@ public class UIManager : MonoBehaviour
     {
         MakeActive(3);
         Time.timeScale = 1;    
+    }
+
+    public void OpenCreditsPanel()
+    {
+        MakeActive(5);
     }
 
     public void QuitGame()

@@ -1,10 +1,13 @@
 fileFormatVersion: 2
-guid: 21354d141c060c94c8370ac02c2a72b7
+guid: 195b9ea596cb7472e85f7c544295d2ea
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -3895747788012382450
-    second: npc-1-house-tmp_0
+      213: -608944295256242087
+    second: npc-6-house_0
+  - first:
+      213: 1096792184187306142
+    second: npc-6-house_1
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -46,7 +49,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -100,13 +103,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: npc-1-house-tmp_0
+      name: npc-6-house_0
       rect:
         serializedVersion: 2
-        x: 64
-        y: 69
-        width: 384
-        height: 334
+        x: 2
+        y: 8
+        width: 887
+        height: 834
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +118,30 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e07120107068fe9c0800000000000000
-      internalID: -3895747788012382450
+      spriteID: 9584049c3689c87f0800000000000000
+      internalID: -608944295256242087
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: npc-6-house_1
+      rect:
+        serializedVersion: 2
+        x: 674
+        y: 835
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e90c8e23ea6983f00800000000000000
+      internalID: 1096792184187306142
       vertices: []
       indices: 
       edges: []
@@ -125,7 +150,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +160,8 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      npc-1-house-tmp_0: -3895747788012382450
+      npc-6-house_0: -608944295256242087
+      npc-6-house_1: 1096792184187306142
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
