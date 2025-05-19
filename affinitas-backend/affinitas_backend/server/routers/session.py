@@ -11,7 +11,8 @@ from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import DefaultSave, ShadowSave, Save
 from affinitas_backend.models.schemas.game import GameSessionResponse, GameSessionData, GameSaveSummary, \
-    SaveSessionRequest, DeleteSessionRequest, GameEndingResponse, GenerateGameEndingRequest, GiveItemRequest
+    SaveSessionRequest, DeleteSessionRequest, GameEndingResponse, ShadowSaveIdRequest, GiveItemRequest, \
+    SetAPRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -189,7 +190,7 @@ async def quit_game(request: Request, payload: DeleteSessionRequest, x_client_uu
                 "must be called to delete the shadow save entry.",
     status_code=status.HTTP_200_OK,
 )
-async def generate_ending(request: Request, payload: GenerateGameEndingRequest, x_client_uuid: XClientUUIDHeader):
+async def generate_ending(request: Request, payload: ShadowSaveIdRequest, x_client_uuid: XClientUUIDHeader):
     npc_infos = (
         await ShadowSave
         .aggregate(
@@ -218,3 +219,54 @@ async def generate_ending(request: Request, payload: GenerateGameEndingRequest, 
         )
 
     return GameEndingResponse(ending=res.content)
+
+
+@router.patch(
+    "/action-points",
+    response_model=None,
+    summary="Sets the action points for the given shadow save.",
+    description="Sets the action points for the given shadow save. "
+                "The action points are set to the given value without any checks. "
+                "The `X-Client-UUID` header must be provided. The shadow save entry ",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@limiter.limit("30/minute")
+async def set_ap(request: Request, payload: SetAPRequest, x_client_uuid: XClientUUIDHeader):
+    shadow_save = await ShadowSave.find_one(
+        ShadowSave.id == payload.shadow_save_id,
+        ShadowSave.client_uuid == x_client_uuid,
+    )
+
+    if not shadow_save:
+        logging.info(f"Shadow save with ID {payload.shadow_save_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shadow save not found. shadow_save_id: {payload.shadow_save_id}"
+        )
+
+    await shadow_save.set({ShadowSave.remaining_ap: payload.action_points})
+
+
+@router.post(
+    "/activate-journal",
+    response_model=None,
+    summary="Activates the journal for the given shadow save.",
+    description="Activates the journal for the given shadow save by updating the shadow save entry. "
+                "The `X-Client-UUID` header must be provided.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@limiter.limit("3/minute")
+async def activate_journal(request: Request, payload: ShadowSaveIdRequest, x_client_uuid: XClientUUIDHeader):
+    shadow_save = await ShadowSave.find_one(
+        ShadowSave.id == payload.shadow_save_id,
+        ShadowSave.client_uuid == x_client_uuid,
+    )
+
+    if not shadow_save:
+        logging.info(f"Shadow save with ID {payload.shadow_save_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shadow save not found. shadow_save_id: {payload.shadow_save_id}"
+        )
+
+    await shadow_save.set({ShadowSave.journal_enabled: True})
