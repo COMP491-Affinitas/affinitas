@@ -1,9 +1,7 @@
 from typing import Literal
 
-from beanie import PydanticObjectId
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
-from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.chat.chat import QuestState
 
 NPC_PROMPT_TEMPLATE = """\
@@ -80,8 +78,8 @@ def get_message(role: Literal["user", "ai", "system"], content: str) -> BaseMess
             return AIMessage(content)
         case "system":
             return SystemMessage(content)
-        case _:
-            raise ValueError(f"Unknown message type: {role}")
+
+    raise ValueError(f"Unknown message type: {role}")
 
 
 def _pretty_quests(quests: list[QuestState]) -> str:
@@ -92,89 +90,7 @@ def _pretty_quests(quests: list[QuestState]) -> str:
         icon = QUEST_STATUS_ICON.get(q["status"].lower(), "•")
         name = q["name"]
         desc = q["description"]
-        reward_str = ", ".join(q["rewards"]) if q["rewards"] else None
         lines.append(f"{icon} **{name}**: {desc}")
-        if reward_str:
-            lines.append(f"    – Rewards: {reward_str}")
+        lines.append(f"    – Affinitas Reward: {q['affinitas_reward']}")
 
     return "\n".join(lines)
-
-
-def _get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId):
-    return ShadowSave.aggregate([
-        {'$match': {
-            '_id': shadow_save_id
-        }},
-        {'$unwind': '$npcs'},
-        {'$match': {
-            'npcs.npc_id': npc_id
-        }},
-        {'$lookup': {
-            'from': 'npcs',
-            'localField': 'npcs.npc_id',
-            'foreignField': '_id',
-            'as': 'npc_config'
-        }},
-        {'$unwind': '$npc_config'},
-        {'$replaceRoot': {
-            'newRoot': {
-                '$mergeObjects': [
-                    '$npcs', {
-                        'name': '$npc_config.name',
-                        'age': '$npc_config.age',
-                        'occupation': '$npcs.occupation',
-                        'personality': '$npc_config.personality',
-                        'likes': '$npcs.likes',
-                        'dislikes': '$npcs.dislikes',
-                        'motivations': '$npc_config.motivations',
-                        'backstory': '$npc_config.backstory',
-                        'endings': '$npc_config.endings',
-                        'dialogue_unlocks': '$npc_config.dialogue_unlocks',
-                        'affinitas_config': '$npc_config.affinitas_config',
-                        'affinitas': '$npcs.affinitas',
-                        'chat_history': '$npcs.chat_history',
-                        'quests': {
-                            '$map': {
-                                'input': '$npcs.quests',
-                                'as': 'quest_save',
-                                'in': {
-                                    '$let': {
-                                        'vars': {
-                                            'quest_config': {
-                                                '$arrayElemAt': [
-                                                    {
-                                                        '$filter': {
-                                                            'input': '$npc_config.quests',
-                                                            'as': 'qcfg',
-                                                            'cond': {
-                                                                '$eq': [
-                                                                    '$$qcfg._id', '$$quest_save.quest_id'
-                                                                ]
-                                                            }
-                                                        }
-                                                    }, 0
-                                                ]
-                                            }
-                                        },
-                                        'in': {
-                                            '$mergeObjects': [
-                                                '$$quest_save', {
-                                                    'name': '$$quest_config.name',
-                                                    'description': '$$quest_config.description',
-                                                    'rewards': '$$quest_config.rewards'
-                                                }
-                                            ]
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                ]
-            }
-        }
-        },
-        {'$project': {
-            'npc_id': 0,
-            'quests.quest_id': 0
-        }}]).to_list()

@@ -43,8 +43,8 @@ class NPCAffinitasConfig(BaseModel):
 class Quest(BaseModel):
     id: PydanticObjectId = Field(..., alias="_id")
     name: str
-    description: str
-    rewards: list[str] = Field(default_factory=list)  # This needs some rework
+    description: str | None
+    affinitas_reward: int
     linked_npc: PydanticObjectId | None = None
     triggers: list[str] = Field(default_factory=list)
 
@@ -62,7 +62,8 @@ class NPCSaveData(BaseModel):
     occupation: str | None = None
     quests: list[QuestSaveData] = Field(default_factory=list)
     chat_history: list[tuple[Literal["user", "system", "ai"], str]] = Field(default_factory=list)
-
+    completed_quests: list[PydanticObjectId] = Field(default_factory=list)  # Quests completed by this NPC, the quest
+    # does not have to belong to this NPC
 
 class Journal(BaseModel):
     quests: list[dict[PydanticObjectId, Any]] = Field(default_factory=list)

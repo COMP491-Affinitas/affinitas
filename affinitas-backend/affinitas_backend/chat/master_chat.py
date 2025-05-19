@@ -10,8 +10,8 @@ from langsmith.wrappers import wrap_openai
 from openai import OpenAI
 from pydantic import TypeAdapter
 
-from affinitas_backend.chat.utils import _get_shadow_save_npc_state
 from affinitas_backend.config import Config
+from affinitas_backend.db.utils import get_shadow_save_npc_state
 from affinitas_backend.models.chat.chat import NPCState
 
 
@@ -29,7 +29,7 @@ class MasterLLM:
 
     async def get_quest_responses(self, quests: list[dict], shadow_save_id: PydanticObjectId,
                                   npc_id: PydanticObjectId) -> list[dict]:
-        npc = await _get_shadow_save_npc_state(
+        npc = await get_shadow_save_npc_state(
             shadow_save_id,
             npc_id,
         )
@@ -49,7 +49,7 @@ class MasterLLM:
                 f"{quest['description']!r}\n"
                 "---\n"
                 "Only include the paraphrased text and nothing else.\n"
-            ) for quest in quests
+            ) for quest in quests if quest["description"] is not None
         ]
 
         res = await asyncio.gather(*messages)

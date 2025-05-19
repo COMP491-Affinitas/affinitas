@@ -1,16 +1,16 @@
 import logging
 
+from beanie import SortDirection, PydanticObjectId
 from fastapi import HTTPException, status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
 from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.config import Config
-from affinitas_backend.db.utils import get_aggregate_pipeline
+from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import Save, ShadowSave
-from affinitas_backend.models.schemas.game import GameSavesResponse, GameLoadResponse, GameLoadRequest, \
-    GameSaveResponse, \
-    GameDataResponse
+from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, SaveIdRequest, \
+    GameSessionData, GameSaveSummary
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -29,28 +29,22 @@ config = Config()  # noqa
                 "The `X-Client-UUID` header must be provided.",
     status_code=status.HTTP_200_OK,
 )
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
-    saves = await Save.aggregate([
-        {"$match": {"client_uuid": x_client_uuid}},
-        {"$sort": {"saved_at": -1}},
-        {"$project": {
-            "_id": 1,
-            "name": 1,
-            "saved_at": 1,
-        }},
-        {"$set": {"save_id": "$_id"}},
-        {"$unset": ["_id"]},
-    ]).to_list()
+    saves = await (
+        Save
+        .find(Save.client_uuid == x_client_uuid)
+        .project(GameSaveSummary)
+        .sort(("saved_at", SortDirection.DESCENDING))
+        .to_list()
+    )
 
-    return GameSavesResponse(saves=[
-        GameSaveResponse.model_validate(save) for save in saves
-    ])
+    return GameSavesResponse(saves=saves)
 
 
 @router.post(
     "/",
-    response_model=GameLoadResponse,
+    response_model=GameSessionResponse,
     summary="Loads a game save",
     description="Loads a game save by ID. "
                 "The `X-Client-UUID` header must be provided. If a game save "
@@ -59,10 +53,10 @@ async def list_game_saves(request: Request, x_client_uuid: XClientUUIDHeader):
                 "is created and returned.",
     status_code=status.HTTP_201_CREATED,
 )
-@limiter.limit("3/minute")
-async def load_game_save(request: Request, payload: GameLoadRequest, x_client_uuid: XClientUUIDHeader):
+@limiter.limit("10/minute")
+async def load_game_save(request: Request, payload: SaveIdRequest, x_client_uuid: XClientUUIDHeader):
     save = await Save.aggregate(
-        get_aggregate_pipeline({"_id": payload.save_id})
+        get_save_pipeline({"_id": payload.save_id})
     ).to_list(1)
 
     if not save:
@@ -102,10 +96,44 @@ async def load_game_save(request: Request, payload: GameLoadRequest, x_client_uu
             npc.pop("dislikes", None)
             npc.pop("occupation", None)
 
-        return GameLoadResponse(
-            data=GameDataResponse(**save),
+        return GameSessionResponse(
+            data=GameSessionData(**save),
             shadow_save_id=res.id,
         )
     except Exception:
         await res.delete()
         raise
+
+
+@router.delete(
+    "/{save_id}",
+    summary="Deletes a game save",
+    description="Deletes a game save by ID. "
+                "The `X-Client-UUID` header must be provided. If a game save "
+                "with the given ID belonging to the client is not found, a 404 "
+                "status is returned.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@limiter.limit("10/minute")
+async def delete_game_save(request: Request, save_id: PydanticObjectId, x_client_uuid: XClientUUIDHeader):
+    save = await (
+        Save
+        .find(Save.id == save_id)
+        .find(Save.client_uuid == x_client_uuid)
+        .first_or_none()
+    )
+
+    if not save:
+        logging.info(f"Save with ID {save_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Save not found. Save ID: {save_id}"
+        )
+
+    res = await save.delete()  # noqa
+
+    if res.deleted_count != 1:
+        throw_500(
+            "Failed to delete game save",
+            f"Save ID: {save_id}",
+        )
