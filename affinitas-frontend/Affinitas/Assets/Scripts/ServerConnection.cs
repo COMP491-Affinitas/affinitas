@@ -33,6 +33,11 @@ public class LoadSaveRequest : BaseRequest
 }
 
 [Serializable]
+public class DeleteSaveRequest : BaseRequest
+{   
+}
+
+[Serializable]
 public class GetSavesRequest : BaseRequest
 {
 }
@@ -61,6 +66,7 @@ public class SaveResponse : BaseRequest
     public string name;
     public string saved_at;
 }
+
 [Serializable]
 public class QuitRequest : BaseRequest
 {

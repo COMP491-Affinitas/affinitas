@@ -95,6 +95,17 @@ public class GameManager : MonoBehaviour
         return getSavesResponse.saves;
     }
 
+    public async Task DeleteGameSave(string saveIdToDelete)
+    {
+
+        DeleteSaveRequest deleteSaveRequest = new DeleteSaveRequest();
+
+        string url = $"/saves/{saveIdToDelete}";
+        BaseResponse deleteSaveResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<DeleteSaveRequest, BaseResponse>(deleteSaveRequest, url, HttpMethod.Delete);
+
+    }
+
     public async Task<string> CreateMessageForEndGame()
     {
         EndingRequest endRequest = new EndingRequest { shadow_save_id = shadowSaveId };
