@@ -70,6 +70,8 @@ async def npc_chat(
         npc_response = res["message"]
         updated_npc_data = res["updated_npc_data"]
         completed_quests = res["completed_quests"]
+
+        chat = [(payload.role, payload.content), ("ai", npc_response)]
         update_query = (
             update_query
             .update(
@@ -79,9 +81,13 @@ async def npc_chat(
                     "npcs.$.likes": updated_npc_data["likes"]
                 }),
                 Push({
-                    "npcs.$.chat_history": {"$each": [(payload.role, payload.content), ("ai", npc_response)]},
+                    "npcs.$.chat_history": {"$each": chat},
                     "npcs.$.completed_quests": {"$each": completed_quests},
+                    "journal_data.chat_history.$[group].chat_history": {"$each": chat},
                 }),
+                array_filters=[
+                    {"group.npc_id": npc_id}
+                ],
             )
         )
 
@@ -179,6 +185,24 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
         npc_id=npc_id,
     )
 
+    npc_responses = [("ai", quest["response"]) for quest in res]
+    update_query2 = (
+        ShadowSave
+        .find(ShadowSave.id == payload.shadow_save_id)
+        .update(
+            Push({
+                "npcs.$[npc].chat_history": {"$each": npc_responses},
+                "journal_data.chat_history.$[group].chat_history": {"$each": npc_responses},
+            }),
+            array_filters=[
+                {"npc.npc_id": npc_id},
+                {"group.npc_id": npc_id}
+            ],
+        )
+    )
+
+    background_tasks.add_task(await_coroutine, update_query2)
+
     return TypeAdapter(NPCQuestResponses).validate_python({
         "quests": res
     })
@@ -224,7 +248,7 @@ async def complete_quest(
                 "npcs.$[npc].quests.$[quest].status": "completed",
                 "journal_data.quests.$[group].quests.$[quest].status": "completed"
             }),
-            Push({"npcs.$[npc].chat_history": {"$each": [("system", sys_msg)]}}),
+            Push({"npcs.$[npc].chat_history": ("system", sys_msg)}),
             array_filters=[
                 {"npc.npc_id": npc_id},
                 {"quest.quest_id": quest_id, "quest.status": "active"},
@@ -272,7 +296,7 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
                             detail="Item not found in inventory for the current session")
 
     sys_msg = (f"The player gives `{item_name}` to you. On your next response, please acknowledge the item. "
-               f"Do not modify the affinitas value or the NPC's state. Only return a response")
+               f"Do not modify the affinitas value, the NPC's state or mark any quest completed. Only return a response")
 
     npc_response = await npc_chat_service.get_response(
         message=get_message("system", sys_msg),
@@ -292,9 +316,15 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
         .find(ShadowSave.id == shadow_save_id)
         .find(ShadowSave.item_list == item_name)
         .update(
-            Push({"npcs.$[npc].chat_history": {"$each": [("system", sys_msg), ("ai", npc_response["message"])]}}),
+            Push({
+                "npcs.$[npc].chat_history": {"$each": [("system", sys_msg), ("ai", npc_response["message"])]},
+                "journal_data.chat_history.$[group].chat_history": ("ai", npc_response["message"]),
+            }),
             Unset({"item_list.$": 1}),
-            array_filters=[{"npc.npc_id": npc_id}],
+            array_filters=[
+                {"npc.npc_id": npc_id},
+                {"group.npc_id": npc_id},
+            ],
         )
     )
 
