@@ -27,5 +27,6 @@ class GameData(BaseModel):
     day_no: int
     remaining_ap: int
     journal_data: Journal
+    journal_active: bool
     item_list: list[str] = Field(default_factory=list)
     npcs: list[NPCSaveData] = Field(default_factory=list)
