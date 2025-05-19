@@ -9,7 +9,7 @@ public class Npc
     public string npcName;
     public int affinitasValue;
     public List<Quest> questList = new(); // First quest is main quest, others subquests
-    public List<LoadGameChat> chatHistory = new();
+    public List<List<string>> chatHistory = new();
 }
 
 public class Quest

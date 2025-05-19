@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 public class LoadGameRootResponse
 {
     public LoadGameData data;
-    public string shadow_save_id;
+    public string shadow_save_id; 
 }
 
 [Serializable]
@@ -16,7 +16,7 @@ public class LoadGameData
 {
     public int day_no;
     public int remaining_ap;
-    public LoadGameJournalData journal_data;
+    public Dictionary<string, List<string>> journal_data;
     public List<string> item_list;
     public List<LoadGameNpcData> npcs;
 }
@@ -36,19 +36,13 @@ public class LoadGameNpcData
     public string name;
     public int affinitas;
     public List<LoadGameQuestMeta> quests; // first quest is the main quest
-    public List<LoadGameChat> chat_history;
+    public List<List<string>> chat_history;
 }
 
-[Serializable]
-public class LoadGameChat
-{
-    public string owner;
-    public string chat;
-}
 
 [Serializable]
 public class LoadGameQuestMeta
-{ 
+{
     public string quest_id;
     public string status;
     public string name;
@@ -63,6 +57,7 @@ public static class LoadGame
         UuidRequest uuid = new UuidRequest { x_client_uuid = GameManager.Instance.playerId };
         LoadGameRootResponse rootResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(uuid, "/session/new", HttpMethod.Get);
+        Debug.Log("New game shadow_save_id: " +  rootResponse.shadow_save_id);
         return rootResponse;
     }
 
@@ -106,20 +101,20 @@ public static class LoadGame
 
 
             //TODO: DELETE LATER
-            //if (npcData.chat_history == null)
-            //    Debug.Log("char history null ");
-            //else if (npcData.chat_history.Count > 0)
-            //{
-            //    Debug.Log("chat history count: " + npcData.chat_history.Count);
-            //    Debug.Log("chat history first chat count: " + npcData.chat_history[0].owner);
+            if (npcData.chat_history == null)
+                Debug.Log("chat history null ");
+            else if (npcData.chat_history.Count > 0)
+            {
+                Debug.Log("chat history count: " + npcData.chat_history.Count);
+                Debug.Log("chat history first chat count: " + npcData.chat_history[0].Count);
 
-            //    Debug.Log("chat history first chat: " + npcData.chat_history[0].chat);
-            //    Debug.Log("chat history first chat string: " + npcData.chat_history[0].chat.ToString());
+                Debug.Log("chat history first chat: " + npcData.chat_history[0]);
+                Debug.Log("chat history first chat string: " + npcData.chat_history[0]);
 
-            //    Debug.Log("chat history any: " + npcData.chat_history[0].owner);
-            //}
-            //else
-            //    Debug.Log("count: " + npcData.chat_history.Count.ToString());
+                Debug.Log("chat history any: " + npcData.chat_history[0][1]);
+            }
+            else
+                Debug.Log("count: " + npcData.chat_history.Count.ToString());
 
 
             foreach (LoadGameQuestMeta questData in npcData.quests)

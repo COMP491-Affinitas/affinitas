@@ -4,6 +4,7 @@ using UnityEngine;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 [Serializable]
 public abstract class BaseRequest
@@ -200,7 +201,7 @@ public class ServerConnection : MonoBehaviour
         if (method == HttpMethod.Post || method == HttpMethod.Delete)
         {
             requestMessage.Content = new StringContent(
-                JsonUtility.ToJson(message), Encoding.UTF8, "application/json");
+                JsonConvert.SerializeObject(message),  Encoding.UTF8, "application/json");
         }
 
         Debug.Log("Sending message to server with x-client-uuid: " + GameManager.Instance.playerId);
@@ -230,7 +231,7 @@ public class ServerConnection : MonoBehaviour
                     string result = await response.Content.ReadAsStringAsync();
                     // Change back from JSON
                     Debug.Log("Got message from server.");
-                    serverResponse = JsonUtility.FromJson<BaseResponse>(result);
+                    serverResponse = (BaseResponse)JsonConvert.DeserializeObject(result, typeof(BaseResponse));
                 }  
             }
             else

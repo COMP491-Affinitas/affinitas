@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
+using System;
 
 namespace MainGame
 {
@@ -196,14 +197,14 @@ namespace MainGame
         {
             EmptyChat();
 
-            List<LoadGameChat> chatHistory = MainGameManager.Instance.npcList[npcId - 1].chatHistory;
+            List<List<string>> chatHistory = MainGameManager.Instance.npcList[npcId - 1].chatHistory;
 
-            foreach (LoadGameChat gameChat in chatHistory)
+            foreach (List<String> gameChat in chatHistory)
             {
-                if (gameChat.owner.Equals("user"))
-                    addDialogueBox.AddPlayerDialogueBox(gameChat.chat, null, null, false);
-                else if (gameChat.owner.Equals("ai"))
-                    addDialogueBox.AddNpcDialogueBox(gameChat.chat, null, null, false);
+                if (gameChat[0].Equals("user"))
+                    addDialogueBox.AddPlayerDialogueBox(gameChat[1], null, null, false);
+                else if (gameChat[0].Equals("ai"))
+                    addDialogueBox.AddNpcDialogueBox(gameChat[1], null, null, false);
             }
         }
     }
