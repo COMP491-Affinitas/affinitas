@@ -247,7 +247,7 @@ async def set_ap(request: Request, payload: SetAPRequest, x_client_uuid: XClient
     await shadow_save.set({ShadowSave.remaining_ap: payload.action_points})
 
 
-@router.post(
+@router.patch(
     "/activate-journal",
     response_model=None,
     summary="Activates the journal for the given shadow save.",
