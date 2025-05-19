@@ -1,5 +1,5 @@
 import logging
-from typing import Awaitable, Any
+from typing import Awaitable
 
 from beanie import PydanticObjectId
 from beanie.odm.operators.update.array import Push, Pull
@@ -132,8 +132,14 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
         ShadowSave
         .find(ShadowSave.id == payload.shadow_save_id)
         .update(
-            Set({"npcs.$[npc].quests.$[].status": "active"}),
-            array_filters=[{"npc.npc_id": npc_id}]
+            Set({
+                "npcs.$[npc].quests.$[].status": "active",
+                "journal_data.quests.$[group].quests.$[].status": "active"
+            }),
+            array_filters=[
+                {"npc.npc_id": npc_id},
+                {"group.npc_id": npc_id}
+            ],
         )
     )
 
@@ -214,12 +220,15 @@ async def complete_quest(
         .find_one(ShadowSave.id == shadow_save_id)
         .update_one(
             Inc({"npcs.$[npc].affinitas": affinitas_reward}),
-            Set({"npcs.$[npc].quests.$[quest].status": "completed"}),
+            Set({
+                "npcs.$[npc].quests.$[quest].status": "completed",
+                "journal_data.quests.$[group].quests.$[quest].status": "completed"
+            }),
             Push({"npcs.$[npc].chat_history": {"$each": [("system", sys_msg)]}}),
             array_filters=[
                 {"npc.npc_id": npc_id},
-                {"quest.quest_id": quest_id},
-                {"quest.status": "active"}
+                {"quest.quest_id": quest_id, "quest.status": "active"},
+                {"group.npc_id": npc_id},
             ],
             response_type=UpdateResponse.NEW_DOCUMENT
         )
@@ -308,7 +317,7 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
     )
 
 
-async def await_coroutine(coroutine: Awaitable[Any]):
+async def await_coroutine(coroutine: Awaitable):
     try:
         await coroutine
     except Exception as e:
