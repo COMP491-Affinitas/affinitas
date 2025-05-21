@@ -16,7 +16,8 @@ public class LoadGameData
 {
     public int day_no;
     public int remaining_ap;
-    public Dictionary<string, List<string>> journal_data;
+    public LoadGameJournalData journal_data;
+    public bool journal_active;
     public List<string> item_list;
     public List<LoadGameNpcData> npcs;
 }
@@ -24,9 +25,17 @@ public class LoadGameData
 [Serializable]
 public class LoadGameJournalData
 {
-    public List<object> additionalProp1;
-    public List<object> additionalProp2;
-    public List<object> additionalProp3;
+    public List<object> quests;
+    public List<LoadGameJournalNpcMeta> additionalProp2;
+    public string town_info;
+    public List<object> chat_history;
+}
+
+[Serializable]
+public class LoadGameJournalNpcMeta
+{
+    public string npc_id;
+    public string description;
 }
 
 [Serializable]
@@ -105,13 +114,8 @@ public static class LoadGame
                 Debug.Log("chat history null ");
             else if (npcData.chat_history.Count > 0)
             {
-                Debug.Log("chat history count: " + npcData.chat_history.Count);
-                Debug.Log("chat history first chat count: " + npcData.chat_history[0].Count);
-
-                Debug.Log("chat history first chat: " + npcData.chat_history[0]);
-                Debug.Log("chat history first chat string: " + npcData.chat_history[0]);
-
-                Debug.Log("chat history any: " + npcData.chat_history[0][1]);
+                Debug.Log("chat history USER OR AI: " + npcData.chat_history[0][0]);
+                Debug.Log("chat history CONTENT: " + npcData.chat_history[0][1]);
             }
             else
                 Debug.Log("count: " + npcData.chat_history.Count.ToString());
@@ -128,6 +132,7 @@ public static class LoadGame
                     affinitasReward = questData.affinitas_reward
                 };
                 newNpc.questList.Add(newQuest);
+                Debug.Log("quest name: " + newQuest.name + ", status: [" + newQuest.status + "]");
             }
             MainGameManager.Instance.npcList.Add(newNpc);
 
@@ -135,10 +140,12 @@ public static class LoadGame
         }
 
         // TODO: Initialize journal info
+        // journal data from json LoadGameJournalNpc info and town info etc do it
+
         // TODO: Chat history code!
 
         // TODO: DELETE LATER!!!! Completes Bart Ender's quest 
-        MainGameManager.Instance.npcList[2].questList[0].status = "completed";
+        //MainGameManager.Instance.npcList[2].questList[0].status = "completed";
 
         return;
 

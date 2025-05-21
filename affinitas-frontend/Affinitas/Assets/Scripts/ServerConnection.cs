@@ -69,8 +69,7 @@ public class SaveResponse : BaseRequest
 
 [Serializable]
 public class QuitRequest : BaseRequest
-{
-    public string save_id;
+{ 
 }
 
 [Serializable]
@@ -123,7 +122,7 @@ public class TakeItemRequest : BaseRequest
 [Serializable]
 public class GiveItemRequest : BaseRequest
 {
-    public string quest_id;
+    public string item_name;
     public string shadow_save_id;
 }
 [Serializable]
@@ -158,7 +157,7 @@ public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
 
-    const string serverURL = "https://affinitas-pr-16.onrender.com";
+    const string serverURL = "https://affinitas-pr-23.onrender.com";
 
     static HttpClient client = new HttpClient();
 

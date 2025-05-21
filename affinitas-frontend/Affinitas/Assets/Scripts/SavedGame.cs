@@ -17,6 +17,7 @@ public class SavedGame : MonoBehaviour
     {
         await GameManager.Instance.LoadSavedGame(saveId);
         UIManager.Instance.StartGame();
+        MainGame.MainGameUiManager.Instance.InitializeMainPanelsForSavedGame();
 
         //MainGame.MainGameUiManager.Instance.LoadSavedChatHistories();
 
@@ -26,10 +27,9 @@ public class SavedGame : MonoBehaviour
     }
 
     // Call from delete (X) button on saved game instance panel
-    public void DeleteSavedGame()
+    public async void DeleteSavedGame()
     {
-        //TODO delete from server
-         
+        await GameManager.Instance.DeleteGameSave(saveId);  
         Destroy(gameObject);
     }
 }

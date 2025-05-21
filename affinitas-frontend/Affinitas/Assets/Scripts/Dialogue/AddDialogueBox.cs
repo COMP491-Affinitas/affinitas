@@ -13,7 +13,7 @@ namespace MainGame
         GameObject playerDialogueBoxPrefab;
         [SerializeField]
         GameObject npcDialogueBoxPrefab;
-
+        [SerializeField]
         Transform contentTransform;
         ScrollRectHelper scrollRectHelper;
 
@@ -22,7 +22,6 @@ namespace MainGame
         private void Start()
         {
             scrollRectHelper = GetComponent<ScrollRectHelper>();
-            contentTransform = transform.GetChild(0).transform.GetChild(0).transform;
         }
 
         public void AddPlayerDialogueBox(string playerInp, Action onComplete, Action onCompleteTwo, bool writeSlow)
@@ -36,6 +35,8 @@ namespace MainGame
 
             if (writeSlow)
                 StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, playerInp, onComplete, onCompleteTwo));
+            else
+                dialogueTextMesh.text = playerInp;
         }
 
         public void AddNpcDialogueBox(string npcDialogue, Action onComplete, Action onCompleteTwo, bool writeSlow)
@@ -48,6 +49,8 @@ namespace MainGame
 
             if (writeSlow)
                 StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete, onCompleteTwo));
+            else
+                dialogueTextMesh.text = npcDialogue;
         }
 
         public IEnumerator AddNpcDialogueBoxForQuests(string npcDialogue, Action onComplete, Action onCompleteTwo)
@@ -98,7 +101,8 @@ namespace MainGame
         {
             for (int i = contentTransform.childCount - 1; i >= 0; i--)
             {
-                Destroy(contentTransform.GetChild(i).gameObject);
+                if (contentTransform.GetChild(i) != null)
+                    Destroy(contentTransform.GetChild(i).gameObject);
             }
         }
 

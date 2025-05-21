@@ -22,7 +22,7 @@ namespace MainGame
         [SerializeField] Button giveItemButton;
         [SerializeField] Button sendTextButton;
 
-        void Start()
+        void Awake()
         {
             // Send Text also when user presses Enter
             dialogueInputField.onSubmit.AddListener((str) => SendInputtedText());
@@ -160,25 +160,17 @@ namespace MainGame
         public async void GiveItem()
         {
             // If not Gus or Mora, no item can be given
-            if ((npcId != 1 && npcId != 2)
-                || (npcId == 1 && MainGameManager.Instance.moraItems <= 0)
-                || (npcId == 2 && MainGameManager.Instance.gusItem <= 0))
+            string itemName = MainGameManager.Instance.PlayerGivesItemToNpc(npcId);
+            if (itemName == null)
             {
-                Debug.Log("Npc id is " + npcId + " and " + MainGameManager.Instance.moraItems.ToString() + " mora and " + MainGameManager.Instance.gusItem.ToString() + " gus.");
                 MainGameUiManager.Instance.OpenWarningPanel("You have no items to give!");
                 return;
             }
-            if (npcId == 1)
-                MainGameManager.Instance.GiveMoraItem();
-            else if (npcId == 2)
-                MainGameManager.Instance.GiveGusItem();
-            else
-                return;
 
             MakeButtonsUnclickable();
 
             string dbNpcId = MainGameManager.Instance.npcList[npcId - 1].dbNpcId;
-            string npcResponse = await GameManager.Instance.NotifyForItemGiven(dbNpcId);
+            string npcResponse = await GameManager.Instance.NotifyForItemGivenToNpc(dbNpcId, itemName);
 
             if(!string.IsNullOrEmpty(npcResponse))
             {
@@ -201,9 +193,9 @@ namespace MainGame
 
             foreach (List<String> gameChat in chatHistory)
             {
-                if (gameChat[0].Equals("user"))
+                if (gameChat[0] == "user")
                     addDialogueBox.AddPlayerDialogueBox(gameChat[1], null, null, false);
-                else if (gameChat[0].Equals("ai"))
+                else if (gameChat[0] == "ai")
                     addDialogueBox.AddNpcDialogueBox(gameChat[1], null, null, false);
             }
         }

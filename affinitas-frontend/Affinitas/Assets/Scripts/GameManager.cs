@@ -90,7 +90,7 @@ public class GameManager : MonoBehaviour
     {
         GetSavesRequest getSavesRequest = new();
         GetSavesResponse getSavesResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<GetSavesRequest, GetSavesResponse>(getSavesRequest, "/game/load", HttpMethod.Get);
+            .SendAndGetMessageFromServer<GetSavesRequest, GetSavesResponse>(getSavesRequest, "/saves/", HttpMethod.Get);
 
         return getSavesResponse.saves;
     }
@@ -110,7 +110,7 @@ public class GameManager : MonoBehaviour
     {
         EndingRequest endRequest = new EndingRequest { shadow_save_id = shadowSaveId };
         EndingResponse endResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(endRequest, "/game/end", HttpMethod.Post);
+            .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(endRequest, "/session/generate-ending", HttpMethod.Post);
 
         Debug.Log(endResponse);
 
@@ -172,6 +172,7 @@ public class GameManager : MonoBehaviour
             {
                 Npc npcMatchedToQuest = null;
                 List<string> completeQuestIds = null;
+                string itemName = null;
                 // For Mora Lysa quest where we get items from other npcs
                 for (int i = 0; i < npcResponse.completed_quests.Count; i++)
                 {
@@ -184,11 +185,12 @@ public class GameManager : MonoBehaviour
                     Debug.Log("Npc matched: " + npcMatchedToQuest.npcName);
                     if (npcMatchedToQuest.npcId == 1)
                     {
-                        MainGameManager.Instance.GetMoraItem();
+                        itemName = MainGameManager.Instance.NpcGivesItemToPlayer(npcMatchedToQuest.npcId);
+                        await NotifyForItemTakenFromNpc(itemName);
                     }
                     else
                     {
-                        completeQuestIds = MainGameManager.Instance.UpdateQuestStatus(npcMatchedToQuest, npcResponse.completed_quests[i], "completed");
+                        completeQuestIds = MainGameManager.Instance.UpdateQuestStatus(npcMatchedToQuest, npcResponse.completed_quests[i], MainGameManager.Instance.questDict[QuestStatus.Completed]);
                         if (completeQuestIds != null)
                         {
                             foreach (string completeQuestId in completeQuestIds)
@@ -231,17 +233,17 @@ public class GameManager : MonoBehaviour
         {
             foreach (Quest quest in MainGameManager.Instance.npcList[npcId - 1].questList)
             {
-                Debug.Log("Quest from server no: " + questEntry.quest_id + ", description: " + questEntry.response);
-                Debug.Log("Quest from game no: " + quest.questId + ", description: " + quest.description);
+                //Debug.Log("Quest from server no: " + questEntry.quest_id + ", description: " + questEntry.response);
+                //Debug.Log("Quest from game no: " + quest.questId + ", description: " + quest.description);
 
                 if (quest.questId.Equals(questEntry.quest_id))
                 {
                     quest.description = questEntry.response;
-                    quest.status = "in progress";
+                    quest.status = MainGameManager.Instance.questDict[QuestStatus.InProgress]; //TODO: IS THIS NECESSARY/CORRECT???
 
                     questDescriptions.Add(quest.description);
 
-                    Debug.Log("Quest no: " + quest.questId + ", name: " + quest.name + ", description: " + quest.description);
+                    //Debug.Log("Quest no: " + quest.questId + ", name: " + quest.name + ", description: " + quest.description);
                 }
             }            
         }
@@ -299,11 +301,9 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    public async Task<bool> NotifyForItemTaken(string itemName, string dbNpcId)
+    public async Task<bool> NotifyForItemTakenFromNpc(string itemName)
     {
         // Send message that player has taken an item from an npc
-        Npc npc = MainGameManager.Instance.npcList.Find(n => n.dbNpcId == dbNpcId);
-
         TakeItemRequest message = new()
         {
             item_name = itemName,
@@ -313,28 +313,29 @@ public class GameManager : MonoBehaviour
         BaseResponse npcResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<TakeItemRequest, BaseResponse>(
                 message,
-                $"/npcs/{npc.dbNpcId}/?????????????????????", // TODO: CHANGE
+                $"/session/item",
                 HttpMethod.Post
             );
 
-        Debug.Log("player has been given an item from npc " + npc.npcName);
+        Debug.Log("player has been given an item from npc");
         return true;
     }
 
-    public async Task<string> NotifyForItemGiven(string dbNpcId)
+    public async Task<string> NotifyForItemGivenToNpc(string dbNpcId, string itemName)
     {
         // Send message that player has given an item to an npc
         Npc npc = MainGameManager.Instance.npcList.Find(n => n.dbNpcId == dbNpcId);
 
         GiveItemRequest message = new GiveItemRequest
         {
+            item_name = itemName,  
             shadow_save_id = shadowSaveId
         };
 
         GiveItemResponse npcResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<GiveItemRequest, GiveItemResponse>(
                 message,
-                $"/npcs/{npc.dbNpcId}/?????????????????????", // TODO: CHANGE
+                $"/npcs/{npc.dbNpcId}/item", // TODO: CHANGE
                 HttpMethod.Post
             );
 
@@ -394,9 +395,10 @@ public class GameManager : MonoBehaviour
         // Add go to menu part
 
         // Delete the shadow save
-        QuitRequest quitRequest = new QuitRequest { save_id = shadowSaveId };
+        QuitRequest quitRequest = new QuitRequest();
+        string url = "/session?id=" + shadowSaveId;
         BaseResponse quitResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<QuitRequest, BaseResponse>(quitRequest, "/session", HttpMethod.Delete);
+            .SendAndGetMessageFromServer<QuitRequest, BaseResponse>(quitRequest, url, HttpMethod.Delete);
 
         shadowSaveId = "";
 

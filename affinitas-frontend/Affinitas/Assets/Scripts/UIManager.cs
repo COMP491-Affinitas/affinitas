@@ -61,7 +61,8 @@ public class UIManager : MonoBehaviour
     public void StartGame()
     {
         MakeActive(3); // main panel
-        MainGame.MainGameUiManager.Instance.InitilizeMainPanels();
+        MainGame.MainGameUiManager.Instance.InitializeMainPanels();
+        MainGame.MainGameUiManager.Instance.InitializeMainPanelsForNewGame();
     }
 
     // call from Start New Game button
@@ -69,6 +70,7 @@ public class UIManager : MonoBehaviour
     {
         await GameManager.Instance.LoadNewGame();
         StartGame();
+        MainGame.MainGameUiManager.Instance.InitializeMainPanelsForSavedGame();
     }
 
     public void GoToMenu()

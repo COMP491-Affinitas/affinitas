@@ -21,6 +21,13 @@ public class Quest
     public int affinitasReward;
 }
 
+public enum QuestStatus
+{
+    Pending,
+    InProgress,
+    Completed
+}
+
 public class MainGameManager : MonoBehaviour
 {
     // Singleton
@@ -31,8 +38,12 @@ public class MainGameManager : MonoBehaviour
     public int dailyActionPoints;
     public int dayNo = -1;
 
-    public int gusItem;
-    public int moraItems;
+    public Dictionary<QuestStatus, string> questDict = new()
+    {
+        { QuestStatus.Pending, "pending" },
+        { QuestStatus.InProgress, "active" },
+        { QuestStatus.Completed, "complete" }
+    };
 
     public Dictionary<string, bool> hadDialogueDict = new();
     public Dictionary<string, bool> gotQuestDict = new();
@@ -73,16 +84,17 @@ public class MainGameManager : MonoBehaviour
 
         ResetVariables();
         CheckBartEnderQuest();
-        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+        //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
     }
 
     public void CheckBartEnderQuest()
     {
+        Debug.Log("WHYYYY");
         if (dayNo > 1)
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
 
         // if Bart Ender quest has not begun, then that means first day has not ended
-        else if (!npcList[2].questList[0].status.Equals("pending"))
+        else if (npcList[2].questList[0].status.Equals(questDict[QuestStatus.Pending]))
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(false);
         else
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
@@ -92,7 +104,7 @@ public class MainGameManager : MonoBehaviour
     public async void EndDay()
     {
         // If Bart Ender Quest not completed, do not let the day pass
-        if (!npcList[2].questList[0].status.Equals("completed"))
+        if (!npcList[2].questList[0].status.Equals(questDict[QuestStatus.Completed]))
         {
             MainGame.MainGameUiManager.Instance.OpenWarningPanel("You should complete Bart Ender's quest first!");
         }
@@ -212,12 +224,12 @@ public class MainGameManager : MonoBehaviour
         }
             
         string questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
-        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[0].questId, questText);
+        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[0].questId, questText, npcQuests[0].status);
 
         for (int i = 1; i < npcQuests.Count; i++)
         {
             questText = $@"\n• <size=24>{npcQuests[i].name}</size>";
-            MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[i].questId, questText);
+            MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[i].questId, questText, npcQuests[0].status);
         }
 
         questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
@@ -227,13 +239,15 @@ public class MainGameManager : MonoBehaviour
             questText += $@"\n<b>• <size=26>{npcQuests[i].name}</size></b>";
             questText += $@"\n<size=24>{npcQuests[i].description}</size>";
         }
-        MainGame.MainGameUiManager.Instance.AddQuestToJournal(npcId, questText + "\n\n");
+        MainGame.MainGameUiManager.Instance.AddQuestToQuestDetails(npcId, questText + "\n\n");
 
         // This is <s>crossed out</s>. This is <b>bold</b> text.
     }
 
     public List<string> UpdateQuestStatus(Npc npc, string questId, string newStatus)
     {
+        Debug.Log("hey");
+
         List<string> completeQuestIds = new();
         Quest questToUpdate = null;
 
@@ -249,6 +263,8 @@ public class MainGameManager : MonoBehaviour
             return null;
         }
 
+        Debug.Log("hey again");
+
         completeQuestIds.Add(questToUpdate.questId);
         questToUpdate.status = newStatus;
         MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(questId, newStatus);
@@ -260,7 +276,7 @@ public class MainGameManager : MonoBehaviour
         {
             for (int i = 1; i < npc.questList.Count; i++)
             {
-                if (!npc.questList[i].status.Equals("Completed"))
+                if (!npc.questList[i].status.Equals(questDict[QuestStatus.Completed]))
                 {
                     allSubquestsCompleted = false;
                 }
@@ -289,38 +305,60 @@ public class MainGameManager : MonoBehaviour
         return null;
     }
 
-    // Call from Gus Give item button
-    public void GiveGusItem()
+
+    // When subquest is completed, return itemName of given item to notify server
+    public string NpcGivesItemToPlayer(int npcId)
     {
-        if (gusItem > 0)
+        if (npcId == 1)
         {
-            gusItem -= 1;
-            MainGame.MainGameUiManager.Instance.GiveItemToGus();
+            foreach (MainGame.UseItem moraPiece in MainGame.MainGameUiManager.Instance.moraPieceItems)
+            {
+                if (!moraPiece.inInventory)
+                {
+                    moraPiece.AddToInventory();
+                    return moraPiece.itemName;
+                }
+            }
         }
-    }
-
-    // Call from Mora Give item button
-    public void GiveMoraItem()
-    {
-        if (moraItems > 0)
+        // For Gus this comes from minigame
+        else if (npcId == 2)
         {
-            moraItems -= 1;
-            MainGame.MainGameUiManager.Instance.GiveItemToMora();
+            if (!MainGame.MainGameUiManager.Instance.gusFishItem.inInventory)
+            {
+                MainGame.MainGameUiManager.Instance.gusFishItem.AddToInventory();
+                return MainGame.MainGameUiManager.Instance.gusFishItem.itemName;
+            }
         }
+        return null;
     }
 
-    public void GetMoraItem()
+    // Call from Give Item to Npc button
+    public string PlayerGivesItemToNpc(int npcId)
     {
-        moraItems += 1;
-        MainGame.MainGameUiManager.Instance.AddMoraPieceToInventory();
+        if (npcId == 1)
+        {
+            foreach (MainGame.UseItem moraPiece in MainGame.MainGameUiManager.Instance.moraPieceItems)
+            {
+                if (moraPiece.inInventory)
+                {
+                    moraPiece.RemoveFromInventory();
+                    //TODO: NECESSARY CODE!!!!
+                    return moraPiece.itemName;
+                }
+            }
+        }
+        // For Gus this comes from minigame
+        else if (npcId == 2)
+        {
+            if (MainGame.MainGameUiManager.Instance.gusFishItem.inInventory)
+            {
+                MainGame.MainGameUiManager.Instance.gusFishItem.RemoveFromInventory();
+                //TODO: NECESSARY CODE!!!!
+                return MainGame.MainGameUiManager.Instance.gusFishItem.itemName;
+            }
+        }
+        return null;
     }
-
-    public void GetGusItem()
-    {
-        gusItem += 1;
-        MainGame.MainGameUiManager.Instance.AddGusFishToInventory();
-    }
-
 
     public void LoadSavedQuestsToQuestPanel()
     {
@@ -328,17 +366,24 @@ public class MainGameManager : MonoBehaviour
         MainGame.MainGameUiManager.Instance.EmptyQuestPanel();
         foreach (Npc npc in npcList)
         {
+            bool handledQuests = false;
             Debug.Log("npc name: " + npc.npcName);
             foreach (Quest quest in npc.questList)
             {
                 Debug.Log("quest name: " + quest.name + " with status: " + quest.status.ToString());
-                if (!quest.status.Equals("pending"))
+                if (!quest.status.Equals(questDict[QuestStatus.Pending]))
                 {
-                    currentNpcQuests.Add(npc);
-                    HandleGivenQuests(npc.npcId);
-                    if (!quest.status.Equals("completed"))
-                        UpdateQuestStatus(npc, quest.questId, "completed");
-                    break;
+                    if (!handledQuests)
+                    {
+                        currentNpcQuests.Add(npc);
+                        HandleGivenQuests(npc.npcId);
+                        handledQuests = true;
+                    }
+                    if (quest.status.Equals(questDict[QuestStatus.Completed]))
+                    {
+                        Debug.Log("pls");
+                        UpdateQuestStatus(npc, quest.questId, questDict[QuestStatus.Completed]);
+                    }
                 }
             }
         }
