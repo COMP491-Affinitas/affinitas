@@ -15,8 +15,7 @@ from langsmith.wrappers import wrap_openai
 from openai import OpenAI
 from pydantic import TypeAdapter
 
-from affinitas_backend.chat.utils import NPC_PROMPT_TEMPLATE, AFFINITAS_CHANGE_MAP, get_message, \
-    _pretty_quests
+from affinitas_backend.chat.utils import NPC_PROMPT_TEMPLATE, AFFINITAS_CHANGE_MAP, get_message, pretty_quests
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_shadow_save_npc_state
 from affinitas_backend.models.beanie.save import ShadowSave
@@ -126,7 +125,7 @@ class NPCChatService:
             likes=", ".join(state["npc"]["likes"] or ["Unspecified"]),
             dislikes=", ".join(state["npc"]["dislikes"] or ["Unspecified"]),
             dialogue_unlocks=", ".join(state["npc"]["dialogue_unlocks"]),
-            quests=_pretty_quests(state["npc"]["quests"]),
+            quests=pretty_quests(state["npc"]["quests"]),
             affinitas=state["npc"]["affinitas"],
             affinitas_up=isinstance(affinitas_increase, float) and f"{affinitas_increase:.2f}" or ", ".join(
                 affinitas_increase),
@@ -167,7 +166,7 @@ class NPCChatService:
             npc = npc_data[0]
             chat_history = npc.pop("chat_history")
 
-            if self.config.env == "dev":  # TODO: Remove this after confirming the npc_data has the correct structure
+            if self.config.env == "dev":
                 npc_state_validator = TypeAdapter(NPCState)
                 npc_state_validator.validate_python(npc, strict=True)
 

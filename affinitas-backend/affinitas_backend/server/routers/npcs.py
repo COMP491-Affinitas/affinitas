@@ -155,7 +155,7 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
     for quest in quests:
         linked_npc_id = quest.get("linked_npc")
         if linked_npc_id:
-            msg = QUEST_PROMPT_TEMPLATE.format(
+            msg = TAKE_QUEST_PROMPT_TEMPLATE.format(
                 quest_id=quest.get("quest_id"),
                 quest_name=quest.get("name"),
                 quest_description=quest.get("description"),
@@ -224,10 +224,37 @@ async def complete_quest(
         payload: NPCQuestCompleteRequest,
         x_client_uuid: XClientUUIDHeader,
 ):
-    quest_id = payload.quest_id
     shadow_save_id = payload.shadow_save_id
 
-    sys_msg = f"Quest with ID `{quest_id!r}` completed."
+    quest_data = await (
+        NPC
+        .aggregate([
+            {"$match": {"_id": npc_id}},
+            {"$unwind": "$quests"},
+            {"$match": {"quests._id": payload.quest_id}},
+            {"$project": {
+                "_id": 0,
+                "quest_id": "$quests._id",
+                "name": "$quests.name",
+                "description": "$quests.description",
+            }}
+
+        ]).to_list()
+    )
+
+    if not quest_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found for this NPC")
+
+    quest_data = quest_data[0]
+    quest_id = quest_data["quest_id"]
+    quest_name = quest_data["name"]
+    quest_description = quest_data["description"]
+
+    sys_msg = COMPLETE_QUEST_PROMPT_TEMPLATE.format(
+        quest_id=quest_id,
+        quest_name=quest_name,
+        quest_description=quest_description
+    )
 
     affinitas_reward = await (
         NPC
@@ -296,8 +323,7 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Item not found in inventory for the current session")
 
-    sys_msg = (f"The player gives `{item_name}` to you. On your next response, please acknowledge the item. "
-               f"Do not modify the affinitas value, the NPC's state or mark any quest completed. Only return a response")
+    sys_msg = GIVE_ITEM_TEMPLATE.format(item_name=item_name)
 
     npc_response = await npc_chat_service.get_response(
         message=get_message("system", sys_msg),
@@ -355,7 +381,7 @@ async def await_coroutine(coroutine: Awaitable):
         logging.error(f"Background update failed: {e}")
 
 
-QUEST_PROMPT_TEMPLATE = """\
+TAKE_QUEST_PROMPT_TEMPLATE = """\
 The player has accepted this quest:
 
 Quest ID: {quest_id}
@@ -367,4 +393,23 @@ to decide whether the quest is completed.
 {keywords}
 ---
 If the player completes the quest, append the quest ID to the `completed_quests` array.\
+"""
+
+COMPLETE_QUEST_PROMPT_TEMPLATE = """\
+The player has completed this quest:
+Quest ID: {quest_id}
+Quest Name: {quest_name}
+Quest Description: {quest_description}
+---
+This quest is already completed and should not be included in the `completed_quests` array.
+Keep this in mind in future conversations.\
+"""
+
+GIVE_ITEM_TEMPLATE = """\
+The player has given you the following item:
+Item Name: {item_name}
+---
+On your next response, please acknowledge the item. \
+Do not modify the affinitas value, the NPC's state or mark any quest completed. \
+Only return a response.\
 """

@@ -10,6 +10,7 @@ from langsmith.wrappers import wrap_openai
 from openai import OpenAI
 from pydantic import TypeAdapter
 
+from affinitas_backend.chat.utils import NPC_DATA_TEMPLATE, pretty_quests, QUEST_PROMPT_TEMPLATE, ENDING_PROMPT_TEMPLATE
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_shadow_save_npc_state
 from affinitas_backend.models.chat.chat import NPCState
@@ -41,14 +42,32 @@ class MasterLLM:
                 npc_state_validator = TypeAdapter(NPCState)
                 npc_state_validator.validate_python(npc, strict=True)
 
+        affinitas_increase = npc["affinitas_config"]["increase"]
+        affinitas_decrease = npc["affinitas_config"]["decrease"]
+
         messages = [
             self.model.ainvoke(
-                "Paraphrase the following text like this person would speak:\n"
-                f"{bson.json_util.dumps(npc)}\n"
-                "---\n"
-                f"{quest['description']!r}\n"
-                "---\n"
-                "Only include the paraphrased text and nothing else.\n"
+                QUEST_PROMPT_TEMPLATE.format(
+                    npc_data=NPC_DATA_TEMPLATE.format(
+                        name=npc["name"],
+                        age=npc["age"],
+                        occupation=npc.get("occupation", "Unknown"),
+                        backstory=npc["backstory"],
+                        personality=", ".join(npc["personality"]),
+                        motivations=", ".join(npc["motivations"]),
+                        likes=", ".join(npc["likes"] or ["Unspecified"]),
+                        dislikes=", ".join(npc["dislikes"] or ["Unspecified"]),
+                        dialogue_unlocks=", ".join(npc["dialogue_unlocks"]),
+                        quests=pretty_quests(npc["quests"]),
+                        affinitas=npc["affinitas"],
+                        affinitas_up=isinstance(affinitas_increase, float) and f"{affinitas_increase:.2f}" or ", ".join(
+                            affinitas_increase),
+                        affinitas_down=isinstance(affinitas_decrease,
+                                                  float) and f"{affinitas_decrease:.2f}" or ", ".join(
+                            affinitas_decrease),
+                    ),
+                    quest_description=quest["description"]
+                )
             ) for quest in quests if quest["description"] is not None
         ]
 
@@ -64,21 +83,7 @@ class MasterLLM:
 
     def generate_ending(self, npc_infos: list[dict[str, Any]]):
         return self.model.invoke(
-            "Generate an ending for the following game state:\n"
-            f"{bson.json_util.dumps(npc_infos)}\n"
-            "---\n"
-            "Only include the ending text and nothing else.\n"
-            "The ending should adequately reflect the game state and the choices made by the player. "
-            "High affinitas value for an NPC means that the player has a good relationship with them. "
-            "Low affinitas value means that the player has a bad relationship with them. "
-            "How well the player interacted with the NPCs should be reflected in the ending. "
-            "If the endings array is provided for an NPC, their ending is based on "
-            "the ending descriptions in the array. Higher affinitas shall result in "
-            "a better ending for the NPCs. If a quest is not marked `completed` in the game state, "
-            "the NPC should not mention it positively in the ending. The may choose to skip the quest or "
-            "mention it negatively. "
-            "The endings should not necessarily be optimistic and should reflect the history and the affinitas "
-            "values of the NPCs. The endings should be unique and not repeated. "
+            ENDING_PROMPT_TEMPLATE.format(game_state=bson.json_util.dumps(npc_infos))
         )
 
     def _init_langsmith(self):

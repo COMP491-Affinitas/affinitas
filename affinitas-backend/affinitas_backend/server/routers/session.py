@@ -5,7 +5,7 @@ from typing import Annotated
 
 from beanie import PydanticObjectId
 from beanie.odm.operators.update.array import Push
-from fastapi import HTTPException, APIRouter, Request, status, BackgroundTasks, Query
+from fastapi import HTTPException, APIRouter, Request, status, Query
 from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.chat import master_llm_service
@@ -89,8 +89,7 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     status_code=status.HTTP_204_NO_CONTENT,
 )
 @limiter.limit("10/minute")
-async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: XClientUUIDHeader,
-                    background_tasks: BackgroundTasks):
+async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: XClientUUIDHeader):
     shadow_save_id = payload.shadow_save_id
     item_name = payload.item_name
 

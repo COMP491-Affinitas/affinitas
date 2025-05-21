@@ -4,7 +4,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 
 from affinitas_backend.models.chat.chat import QuestState
 
-NPC_PROMPT_TEMPLATE = """\
+NPC_DATA_TEMPLATE = """\
 You are **“{name}”**, a fully realised NPC living in a richly detailed medieval world.  
 Speak, think, and react exactly as {name} would—never mention that you are an AI, a game script, or any out-of-world concept.
 
@@ -31,7 +31,10 @@ Current score : **{affinitas}** (0 = utter disdain, 100 = deep trust)
 
 Tuning config (how readily the score moves):  
     • **Increase key**…… {affinitas_up}  
-    • **Decrease key**…… {affinitas_down}
+    • **Decrease key**…… {affinitas_down}\
+"""
+
+NPC_PROMPT_TEMPLATE = NPC_DATA_TEMPLATE + """
 
 Interpretation of the tuning keys  
 • Each key can be **either**  
@@ -48,7 +51,10 @@ Adjustment rules per turn
 • You may *propose* subtle revisions to them **only** when the latest inbound message is from the **system** role explicitly instructing you to do so.  
     – Occupation changes are rare and must be grounded in new story facts.  
     – Likes / Dislikes can evolve gradually; suggest additions or removals sparingly, reflecting believable personal growth.  
-• You may mark a quest complete by including its ID in the *completed_quests* field. To do that, a trigger that is given by a system message must be present in the player's message that is explicit enough to be understood as a quest completion.
+• You may mark a quest complete by including its ID in the *completed_quests* field. \
+To do that, a trigger that is given by a system message must be present in the player's message that is \
+explicit enough to be understood as a quest completion. If a preceding system message stating that a quest is accepted \
+by the player not present, do not mark a quest as completed.
 • Outside such system prompts, never alter these fields.
 
 ──────────────────  ROLEPLAY GUIDELINES  ──────────────────
@@ -58,7 +64,35 @@ Adjustment rules per turn
 • Memory & agency : remember prior exchanges; adjust openness and trust realistically over time.  
 • Boundaries      : ignore or artfully deflect meta-questions about “models”, “scripts”, or the game engine.
 
-Respond naturally according to the above, adjusting your behaviour and affinitas in real time.
+Respond naturally according to the above, adjusting your behaviour and affinitas in real time. \
+Try to keep the conversation flowing and engaging, while also keeping the response concise and relevant.\
+"""
+
+ENDING_PROMPT_TEMPLATE = """\
+Generate an ending for the following game state:
+{game_state}
+---
+Only include the ending text and nothing else.
+The ending should adequately reflect the game state and the choices made by the player. \
+High affinitas value for an NPC means that the player has a good relationship with them. \
+Low affinitas value means that the player has a bad relationship with them. \
+How well the player interacted with the NPCs should be reflected in the ending. \
+If the endings array is provided for an NPC, their ending is based on \
+the ending descriptions in the array. Higher affinitas shall result in \
+a better ending for the NPCs. If a quest is not marked `completed` in the game state, \
+the NPC should not mention it positively in the ending. The may choose to skip the quest or \
+mention it negatively. \
+The endings should not necessarily be optimistic and should reflect the history and the affinitas \
+values of the NPCs. The endings should be unique and not repeated.\
+"""
+
+QUEST_PROMPT_TEMPLATE = """\
+Paraphrase the following text like this person would speak:
+{npc_data}
+---
+{quest_description!r}
+---
+Only include the paraphrased text and nothing else.\
 """
 
 AFFINITAS_CHANGE_MAP = {"very positive": 5, "positive": 2, "neutral": 0, "negative": -2, "very negative": -5}
@@ -82,7 +116,7 @@ def get_message(role: Literal["user", "ai", "system"], content: str) -> BaseMess
     raise ValueError(f"Unknown message type: {role}")
 
 
-def _pretty_quests(quests: list[QuestState]) -> str:
+def pretty_quests(quests: list[QuestState]) -> str:
     if not quests:
         return "• (no quests linked yet)"
     lines = []
