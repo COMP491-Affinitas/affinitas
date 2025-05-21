@@ -61,7 +61,7 @@ async def _save_game(request: Request, payload: SaveSessionRequest, x_client_uui
 )
 @limiter.limit("10/minute")
 async def _quit_game(request: Request, payload: DeleteSessionRequest, x_client_uuid: XClientUUIDHeader):
-    return await quit_game(request, payload, x_client_uuid)
+    return await quit_game(request, payload.save_id, x_client_uuid)
 
 
 @router.get(

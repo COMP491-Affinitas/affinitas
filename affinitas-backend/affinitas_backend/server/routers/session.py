@@ -1,9 +1,11 @@
 import datetime
 import logging
 import uuid
+from typing import Annotated
 
+from beanie import PydanticObjectId
 from beanie.odm.operators.update.array import Push
-from fastapi import HTTPException, APIRouter, Request, status, BackgroundTasks
+from fastapi import HTTPException, APIRouter, Request, status, BackgroundTasks, Query
 from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.chat import master_llm_service
@@ -11,8 +13,7 @@ from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import DefaultSave, ShadowSave, Save
 from affinitas_backend.models.schemas.game import GameSessionResponse, GameSessionData, GameSaveSummary, \
-    SaveSessionRequest, DeleteSessionRequest, GameEndingResponse, ShadowSaveIdRequest, GiveItemRequest, \
-    SetAPRequest
+    SaveSessionRequest, GameEndingResponse, ShadowSaveIdRequest, GiveItemRequest, SetAPRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -159,7 +160,7 @@ async def save_game(request: Request, payload: SaveSessionRequest, x_client_uuid
 
 
 @router.delete(
-    "/",
+    "",
     response_model=None,
     summary="Used to quit a game",
     description="Deletes the shadow save entry to remove redundant data before quitting. If the "
@@ -168,13 +169,14 @@ async def save_game(request: Request, payload: SaveSessionRequest, x_client_uuid
     status_code=status.HTTP_204_NO_CONTENT,
 )
 @limiter.limit("10/minute")
-async def quit_game(request: Request, payload: DeleteSessionRequest, x_client_uuid: XClientUUIDHeader):
-    shadow_save = await ShadowSave.get(payload.save_id)
+async def quit_game(request: Request, shadow_save_id: Annotated[PydanticObjectId, Query(alias="id")],
+                    x_client_uuid: XClientUUIDHeader):
+    shadow_save = await ShadowSave.get(shadow_save_id)
     if not shadow_save:
-        logging.info(f"Shadow save with ID {payload.save_id} not found")
+        logging.info(f"Shadow save with ID {shadow_save_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Shadow save not found. shadow_save_id: {payload.save_id}"
+            detail=f"Shadow save not found. shadow_save_id: {shadow_save_id}"
         )
 
     await shadow_save.delete()  # noqa
