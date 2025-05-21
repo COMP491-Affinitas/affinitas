@@ -245,28 +245,3 @@ async def set_ap(request: Request, payload: SetAPRequest, x_client_uuid: XClient
         )
 
     await shadow_save.set({ShadowSave.remaining_ap: payload.action_points})
-
-
-@router.patch(
-    "/activate-journal",
-    response_model=None,
-    summary="Activates the journal for the given shadow save.",
-    description="Activates the journal for the given shadow save by updating the shadow save entry. "
-                "The `X-Client-UUID` header must be provided.",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-@limiter.limit("3/minute")
-async def activate_journal(request: Request, payload: ShadowSaveIdRequest, x_client_uuid: XClientUUIDHeader):
-    shadow_save = await ShadowSave.find_one(
-        ShadowSave.id == payload.shadow_save_id,
-        ShadowSave.client_uuid == x_client_uuid,
-    )
-
-    if not shadow_save:
-        logging.info(f"Shadow save with ID {payload.shadow_save_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Shadow save not found. shadow_save_id: {payload.shadow_save_id}"
-        )
-
-    await shadow_save.set({ShadowSave.journal_enabled: True})

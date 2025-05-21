@@ -78,7 +78,8 @@ async def npc_chat(
                 Set({
                     "npcs.$.affinitas": updated_npc_data["affinitas"],
                     "npcs.$.occupation": updated_npc_data["occupation"],
-                    "npcs.$.likes": updated_npc_data["likes"]
+                    "npcs.$.likes": updated_npc_data["likes"],
+                    "journal_active": True
                 }),
                 Push({
                     "npcs.$.chat_history": {"$each": chat},
