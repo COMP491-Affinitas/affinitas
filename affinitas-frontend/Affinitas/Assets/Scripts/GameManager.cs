@@ -29,7 +29,7 @@ public class GameManager : MonoBehaviour
     private async void Start()
     {
         //TODO: DELETE LATER
-        PlayerPrefs.SetString("player_id", "");
+        //PlayerPrefs.SetString("player_id", "");
 
 
         playerId = PlayerPrefs.GetString("player_id");
@@ -185,7 +185,8 @@ public class GameManager : MonoBehaviour
                     Debug.Log("Npc matched: " + npcMatchedToQuest.npcName);
                     if (npcMatchedToQuest.npcId == 1)
                     {
-                        itemName = MainGameManager.Instance.NpcGivesItemToPlayer(npcMatchedToQuest.npcId);
+                        itemName = MainGame.MainGameUiManager.Instance.NpcGivesItemToPlayer(npcMatchedToQuest.npcId);
+                        MainGameManager.Instance.UpdateQuestStatus(npcMatchedToQuest, npcResponse.completed_quests[i], MainGameManager.Instance.questDict[QuestStatus.Completed]);
                         await NotifyForItemTakenFromNpc(itemName);
                     }
                     else

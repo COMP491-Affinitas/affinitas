@@ -26,7 +26,7 @@ public class LoadGameData
 public class LoadGameJournalData
 {
     public List<object> quests;
-    public List<LoadGameJournalNpcMeta> additionalProp2;
+    public List<LoadGameJournalNpcMeta> npc_info;
     public string town_info;
     public List<object> chat_history;
 }
@@ -87,6 +87,8 @@ public static class LoadGame
 
         MainGameManager.Instance.dayNo = rootResponse.data.day_no;
         MainGameManager.Instance.dailyActionPoints = rootResponse.data.remaining_ap;
+        MainGameManager.Instance.journalActive = rootResponse.data.journal_active;
+        MainGameManager.Instance.journalTownInfo = rootResponse.data.journal_data.town_info;
 
         Debug.Log("Game Info");
         Debug.Log("action points: " + MainGameManager.Instance.dailyActionPoints);
@@ -107,7 +109,14 @@ public static class LoadGame
             };
             i++;
 
-
+            if (rootResponse.data.journal_data.npc_info != null)
+            {
+                foreach (LoadGameJournalNpcMeta npcInfo in rootResponse.data.journal_data.npc_info)
+                {
+                    if (npcInfo.npc_id.Equals(newNpc.dbNpcId))
+                        newNpc.description = npcInfo.description;
+                }
+            }
 
             //TODO: DELETE LATER
             if (npcData.chat_history == null)
@@ -138,6 +147,10 @@ public static class LoadGame
 
             Debug.Log("Npc no " + newNpc.npcId.ToString() + ": " + newNpc.npcName + " with Affinitas " + newNpc.affinitasValue.ToString());
         }
+
+        
+
+
 
         // TODO: Initialize journal info
         // journal data from json LoadGameJournalNpc info and town info etc do it

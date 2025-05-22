@@ -17,7 +17,7 @@ namespace MainGame
         ScrollRectHelper scrollRectHelper;
 
         [SerializeField] Button getQuestButton;
-        bool getQuestDone;
+        bool getQuestDone = false;
 
         [SerializeField] Button giveItemButton;
         [SerializeField] Button sendTextButton;
@@ -31,6 +31,11 @@ namespace MainGame
             scrollRectHelper = gameObject.GetComponent<ScrollRectHelper>();
         }
 
+        private void Start()
+        {
+            MakeButtonsClickable();
+        }
+
         public void InitializeDialoguePanels()
         {
             dialogueInputField.text = "";
@@ -41,6 +46,8 @@ namespace MainGame
         // Call this from Send Text button
         public void SendInputtedText()
         {
+            MainGameManager.Instance.ActivateJournal();
+
             if (MainGameManager.Instance.EnoughActionPointsForDialogue() == false)
             {
                 MainGameUiManager.Instance.OpenWarningPanel("You do not have enough action points to talk. End the day!");
@@ -50,9 +57,6 @@ namespace MainGame
                 return;
 
             MakeButtonsUnclickable();
-
-            MainGameManager.Instance.ReduceActionPointsForDialogue(MainGameManager.Instance.npcList[npcId - 1].npcName);
-            MainGameUiManager.Instance.UpdateDaysLeftPanel();
 
             playerInput = dialogueInputField.text;
             if (playerInput == "")
@@ -93,7 +97,7 @@ namespace MainGame
 
             if (MainGameManager.Instance.EnoughActionPointsForGetQuest() == false)
             {
-                MainGameUiManager.Instance.OpenWarningPanel("You do not have enough action points to get a new quest. End the day!");
+                MainGameUiManager.Instance.OpenWarningPanel("You do not have enough action points to get a new quest.");
                 return;
             }
 
@@ -103,7 +107,7 @@ namespace MainGame
             ServerConnection.Instance.canSendMessage = false;
 
             MakeButtonsUnclickable();
-            MainGameManager.Instance.ReduceActionPointsForGetQuest(MainGameManager.Instance.npcList[npcId - 1].npcName);
+            MainGameManager.Instance.ReduceActionPointsForGetQuest();
             MainGameUiManager.Instance.UpdateDaysLeftPanel();
 
             string dbNpcId = MainGameManager.Instance.npcList[npcId - 1].dbNpcId;
@@ -149,7 +153,7 @@ namespace MainGame
 
         public void MakeButtonsClickable()
         {
-            if (!getQuestDone)
+            if (getQuestDone == false)
                 getQuestButton.interactable = true;
             giveItemButton.interactable = true;
             sendTextButton.interactable = true;
@@ -160,7 +164,7 @@ namespace MainGame
         public async void GiveItem()
         {
             // If not Gus or Mora, no item can be given
-            string itemName = MainGameManager.Instance.PlayerGivesItemToNpc(npcId);
+            string itemName = MainGameUiManager.Instance.PlayerGivesItemToNpc(npcId);
             if (itemName == null)
             {
                 MainGameUiManager.Instance.OpenWarningPanel("You have no items to give!");

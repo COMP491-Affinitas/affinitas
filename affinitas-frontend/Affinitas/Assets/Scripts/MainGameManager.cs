@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq;
 
 public class Npc
 {
@@ -10,6 +9,7 @@ public class Npc
     public int affinitasValue;
     public List<Quest> questList = new(); // First quest is main quest, others subquests
     public List<List<string>> chatHistory = new();
+    public string description;
 }
 
 public class Quest
@@ -37,6 +37,8 @@ public class MainGameManager : MonoBehaviour
     //public Dictionary<string, Npc> npcDict = new();
     public int dailyActionPoints;
     public int dayNo = -1;
+    public bool journalActive;
+    public string journalTownInfo;
 
     public Dictionary<QuestStatus, string> questDict = new()
     {
@@ -44,11 +46,6 @@ public class MainGameManager : MonoBehaviour
         { QuestStatus.InProgress, "active" },
         { QuestStatus.Completed, "complete" }
     };
-
-    public Dictionary<string, bool> hadDialogueDict = new();
-    public Dictionary<string, bool> gotQuestDict = new();
-    // 0: GusMinigame, 1: CherMinigame, 2: MonaMinigame
-    public bool[] minigameList = { false, false, false };
 
     public List<Npc> currentNpcQuests = new();
 
@@ -71,25 +68,16 @@ public class MainGameManager : MonoBehaviour
 
     public void InitializeNpcsUisAndVariables()
     {
-        gotQuestDict = new();
-        hadDialogueDict = new();
         foreach (Npc npc in npcList)
         {
             MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
-            gotQuestDict.Add(npc.npcName, false);
-            hadDialogueDict.Add(npc.npcName, false);
         }
-        for (int i = 0; i < minigameList.Length; i++)
-            minigameList[i] = false;
-
-        ResetVariables();
         CheckBartEnderQuest();
-        //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+        CheckJournalActive();
     }
 
     public void CheckBartEnderQuest()
     {
-        Debug.Log("WHYYYY");
         if (dayNo > 1)
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
 
@@ -98,6 +86,12 @@ public class MainGameManager : MonoBehaviour
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(false);
         else
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
+    }
+
+    // TODO: WHEN TO MAKE JOURNAL ACTIVE?
+    public void CheckJournalActive()
+    {
+        MainGame.MainGameUiManager.Instance.ToggleJournalButtonActive(journalActive);
     }
 
     //Call when End Day button is pressed
@@ -119,52 +113,30 @@ public class MainGameManager : MonoBehaviour
         {
             dayNo += 1;
             dailyActionPoints = 15;
-            ResetVariables();
-            //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
             await GameManager.Instance.NotifyForEndDay();
         }
     }
 
-    // Call this from dialogues, minigames, quests etc. after an action is done
-    // Check if action already done, if so do nothing, if not decrease action points
-    public void ReduceActionPointsForDialogue(string itemKey)
+    // Call from any house button pressed
+    public void ReduceActionPointsForDialogue()
     {
         if (dayNo == 1)
             return;
-        if (hadDialogueDict.ContainsKey(itemKey))
-        {
-            if (hadDialogueDict[itemKey] == false)
-            {
-                hadDialogueDict[itemKey] = true;
-                dailyActionPoints -= 1;
-            }
-        }
+        dailyActionPoints -= 1;
     }
-    public void ReduceActionPointsForMinigame(int minigameNo)
+    // Call from anu minigame button pressed
+    public void ReduceActionPointsForMinigame()
     {
         if (dayNo == 1)
             return;
-        if (minigameNo < minigameList.Length) //number of minigames is 3
-        {
-            if (minigameList[minigameNo] == false)
-            {
-                minigameList[minigameNo] = true;
-                dailyActionPoints -= 2;
-            }
-        }
+        dailyActionPoints -= 2;
     }
-    public void ReduceActionPointsForGetQuest(string itemKey)
+    // Call from any get quest button pressed
+    public void ReduceActionPointsForGetQuest()
     {
         if (dayNo == 1)
             return;
-        if (gotQuestDict.ContainsKey(itemKey))
-        {
-            if (gotQuestDict[itemKey] == false)
-            {
-                gotQuestDict[itemKey] = true;
-                dailyActionPoints -= 3;
-            }
-        }
+        dailyActionPoints -= 3;
     }
 
     // Call this from dialogues, minigames, quests etc. before an action is done
@@ -186,19 +158,6 @@ public class MainGameManager : MonoBehaviour
         if (3 <= dailyActionPoints)
             return true;
         return false;
-    }
-
-    // Call this at the end of each day
-    void ResetVariables()
-    {
-        foreach (string key in gotQuestDict.Keys.ToList())
-            gotQuestDict[key] = false;
-
-        foreach (string key in hadDialogueDict.Keys.ToList())
-            hadDialogueDict[key] = false;
-
-        for (int i = 0; i < minigameList.Length; i++)
-            minigameList[i] = false;
     }
 
     // Call from GoToMap function in GusMinigameScene
@@ -305,61 +264,6 @@ public class MainGameManager : MonoBehaviour
         return null;
     }
 
-
-    // When subquest is completed, return itemName of given item to notify server
-    public string NpcGivesItemToPlayer(int npcId)
-    {
-        if (npcId == 1)
-        {
-            foreach (MainGame.UseItem moraPiece in MainGame.MainGameUiManager.Instance.moraPieceItems)
-            {
-                if (!moraPiece.inInventory)
-                {
-                    moraPiece.AddToInventory();
-                    return moraPiece.itemName;
-                }
-            }
-        }
-        // For Gus this comes from minigame
-        else if (npcId == 2)
-        {
-            if (!MainGame.MainGameUiManager.Instance.gusFishItem.inInventory)
-            {
-                MainGame.MainGameUiManager.Instance.gusFishItem.AddToInventory();
-                return MainGame.MainGameUiManager.Instance.gusFishItem.itemName;
-            }
-        }
-        return null;
-    }
-
-    // Call from Give Item to Npc button
-    public string PlayerGivesItemToNpc(int npcId)
-    {
-        if (npcId == 1)
-        {
-            foreach (MainGame.UseItem moraPiece in MainGame.MainGameUiManager.Instance.moraPieceItems)
-            {
-                if (moraPiece.inInventory)
-                {
-                    moraPiece.RemoveFromInventory();
-                    //TODO: NECESSARY CODE!!!!
-                    return moraPiece.itemName;
-                }
-            }
-        }
-        // For Gus this comes from minigame
-        else if (npcId == 2)
-        {
-            if (MainGame.MainGameUiManager.Instance.gusFishItem.inInventory)
-            {
-                MainGame.MainGameUiManager.Instance.gusFishItem.RemoveFromInventory();
-                //TODO: NECESSARY CODE!!!!
-                return MainGame.MainGameUiManager.Instance.gusFishItem.itemName;
-            }
-        }
-        return null;
-    }
-
     public void LoadSavedQuestsToQuestPanel()
     {
         currentNpcQuests = new();
@@ -387,6 +291,31 @@ public class MainGameManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    public List<string> CreateJournalText()
+    {
+        List<string> journalTexts = new();
+
+        string townInfoText = $@"<b><size=30>Information About the Town</size></b>";
+        townInfoText += $@"\n<size=24>{journalTownInfo}</size>";
+        journalTexts.Add(townInfoText);
+
+        string npcInfoText = "";
+        foreach (Npc npc in npcList)
+        {
+            npcInfoText += $@"<b><size=30>{npc.npcName}</size></b>";
+            npcInfoText += $@"\n<size=24>{npc.description}</size>\n\n";
+        }
+        journalTexts.Add(npcInfoText);
+
+        return journalTexts;
+    }
+
+    public void ActivateJournal()
+    {
+        journalActive = true;
+        MainGame.MainGameUiManager.Instance.ToggleJournalButtonActive(true);
     }
 
 }
