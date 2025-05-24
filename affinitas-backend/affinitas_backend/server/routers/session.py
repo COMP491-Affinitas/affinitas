@@ -4,7 +4,7 @@ import uuid
 from typing import Annotated
 
 from beanie import PydanticObjectId
-from beanie.odm.operators.update.array import Push
+from beanie.odm.operators.update.general import Set
 from fastapi import HTTPException, APIRouter, Request, status, Query
 from pymongo.errors import DuplicateKeyError
 
@@ -97,8 +97,10 @@ async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: X
         ShadowSave
         .find(ShadowSave.id == shadow_save_id)
         .find(ShadowSave.client_uuid == x_client_uuid)
+        .find(ShadowSave.item_list.name == item_name)
         .update(
-            Push({"item_list": item_name}),
+            Set({"item_list.$[item].active": True}),
+            array_filters=[{"item.name": item_name}],
         )
     )
 

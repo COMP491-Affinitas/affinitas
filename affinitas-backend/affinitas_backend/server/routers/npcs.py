@@ -2,8 +2,8 @@ import logging
 from typing import Awaitable
 
 from beanie import PydanticObjectId
-from beanie.odm.operators.update.array import Push, Pull
-from beanie.odm.operators.update.general import Inc, Unset
+from beanie.odm.operators.update.array import Push
+from beanie.odm.operators.update.general import Inc
 from beanie.odm.operators.update.general import Set
 from beanie.odm.queries.update import UpdateResponse
 from fastapi import Response, HTTPException, status
@@ -318,7 +318,10 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
     item_exists = await ShadowSave.find_one(
         ShadowSave.id == shadow_save_id,
         ShadowSave.client_uuid == x_client_uuid,
-        ShadowSave.item_list == item_name
+        ShadowSave.item_list.elem_match({
+            "name": item_name,
+            "active": True
+        })
     )
 
     if not item_exists:
@@ -343,31 +346,22 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
     uq1 = (
         ShadowSave
         .find(ShadowSave.id == shadow_save_id)
-        .find(ShadowSave.item_list == item_name)
+        .find(ShadowSave.item_list.name == item_name)
         .update(
             Push({
                 "npcs.$[npc].chat_history": {"$each": [("system", sys_msg), ("ai", npc_response["message"])]},
                 "journal_data.chat_history.$[group].chat_history": ("ai", npc_response["message"]),
             }),
-            Unset({"item_list.$": 1}),
+            Set({"item_list.$[item].active": False}),
             array_filters=[
                 {"npc.npc_id": npc_id},
                 {"group.npc_id": npc_id},
+                {"item.active": item_name}
             ],
         )
     )
 
-    uq2 = (
-        ShadowSave
-        .find(ShadowSave.id == shadow_save_id)
-        .update(
-            Pull({"item_list": None}),
-        )
-
-    )
-
     background_tasks.add_task(await_coroutine, uq1)
-    background_tasks.add_task(await_coroutine, uq2)
 
     return NPCChatResponse(
         response=npc_response["message"],
