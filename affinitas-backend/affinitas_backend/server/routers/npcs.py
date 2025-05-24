@@ -79,7 +79,8 @@ async def npc_chat(
                     "npcs.$.affinitas": updated_npc_data["affinitas"],
                     "npcs.$.occupation": updated_npc_data["occupation"],
                     "npcs.$.likes": updated_npc_data["likes"],
-                    "journal_active": True
+                    "journal_active": True,
+                    "journal_data.npcs.$[npc].active": True,
                 }),
                 Push({
                     "npcs.$.chat_history": {"$each": chat},
@@ -87,7 +88,8 @@ async def npc_chat(
                     "journal_data.chat_history.$[group].chat_history": {"$each": chat},
                 }),
                 array_filters=[
-                    {"group.npc_id": npc_id}
+                    {"group.npc_id": npc_id},
+                    {"npc.npc_id": npc_id}
                 ],
             )
         )
