@@ -4,13 +4,10 @@ from typing import Any
 import bson.json_util
 from beanie import PydanticObjectId
 from langchain.chat_models import init_chat_model
-from langchain_core.tracers import LangChainTracer
-from langsmith import Client
-from langsmith.wrappers import wrap_openai
-from openai import OpenAI
 from pydantic import TypeAdapter
 
-from affinitas_backend.chat.utils import NPC_DATA_TEMPLATE, pretty_quests, QUEST_PROMPT_TEMPLATE, ENDING_PROMPT_TEMPLATE
+from affinitas_backend.chat.utils import NPC_DATA_TEMPLATE, pretty_quests, QUEST_PROMPT_TEMPLATE, \
+    ENDING_PROMPT_TEMPLATE, with_tracing
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_shadow_save_npc_state
 from affinitas_backend.models.chat.chat import NPCState
@@ -26,7 +23,7 @@ class MasterLLM:
         )
 
         if self.config.langsmith_tracing:
-            self._init_langsmith()
+            self.model = with_tracing(self.model, self.config)
 
     async def get_quest_responses(self, quests: list[dict], shadow_save_id: PydanticObjectId,
                                   npc_id: PydanticObjectId) -> list[dict]:
@@ -85,9 +82,3 @@ class MasterLLM:
         return self.model.invoke(
             ENDING_PROMPT_TEMPLATE.format(game_state=bson.json_util.dumps(npc_infos))
         )
-
-    def _init_langsmith(self):
-        client = Client(api_key=self.config.langsmith_api_key, api_url=self.config.langsmith_endpoint)
-        tracer = LangChainTracer(client=client, project_name=self.config.langsmith_project)
-        openai_client = wrap_openai(OpenAI(api_key=self.config.openai_api_key))
-        self.model = self.model.with_config(callbacks=[tracer], client=openai_client)

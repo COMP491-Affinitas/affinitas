@@ -1,7 +1,12 @@
 from typing import Literal
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langchain_core.tracers import LangChainTracer
+from langsmith import Client
+from langsmith.wrappers import wrap_openai
+from openai import OpenAI
 
+from affinitas_backend.config import Config
 from affinitas_backend.models.chat.chat import QuestState
 
 NPC_DATA_TEMPLATE = """\
@@ -128,3 +133,12 @@ def pretty_quests(quests: list[QuestState]) -> str:
         lines.append(f"    – Affinitas Reward: {q['affinitas_reward']}")
 
     return "\n".join(lines)
+
+
+def with_tracing(model, cfg: Config):
+    if not cfg.langsmith_tracing:
+        return model
+    client = Client(api_key=cfg.langsmith_api_key, api_url=cfg.langsmith_endpoint)
+    tracer = LangChainTracer(client=client, project_name=cfg.langsmith_project)
+    return model.with_config(callbacks=[tracer],
+                             client=wrap_openai(OpenAI(api_key=cfg.openai_api_key)))

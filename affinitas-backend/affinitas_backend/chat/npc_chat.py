@@ -7,19 +7,15 @@ from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, trim_m
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.tracers import LangChainTracer
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, END, StateGraph
-from langsmith import Client
-from langsmith.wrappers import wrap_openai
-from openai import OpenAI
 from pydantic import TypeAdapter
 
-from affinitas_backend.chat.utils import NPC_PROMPT_TEMPLATE, AFFINITAS_CHANGE_MAP, get_message, pretty_quests
+from affinitas_backend.chat.utils import NPC_PROMPT_TEMPLATE, AFFINITAS_CHANGE_MAP, get_message, pretty_quests, \
+    with_tracing
 from affinitas_backend.config import Config
-from affinitas_backend.db.utils import get_shadow_save_npc_state
-from affinitas_backend.models.beanie.save import ShadowSave
-from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo
+from affinitas_backend.db.utils import get_shadow_save_npc_state, get_thread_id
+from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState
 
 
 class UpdatedNPCData(TypedDict):
@@ -45,7 +41,7 @@ class NPCChatService:
         ).with_structured_output(OpenAI_NPCChatResponse)
 
         if self.config.langsmith_tracing:
-            self._init_langsmith()
+            self.model = with_tracing(self.model, self.config)
 
         self.trimmer = trim_messages(
             max_tokens=config.langchain_max_tokens,
@@ -72,7 +68,7 @@ class NPCChatService:
             self, message: BaseMessage, npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId,
             *, invoke_model: bool = False
     ) -> GetResponse | None:
-        thread_id = await _get_thread_id(shadow_save_id, npc_id)
+        thread_id = await get_thread_id(shadow_save_id, npc_id)
 
         if thread_id is None:
             raise ValueError(f"Thread ID not found for NPC ID {npc_id} and ShadowSave ID {shadow_save_id}")
@@ -174,12 +170,6 @@ class NPCChatService:
 
         return None, []
 
-    def _init_langsmith(self):
-        client = Client(api_key=self.config.langsmith_api_key, api_url=self.config.langsmith_endpoint)
-        tracer = LangChainTracer(client=client, project_name=self.config.langsmith_project)
-        openai_client = wrap_openai(OpenAI(api_key=self.config.openai_api_key))
-        self.model = self.model.with_config(callbacks=[tracer], client=openai_client)
-
 
 def _append_message(state: NPCMessagesState):
     return {"messages": [], "npc": state["npc"]}
@@ -216,17 +206,3 @@ def _update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | N
         npc["completed_quests"] = list(set(npc["completed_quests"]))
 
     return npc
-
-
-async def _get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> str | None:
-    res = (
-        await ShadowSave
-        .find(ShadowSave.id == shadow_save_id)
-        .project(ThreadInfo)
-        .first_or_none()
-    )
-
-    if res:
-        return f"{res.client_uuid}:{res.chat_id}:{npc_id}"
-
-    return None
