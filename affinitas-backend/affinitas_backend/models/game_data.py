@@ -6,6 +6,12 @@ from pydantic import BaseModel, Field
 from affinitas_backend.models.journal_data import Journal
 
 
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    active: bool = False
+
+
 class QuestSaveData(BaseModel):
     quest_id: PydanticObjectId
     status: str
@@ -28,5 +34,5 @@ class GameData(BaseModel):
     remaining_ap: int
     journal_data: Journal
     journal_active: bool
-    item_list: list[str] = Field(default_factory=list)
+    item_list: list[Item] = Field(default_factory=list)
     npcs: list[NPCSaveData] = Field(default_factory=list)
