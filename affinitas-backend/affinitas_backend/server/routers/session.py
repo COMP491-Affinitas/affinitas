@@ -137,7 +137,7 @@ async def save_game(request: Request, payload: SaveSessionRequest, x_client_uuid
     save = Save(
         name=payload.name,
         saved_at=datetime.datetime.now(datetime.UTC),
-        **shadow_save.model_dump(exclude={"_id"}),
+        **shadow_save.model_dump(exclude={"id"}),
     )
 
     save_res = await save.insert()  # noqa: A bug with the linter. No issue with the code.
