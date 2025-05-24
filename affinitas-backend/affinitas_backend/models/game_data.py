@@ -8,7 +8,6 @@ from affinitas_backend.models.journal_data import Journal
 
 class Item(BaseModel):
     name: str
-    description: str | None = None
     active: bool = False
 
 

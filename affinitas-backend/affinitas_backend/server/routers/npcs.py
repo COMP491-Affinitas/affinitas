@@ -2,6 +2,7 @@ import logging
 from typing import Awaitable
 
 from beanie import PydanticObjectId
+from beanie.odm.operators.find.array import ElemMatch
 from beanie.odm.operators.update.array import Push
 from beanie.odm.operators.update.general import Inc
 from beanie.odm.operators.update.general import Set
@@ -318,10 +319,7 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
     item_exists = await ShadowSave.find_one(
         ShadowSave.id == shadow_save_id,
         ShadowSave.client_uuid == x_client_uuid,
-        ShadowSave.item_list.elem_match({
-            "name": item_name,
-            "active": True
-        })
+        ElemMatch(ShadowSave.item_list, {"name": item_name, "active": True})
     )
 
     if not item_exists:
