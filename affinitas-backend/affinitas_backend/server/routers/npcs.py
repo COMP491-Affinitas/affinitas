@@ -82,6 +82,7 @@ async def npc_chat(
                     "npcs.$.likes": updated_npc_data["likes"],
                     "journal_active": True,
                     "journal_data.npcs.$[npc].active": True,
+                    "journal_data.town_info.active": True,
                 }),
                 Push({
                     "npcs.$.chat_history": {"$each": chat},
@@ -344,7 +345,7 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
     uq1 = (
         ShadowSave
         .find(ShadowSave.id == shadow_save_id)
-        .find(ShadowSave.item_list.name == item_name)
+        .find(ShadowSave.item_list.name == item_name)  # noqa
         .update(
             Push({
                 "npcs.$[npc].chat_history": {"$each": [("system", sys_msg), ("ai", npc_response["message"])]},
