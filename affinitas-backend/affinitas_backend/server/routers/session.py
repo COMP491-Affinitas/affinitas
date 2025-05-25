@@ -13,7 +13,7 @@ from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import DefaultSave, ShadowSave, Save
 from affinitas_backend.models.schemas.game import GameSessionResponse, GameSessionData, GameSaveSummary, \
-    SaveSessionRequest, GameEndingResponse, ShadowSaveIdRequest, GiveItemRequest, SetAPRequest
+    SaveSessionRequest, GameEndingResponse, ShadowSaveIdRequest, GiveItemRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -97,7 +97,7 @@ async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: X
         ShadowSave
         .find(ShadowSave.id == shadow_save_id)
         .find(ShadowSave.client_uuid == x_client_uuid)
-        .find(ShadowSave.item_list.name == item_name)
+        .find(ShadowSave.item_list.name == item_name)  # noqa
         .update(
             Set({"item_list.$[item].active": True}),
             array_filters=[{"item.name": item_name}],
@@ -225,7 +225,7 @@ async def generate_ending(request: Request, payload: ShadowSaveIdRequest, x_clie
 
 
 @router.patch(
-    "/action-points",
+    "",
     response_model=None,
     summary="Sets the action points for the given shadow save.",
     description="Sets the action points for the given shadow save. "
@@ -234,7 +234,13 @@ async def generate_ending(request: Request, payload: ShadowSaveIdRequest, x_clie
     status_code=status.HTTP_204_NO_CONTENT,
 )
 @limiter.limit("30/minute")
-async def set_ap(request: Request, payload: SetAPRequest, x_client_uuid: XClientUUIDHeader):
+async def update_shadow_save(
+        request: Request,
+        day_no: Annotated[int, Query(alias="day-no")],
+        ap: Annotated[int, Query(alias="ap")],
+        payload: ShadowSaveIdRequest,
+        x_client_uuid: XClientUUIDHeader
+):
     shadow_save = await ShadowSave.find_one(
         ShadowSave.id == payload.shadow_save_id,
         ShadowSave.client_uuid == x_client_uuid,
@@ -247,4 +253,7 @@ async def set_ap(request: Request, payload: SetAPRequest, x_client_uuid: XClient
             detail=f"Shadow save not found. shadow_save_id: {payload.shadow_save_id}"
         )
 
-    await shadow_save.set({ShadowSave.remaining_ap: payload.action_points})
+    await shadow_save.set({
+        ShadowSave.remaining_ap: ap,
+        ShadowSave.day_no: day_no,
+    })

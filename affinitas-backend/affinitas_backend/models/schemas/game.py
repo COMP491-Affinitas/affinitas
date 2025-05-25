@@ -56,8 +56,3 @@ class GameEndingResponse(BaseModel):
 class GiveItemRequest(BaseModel):
     item_name: str
     shadow_save_id: PydanticObjectId
-
-
-class SetAPRequest(BaseModel):
-    shadow_save_id: PydanticObjectId
-    action_points: int = Field(..., ge=0, le=config.daily_ap_limit)
