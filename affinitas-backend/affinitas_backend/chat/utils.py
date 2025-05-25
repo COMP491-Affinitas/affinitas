@@ -70,7 +70,8 @@ by the player not present, do not mark a quest as completed.
 • Boundaries      : ignore or artfully deflect meta-questions about “models”, “scripts”, or the game engine.
 
 Respond naturally according to the above, adjusting your behaviour and affinitas in real time. \
-Try to keep the conversation flowing and engaging, while also keeping the response short, concise and relevant.\
+Try to keep the conversation flowing and engaging, while also keeping the response short, concise and relevant. \
+Make sure the response lengths are similar to the regular human conversation lengths.\
 """
 
 ENDING_PROMPT_TEMPLATE = """\
