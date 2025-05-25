@@ -10,8 +10,7 @@ public class ShowGameEnd : MonoBehaviour
     [SerializeField]
     ScrollRectHelper scrollRectHelper;
 
-    // TODO: Get endingText from server and call function
-    // Call when days No is 10
+    // Call when days No is 11
     public void ShowEndingText(string endingText)
     {
         endingTextMesh.text = "";

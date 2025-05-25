@@ -128,7 +128,9 @@ public class GiveItemRequest : BaseRequest
 [Serializable]
 public class GiveItemResponse : BaseResponse
 {
+    public int affinitas_new;
     public string response;
+    public List<string> completed_quests;
 }
 
 [Serializable]
@@ -144,6 +146,13 @@ public class NpcResponse : BaseResponse
     public string response;
     public int affinitas_new;
     public List<string> completed_quests;
+}
+
+[Serializable]
+public class ActionPointRequest : BaseRequest
+{
+    public string shadow_save_id;
+    public int action_points;
 }
 
 //  JSON body should be sent to POST/game/quit endpoint; becasue it expects save_id not x_client_uuid
@@ -203,7 +212,7 @@ public class ServerConnection : MonoBehaviour
 
         var requestMessage = new HttpRequestMessage(method, serverURL + directoryPath);
 
-        if (method == HttpMethod.Post || method == HttpMethod.Delete)
+        if (method == HttpMethod.Post || method == HttpMethod.Delete || method == HttpMethod.Patch)
         {
             requestMessage.Content = new StringContent(
                 JsonConvert.SerializeObject(message),  Encoding.UTF8, "application/json");

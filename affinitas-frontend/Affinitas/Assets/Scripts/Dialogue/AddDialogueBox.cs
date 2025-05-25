@@ -14,6 +14,8 @@ namespace MainGame
         [SerializeField]
         GameObject npcDialogueBoxPrefab;
         [SerializeField]
+        GameObject infoPanelPrefab;
+        [SerializeField]
         Transform contentTransform;
         ScrollRectHelper scrollRectHelper;
 
@@ -51,6 +53,20 @@ namespace MainGame
                 StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, npcDialogue, onComplete, onCompleteTwo));
             else
                 dialogueTextMesh.text = npcDialogue;
+        }
+
+        public void AddInfoPanel(string info, Action onComplete, Action onCompleteTwo, bool writeSlow)
+        {
+            GameObject newInfoPanel = Instantiate(infoPanelPrefab);
+            newInfoPanel.transform.SetParent(contentTransform, false);
+
+            TextMeshProUGUI dialogueTextMesh = newInfoPanel.transform.GetComponentInChildren<TextMeshProUGUI>();
+            dialogueTextMesh.text = "";
+
+            if (writeSlow)
+                StartCoroutine(AddTextLetterByLetter(dialogueTextMesh, info, onComplete, onCompleteTwo));
+            else
+                dialogueTextMesh.text = info;
         }
 
         public IEnumerator AddNpcDialogueBoxForQuests(string npcDialogue, Action onComplete, Action onCompleteTwo)

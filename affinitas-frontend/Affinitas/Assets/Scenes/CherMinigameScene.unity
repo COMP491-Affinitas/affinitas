@@ -431,9 +431,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   words:
-  - HELLO
-  - WORLD
-  - PROGRAMMER
+  - CLUE
+  - CASE
+  - HINT
+  - LOCK
+  - PUZZLE
+  - SUSPECT
+  - MYSTERY
+  - WITNESS
+  - JUSTICE
+  - SILENCE
+  - REVENGE
+  - SECRETS
+  - VERDICT
+  - DECODER
+  - CONSPIRACY
+  - CONFESSION
+  - UNDERCOVER
+  - BLACKMAILER
+  - FINGERPRINT
+  - SURVEILLANCE
+  - INVESTIGATION
+  - INTERROGATION
   prefab: {fileID: 8655827723548867276, guid: ebe4ad5d109514021a8091e3194cb39c, type: 3}
   container: {fileID: 907494196}
   containerRectTransform: {fileID: 907494196}

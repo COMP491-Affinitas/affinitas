@@ -12,18 +12,16 @@ public class UIManager : MonoBehaviour
     [SerializeField] CanvasGroup[] gamePanels;
     // 0: menuPanel, 1: savesListPanel, 2: settingsPanel, 3: mainPanel, 4: endingPanel, 5: creditsPanel
 
-    [SerializeField]
-    GameObject savesListContent;
-    [SerializeField]
-    GameObject savePrefab;
+    [SerializeField] GameObject savesListContent;
+    [SerializeField] GameObject savePrefab;
 
-    [SerializeField]
-    Toggle fullscreenToggle;
+    [SerializeField] Toggle fullscreenToggle;
 
-    [SerializeField]
-    TextMeshProUGUI endingTextMesh;
-    [SerializeField]
-    ScrollRectHelper endingPanelScrollRectHelper;
+    [SerializeField] TextMeshProUGUI endingTextMesh;
+    [SerializeField] ScrollRectHelper endingPanelScrollRectHelper;
+
+    [SerializeField] Button continueToMenuButton;
+    [SerializeField] Button continueToMainGameButton;
 
     List<string> savedGameIds = new();
 
@@ -110,16 +108,19 @@ public class UIManager : MonoBehaviour
         StartCoroutine(AddTextLetterByLetter(endingTextMesh, endingPanelScrollRectHelper, endingText));
     }
 
-    public void PauseGame()
+    public void PauseGame(bool fromMenu)
     {
-        OpenSettingsPanel();
-        Time.timeScale = 0;
+        OpenSettingsPanel(fromMenu);
+        //Time.timeScale = 0;
     }
 
-    public void ContinueGame()
+    public void ContinueGame(bool toMenu)
     {
-        MakeActive(3);
-        Time.timeScale = 1;    
+        if (toMenu)
+            MakeActive(0);
+        else
+            MakeActive(3);
+        //Time.timeScale = 1;    
     }
 
     public void OpenCreditsPanel()
@@ -140,8 +141,10 @@ public class UIManager : MonoBehaviour
             Screen.fullScreen = !Screen.fullScreen;
     }
 
-    void OpenSettingsPanel()
+    public void OpenSettingsPanel(bool fromMenu)
     {
+        continueToMenuButton.gameObject.SetActive(fromMenu);
+        continueToMainGameButton.gameObject.SetActive(!fromMenu);
         MakeActive(2);
         FullscreenToggleInitializer();
     }

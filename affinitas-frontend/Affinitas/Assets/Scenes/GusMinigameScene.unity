@@ -2512,7 +2512,7 @@ MonoBehaviour:
   endPanel: {fileID: 834733435}
   fishingGameStarted: 0
   gusMinigameScore: 0
-  timeLimit: 10
+  timeLimit: 30
 --- !u!4 &1585529168
 Transform:
   m_ObjectHideFlags: 0

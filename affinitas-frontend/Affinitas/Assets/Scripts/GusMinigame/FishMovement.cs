@@ -50,7 +50,10 @@ namespace GusMinigame
 
         public void StartMoving()
         {
-            speed = new(Random.Range(100f, 300f), 0);
+            if (fishRectTransform.localScale.x > 0)
+                speed = new(Random.Range(100f, 300f), 0);
+            else
+                speed = new(Random.Range(-300f, -100f), 0);
         }
 
         public void StopMoving()
