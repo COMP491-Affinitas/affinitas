@@ -25,8 +25,13 @@ class JournalChatHistoryEntry(BaseModel):
     chat_history: list[tuple[Literal["user", "ai"], str]]
 
 
+class TownInfoEntry(BaseModel):
+    description: str
+    active: bool
+
+
 class Journal(BaseModel):
     quests: list[JournalQuestGroup]
     npcs: list[JournalNPCEntry]
-    town_info: str | None = None
+    town_info: TownInfoEntry
     chat_history: list[JournalChatHistoryEntry]
