@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,14 +9,13 @@ public class UIManager : MonoBehaviour
     // Singleton
     public static UIManager Instance { get; private set; }
 
+    [SerializeField] CanvasGroup[] gamePanels;
+    // 0: menuPanel, 1: savesListPanel, 2: settingsPanel, 3: mainPanel, 4: endingPanel, 5: creditsPanel
+
     [SerializeField]
-    GameObject menuPanel;
+    GameObject savesListContent;
     [SerializeField]
-    GameObject settingsPanel;
-    [SerializeField]
-    GameObject mainPanel;
-    [SerializeField]
-    GameObject endingPanel;
+    GameObject savePrefab;
 
     [SerializeField]
     Toggle fullscreenToggle;
@@ -24,6 +24,8 @@ public class UIManager : MonoBehaviour
     TextMeshProUGUI endingTextMesh;
     [SerializeField]
     ScrollRectHelper endingPanelScrollRectHelper;
+
+    List<string> savedGameIds = new();
 
     private void Start()
     {
@@ -39,38 +41,67 @@ public class UIManager : MonoBehaviour
         InitiliazePanels();
     }
 
+    void MakeActive(int index)
+    {
+        // 0: menuPanel, 1: savesListPanel, 2: settingsPanel, 3: mainPanel, 4: endingPanel
+        for (int i = 0; i < gamePanels.Length; i++)
+        {
+            bool isActive = i == index; // only indexed panel active
+            gamePanels[i].alpha = isActive ? 1f : 0f;
+            gamePanels[i].interactable = isActive;
+            gamePanels[i].blocksRaycasts = isActive;
+        }
+    }
+
     void InitiliazePanels()
     {
-        settingsPanel.SetActive(false);
-        mainPanel.SetActive(false);
-        endingPanel.SetActive(false);
-        menuPanel.SetActive(true);
+        MakeActive(0); // only menu panel active
     }
 
     public void StartGame()
     {
-        menuPanel.SetActive(false);
-        settingsPanel.SetActive(false);
-        endingPanel.SetActive(false);
-        mainPanel.SetActive(true);
-        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
+        MakeActive(3); // main panel
+        MainGame.MainGameUiManager.Instance.InitializeMainPanels();
+        MainGame.MainGameUiManager.Instance.InitializeMainPanelsForNewGame();
+    }
+
+    // call from Start New Game button
+    public async void LoadNewGame()
+    {
+        await GameManager.Instance.LoadNewGame();
+        StartGame();
+        MainGame.MainGameUiManager.Instance.InitializeMainPanelsForSavedGame();
     }
 
     public void GoToMenu()
     {
-        mainPanel.SetActive(false);
-        settingsPanel.SetActive(false);
-        endingPanel.SetActive(false);
-        menuPanel.SetActive(true);
+        MakeActive(0);
+    }
+
+    // Call from Saved Games button in Menu Panel
+    public async void OpenSavesListPanel()
+    {
+        MakeActive(1);
+
+        List<(string, string)> savesTexts = await GameManager.Instance.CreateGameSavesList();
+
+        foreach ((string,string) saveText in savesTexts)
+        {
+            if (savedGameIds.Contains(saveText.Item1))
+                continue;
+
+            GameObject newSave = Instantiate(savePrefab);
+            newSave.transform.SetParent(savesListContent.transform, false);
+            newSave.GetComponent<SavedGame>().AddSavedGameText(saveText.Item1, saveText.Item2);
+
+            savedGameIds.Add(saveText.Item1);
+        }
     }
 
     // Open panel and put ending text from server
     public void OpenEndingPanel()
     {
-        mainPanel.SetActive(false);
-        settingsPanel.SetActive(false);
-        menuPanel.SetActive(false);
-        endingPanel.SetActive(true);
+        MakeActive(4);
         endingTextMesh.text = "";
     }
 
@@ -79,18 +110,21 @@ public class UIManager : MonoBehaviour
         StartCoroutine(AddTextLetterByLetter(endingTextMesh, endingPanelScrollRectHelper, endingText));
     }
 
-    // Make sure that SettingsPanel is above all other panels in hierarchy (at the bottom of list)
     public void PauseGame()
     {
         OpenSettingsPanel();
         Time.timeScale = 0;
     }
 
-    // Make sure that SettingsPanel is above all other panels in hierarchy (at the bottom of list)
     public void ContinueGame()
     {
-        settingsPanel.SetActive(false);
+        MakeActive(3);
         Time.timeScale = 1;    
+    }
+
+    public void OpenCreditsPanel()
+    {
+        MakeActive(5);
     }
 
     public void QuitGame()
@@ -108,7 +142,7 @@ public class UIManager : MonoBehaviour
 
     void OpenSettingsPanel()
     {
-        settingsPanel.SetActive(true);
+        MakeActive(2);
         FullscreenToggleInitializer();
     }
 

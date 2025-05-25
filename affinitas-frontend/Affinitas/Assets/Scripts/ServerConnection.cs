@@ -4,6 +4,7 @@ using UnityEngine;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 [Serializable]
 public abstract class BaseRequest
@@ -23,6 +24,52 @@ public class UuidRequest : BaseRequest
 public class UuidResponse : BaseResponse
 {
     public string uuid;
+}
+
+[Serializable]
+public class LoadSaveRequest : BaseRequest
+{
+    public string save_id;
+}
+
+[Serializable]
+public class DeleteSaveRequest : BaseRequest
+{   
+}
+
+[Serializable]
+public class GetSavesRequest : BaseRequest
+{
+}
+[Serializable]
+public class GetSavesResponse : BaseRequest
+{
+    public List<Save> saves;
+}
+[Serializable]
+public class Save
+{
+    public string save_id;
+    public string name;
+    public string saved_at;
+}
+[Serializable]
+public class SaveRequest : BaseRequest
+{
+    public string name;
+    public string shadow_save_id;
+}
+[Serializable]
+public class SaveResponse : BaseRequest
+{
+    public string save_id;
+    public string name;
+    public string saved_at;
+}
+
+[Serializable]
+public class QuitRequest : BaseRequest
+{ 
 }
 
 [Serializable]
@@ -75,7 +122,7 @@ public class TakeItemRequest : BaseRequest
 [Serializable]
 public class GiveItemRequest : BaseRequest
 {
-    public string quest_id;
+    public string item_name;
     public string shadow_save_id;
 }
 [Serializable]
@@ -84,23 +131,13 @@ public class GiveItemResponse : BaseResponse
     public string response;
 }
 
-
 [Serializable]
 public class PlayerRequest : BaseRequest
 {
     public string role;     //"system" or "user"
     public string shadow_save_id;
     public string content;
-
-    public PlayerRequest(string role, string shadow_save_id, string content)
-    {
-        this.role = role;
-        this.shadow_save_id = shadow_save_id;
-        //this.requestId = requestId;
-        this.content = content;
-    }
 }
-
 [Serializable]
 public class NpcResponse : BaseResponse
 {
@@ -114,25 +151,18 @@ public class NpcResponse : BaseResponse
 public class SerializableSaveId
 {
     public string save_id;
-
-    public SerializableSaveId(string saveId)
-    {
-        save_id = saveId;
-    }
 }
 
 public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
 
-    const string serverURL = "https://affinitas-pr-16.onrender.com";
-    //static readonly HttpClient client = new HttpClient(); 
+    const string serverURL = "https://affinitas-pr-23.onrender.com";
+
     static HttpClient client = new HttpClient();
 
     public bool canSendMessage = true;
     private bool clientDisposed = false;
-
-    //HttpResponseMessage response;
 
     private void Awake()
     {
@@ -153,18 +183,6 @@ public class ServerConnection : MonoBehaviour
         canSendMessage = true;
     }
 
-    // It is automatically called by Unity when application is quitting.
-    // Used to ensure that the HTTP client is properly disposed and server connection is closed.
-    private async void OnApplicationQuit()
-    {
-        if (!string.IsNullOrEmpty(GameManager.Instance.shadowSaveId))
-        {
-            await SendQuitGameRequest(GameManager.Instance.shadowSaveId);
-        }
-
-        CloseServerConnection();
-    }
-
     // Disposes of the HTTP client to release network resources and close any open connections.
     // This prevents potential memory leaks or lingering connections after the application exits.
     public void CloseServerConnection()
@@ -180,18 +198,23 @@ public class ServerConnection : MonoBehaviour
     // Send and Get Generic Response from Server
     public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath, HttpMethod method = null)
     {
-        
-        if (method == null) method = HttpMethod.Post;
+        if (method == null)
+            method = HttpMethod.Post;
+
         var requestMessage = new HttpRequestMessage(method, serverURL + directoryPath);
 
-        if (method == HttpMethod.Post) {
+        if (method == HttpMethod.Post || method == HttpMethod.Delete)
+        {
             requestMessage.Content = new StringContent(
-                JsonUtility.ToJson(message), Encoding.UTF8, "application/json");
+                JsonConvert.SerializeObject(message),  Encoding.UTF8, "application/json");
         }
 
+        Debug.Log("Sending message to server with x-client-uuid: " + GameManager.Instance.playerId);
+        Debug.Log("Sending message to server with shadow-save-id: " + GameManager.Instance.shadowSaveId);
+
         // Set the header x-client-uuid
-        if (!string.IsNullOrEmpty(GameManager.Instance.gameId)) {
-            requestMessage.Headers.Add("x-client-uuid", GameManager.Instance.gameId);
+        if (!string.IsNullOrEmpty(GameManager.Instance.playerId)) {
+            requestMessage.Headers.Add("x-client-uuid", GameManager.Instance.playerId);
         }
 
         if (directoryPath.StartsWith("/npcs/")) {
@@ -213,7 +236,7 @@ public class ServerConnection : MonoBehaviour
                     string result = await response.Content.ReadAsStringAsync();
                     // Change back from JSON
                     Debug.Log("Got message from server.");
-                    serverResponse = JsonUtility.FromJson<BaseResponse>(result);
+                    serverResponse = (BaseResponse)JsonConvert.DeserializeObject(result, typeof(BaseResponse));
                 }  
             }
             else
@@ -226,37 +249,4 @@ public class ServerConnection : MonoBehaviour
         return serverResponse;
     }
 
-    public async Task SendQuitGameRequest(string saveId)
-    {
-        if (string.IsNullOrEmpty(GameManager.Instance.gameId))
-        {
-            Debug.LogError("Game ID (UUID) is missing. Cannot send quit request.");
-            return;
-        }
-
-        var requestJson = JsonUtility.ToJson(new SerializableSaveId(saveId));
-        var request = new HttpRequestMessage(HttpMethod.Post, serverURL + "/game/quit")
-        {
-            Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
-        };
-
-        request.Headers.Add("X-Client-UUID", GameManager.Instance.gameId);
-
-        try
-        {
-            var response = await client.SendAsync(request);
-            if (response.IsSuccessStatusCode)
-            {
-                Debug.Log("Quit request successful.");
-            }
-            else
-            {
-                Debug.LogWarning($"Quit request failed: {response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"Exception during quit request: {ex.Message}");
-        }
-    }
 }

@@ -12,10 +12,8 @@ public class GameManager : MonoBehaviour
     public event Action OnNpcDataLoaded;
     private bool npcDataReady = false;
 
-    public string gameId;
+    public string playerId;
     public string shadowSaveId;
-    //ServerResponse serverResponse;
-
 
     private void Awake()
     {
@@ -30,42 +28,89 @@ public class GameManager : MonoBehaviour
 
     private async void Start()
     {
+        //TODO: DELETE LATER
+        //PlayerPrefs.SetString("player_id", "");
+
+
+        playerId = PlayerPrefs.GetString("player_id");
+        Debug.Log("Current player id: " + playerId);
         await GetAuthenticationUUID();
     }
 
-    // Get New UUID from server
+    // Get New UUID from server or authenticate UUID
     public async Task GetAuthenticationUUID()
     {
-        UuidRequest uuid = new UuidRequest { x_client_uuid = "" };
-        UuidResponse uuidResponse = await ServerConnection.Instance.SendAndGetMessageFromServer<UuidRequest, UuidResponse>(uuid, "/auth/uuid", HttpMethod.Post);
-        gameId = uuidResponse.uuid;
-        Debug.Log(gameId);
+        UuidRequest uuid = new UuidRequest { x_client_uuid = playerId };
+        UuidResponse uuidResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<UuidRequest, UuidResponse>(uuid, "/auth/uuid", HttpMethod.Post);
+
+        playerId = uuidResponse.uuid;
+        PlayerPrefs.SetString("player_id", playerId);
+
+        Debug.Log("New player id: " + PlayerPrefs.GetString("player_id"));
+        PlayerPrefs.Save();
     }
 
-
-    // TODO: Also save client_uuid using PlayerPrefs
-    // TODO: get load from server (dropdown)
-
-    // call from Start New Game button
-    public async void CallLoadNewGame()
-    {
-        await LoadNewGame();
-    }
-
-    // Get game information from server
+    // Get new game information from server
     public async Task LoadNewGame()
     {
-        await LoadGame.GetLoadGameInfo(gameId);
+        LoadGameRootResponse rootResponse = await LoadGame.GetNewGameInfo();
+        LoadGame.InitializeGameInfo(rootResponse);
         MainGameManager.Instance.InitializeNpcsUisAndVariables();
         npcDataReady = true;
         OnNpcDataLoaded?.Invoke();
+    }
+
+    // Get saved game information from server
+    public async Task LoadSavedGame(string saveIdToLoad)
+    {
+        LoadGameRootResponse rootResponse = await LoadGame.GetSavedGameInfo(saveIdToLoad);
+        LoadGame.InitializeGameInfo(rootResponse);
+        MainGameManager.Instance.InitializeNpcsUisAndVariables();
+        npcDataReady = true;
+        OnNpcDataLoaded?.Invoke();
+    }
+
+    public async Task<List<(string,string)>> CreateGameSavesList()
+    {
+        List<Save> gameSaves = await GetGameSaves();
+        List<(string, string)> gameSavesTexts = new();
+
+        string saveText;
+        foreach (Save save in gameSaves)
+        {
+            DateTime dateTime = DateTime.Parse(save.saved_at);
+            saveText = "Save name: " + save.name + "\nSave time: " + dateTime.AddHours(3).ToString("dd.MM.yyyy HH:mm");
+            gameSavesTexts.Add((save.save_id, saveText));
+        }
+        return gameSavesTexts;
+    }
+
+    public async Task<List<Save>> GetGameSaves()
+    {
+        GetSavesRequest getSavesRequest = new();
+        GetSavesResponse getSavesResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<GetSavesRequest, GetSavesResponse>(getSavesRequest, "/saves/", HttpMethod.Get);
+
+        return getSavesResponse.saves;
+    }
+
+    public async Task DeleteGameSave(string saveIdToDelete)
+    {
+
+        DeleteSaveRequest deleteSaveRequest = new DeleteSaveRequest();
+
+        string url = $"/saves/{saveIdToDelete}";
+        BaseResponse deleteSaveResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<DeleteSaveRequest, BaseResponse>(deleteSaveRequest, url, HttpMethod.Delete);
+
     }
 
     public async Task<string> CreateMessageForEndGame()
     {
         EndingRequest endRequest = new EndingRequest { shadow_save_id = shadowSaveId };
         EndingResponse endResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(endRequest, "/game/end", HttpMethod.Post);
+            .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(endRequest, "/session/generate-ending", HttpMethod.Post);
 
         Debug.Log(endResponse);
 
@@ -88,13 +133,13 @@ public class GameManager : MonoBehaviour
 
     public async Task<string> CreateMessageForSendPlayerInput(string playerInput, string dbNpcId)
     {
-        string url = $"/npcs/{dbNpcId}/chat";   
-         
-        PlayerRequest message = new PlayerRequest(
-            role: "user",
-            shadow_save_id: shadowSaveId,
-            content: playerInput
-        );
+        string url = $"/npcs/{dbNpcId}/chat";
+
+        PlayerRequest message = new() {
+            role = "user",
+            shadow_save_id = shadowSaveId,
+            content = playerInput
+        };
 
         
         NpcResponse npcResponse = await ServerConnection.Instance
@@ -116,7 +161,6 @@ public class GameManager : MonoBehaviour
         {
             int oldAffinitas = npc.affinitasValue;
             npc.affinitasValue = npcResponse.affinitas_new;
-            npc.dialogueSummary.Add(npcResponse.response);
 
             if (oldAffinitas != npc.affinitasValue)
             {
@@ -128,23 +172,26 @@ public class GameManager : MonoBehaviour
             {
                 Npc npcMatchedToQuest = null;
                 List<string> completeQuestIds = null;
+                string itemName = null;
                 // For Mora Lysa quest where we get items from other npcs
                 for (int i = 0; i < npcResponse.completed_quests.Count; i++)
                 {
                     npcMatchedToQuest = MainGameManager.Instance.MatchQuestToNpc(npcResponse.completed_quests[i]);
                     if (npcMatchedToQuest == null)
                     {
-                        Debug.Log("No npc mathced to quest error.");
+                        Debug.Log("No npc matched to quest error.");
                         return null;
                     }
                     Debug.Log("Npc matched: " + npcMatchedToQuest.npcName);
                     if (npcMatchedToQuest.npcId == 1)
                     {
-                        MainGameManager.Instance.GetMoraItem();
+                        itemName = MainGame.MainGameUiManager.Instance.NpcGivesItemToPlayer(npcMatchedToQuest.npcId);
+                        MainGameManager.Instance.UpdateQuestStatus(npcMatchedToQuest, npcResponse.completed_quests[i], MainGameManager.Instance.questDict[QuestStatus.Completed]);
+                        await NotifyForItemTakenFromNpc(itemName);
                     }
                     else
                     {
-                        completeQuestIds = MainGameManager.Instance.UpdateQuestStatus(npcMatchedToQuest, npcResponse.completed_quests[i], QuestStatus.Completed);
+                        completeQuestIds = MainGameManager.Instance.UpdateQuestStatus(npcMatchedToQuest, npcResponse.completed_quests[i], MainGameManager.Instance.questDict[QuestStatus.Completed]);
                         if (completeQuestIds != null)
                         {
                             foreach (string completeQuestId in completeQuestIds)
@@ -187,17 +234,17 @@ public class GameManager : MonoBehaviour
         {
             foreach (Quest quest in MainGameManager.Instance.npcList[npcId - 1].questList)
             {
-                Debug.Log("Quest from server no: " + questEntry.quest_id + ", description: " + questEntry.response);
-                Debug.Log("Quest from game no: " + quest.questId + ", description: " + quest.description);
+                //Debug.Log("Quest from server no: " + questEntry.quest_id + ", description: " + questEntry.response);
+                //Debug.Log("Quest from game no: " + quest.questId + ", description: " + quest.description);
 
                 if (quest.questId.Equals(questEntry.quest_id))
                 {
                     quest.description = questEntry.response;
-                    quest.status = QuestStatus.InProgress;
+                    quest.status = MainGameManager.Instance.questDict[QuestStatus.InProgress]; //TODO: IS THIS NECESSARY/CORRECT???
 
                     questDescriptions.Add(quest.description);
 
-                    Debug.Log("Quest no: " + quest.questId + ", name: " + quest.name + ", description: " + quest.description);
+                    //Debug.Log("Quest no: " + quest.questId + ", name: " + quest.name + ", description: " + quest.description);
                 }
             }            
         }
@@ -211,11 +258,11 @@ public class GameManager : MonoBehaviour
         // Send message to all npcs to notify that day has ended
         string systemMessage = "A new day has begun.";
 
-        PlayerRequest message = new PlayerRequest(
-            role: "system",
-            shadow_save_id: shadowSaveId,
-            content: systemMessage
-        );
+        PlayerRequest message = new () { 
+            role = "system",
+            shadow_save_id = shadowSaveId,
+            content = systemMessage
+        };
 
         foreach (Npc npc in MainGameManager.Instance.npcList)
         {
@@ -239,7 +286,7 @@ public class GameManager : MonoBehaviour
             shadow_save_id = shadowSaveId
         };
 
-        Debug.Log("npc name from notifywuerstcomplete: " + npc.npcName);
+        Debug.Log("npc name from notify quest complete: " + npc.npcName);
 
         QuestCompleteResponse serverResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<QuestCompleteRequest, QuestCompleteResponse>(
@@ -255,11 +302,9 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    public async Task<bool> NotifyForItemTaken(string itemName, string dbNpcId)
+    public async Task<bool> NotifyForItemTakenFromNpc(string itemName)
     {
         // Send message that player has taken an item from an npc
-        Npc npc = MainGameManager.Instance.npcList.Find(n => n.dbNpcId == dbNpcId);
-
         TakeItemRequest message = new()
         {
             item_name = itemName,
@@ -269,32 +314,94 @@ public class GameManager : MonoBehaviour
         BaseResponse npcResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<TakeItemRequest, BaseResponse>(
                 message,
-                $"/npcs/{npc.dbNpcId}/?????????????????????", // TODO: CHANGE
+                $"/session/item",
                 HttpMethod.Post
             );
 
-        Debug.Log("player has been given an item from npc " + npc.npcName);
+        Debug.Log("player has been given an item from npc");
         return true;
     }
 
-    public async Task<string> NotifyForItemGiven(string dbNpcId)
+    public async Task<string> NotifyForItemGivenToNpc(string dbNpcId, string itemName)
     {
         // Send message that player has given an item to an npc
         Npc npc = MainGameManager.Instance.npcList.Find(n => n.dbNpcId == dbNpcId);
 
         GiveItemRequest message = new GiveItemRequest
         {
+            item_name = itemName,  
             shadow_save_id = shadowSaveId
         };
 
         GiveItemResponse npcResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<GiveItemRequest, GiveItemResponse>(
                 message,
-                $"/npcs/{npc.dbNpcId}/?????????????????????", // TODO: CHANGE
+                $"/npcs/{npc.dbNpcId}/item", // TODO: CHANGE
                 HttpMethod.Post
             );
 
         Debug.Log("given item to npc " + npc.npcName);
         return npcResponse.response;
+    }
+
+    // Call from Save Game button inside the Save Game panel
+    public async void SaveGame()
+    {
+        await SendGameSave();
+    }
+
+    async Task<bool> SendGameSave()
+    {
+        string saveName = MainGame.MainGameUiManager.Instance.GetSaveNameFromPanel();
+
+        if (saveName == null || saveName == "")
+        {
+            Debug.Log("Save name is null");
+            return false;
+        }
+
+        Debug.Log("Saved game name is " + saveName);
+
+        SaveRequest saveRequest = new SaveRequest { name = saveName, shadow_save_id = shadowSaveId };
+        SaveResponse saveResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<SaveRequest, SaveResponse>(saveRequest, "/game/save", HttpMethod.Post);
+
+        Debug.Log("Game saved");
+        Debug.Log("Save id: " + saveResponse.save_id + " saved at: " + saveResponse.saved_at);
+        Save newSave = new Save { save_id = saveResponse.save_id, name = saveName, saved_at = saveResponse.saved_at };
+        return true;
+    }
+
+    // Call from go to menu button in main panel
+    public async void EndCurrentGame()
+    {
+        await EndGameSession();
+    }
+
+    // Call from quit game button in menu panel
+    public async void QuitGame()
+    {
+        await EndGameSession();
+        ServerConnection.Instance.CloseServerConnection();
+    }
+
+    async Task EndGameSession()
+    {
+
+        // If Save is clicked
+        //await SendGameSave();
+
+        // Else: open the menu without saving 
+
+        // Add go to menu part
+
+        // Delete the shadow save
+        QuitRequest quitRequest = new QuitRequest();
+        string url = "/session?id=" + shadowSaveId;
+        BaseResponse quitResponse = await ServerConnection.Instance
+            .SendAndGetMessageFromServer<QuitRequest, BaseResponse>(quitRequest, url, HttpMethod.Delete);
+
+        shadowSaveId = "";
+
     }
 }

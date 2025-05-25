@@ -1,6 +1,5 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq;
 
 public class Npc
 {
@@ -9,14 +8,8 @@ public class Npc
     public string npcName;
     public int affinitasValue;
     public List<Quest> questList = new(); // First quest is main quest, others subquests
-    public List<string> dialogueSummary = new(); // One dialogue summary for each day
-}
-
-public enum QuestStatus
-{
-    Pending,
-    InProgress,
-    Completed
+    public List<List<string>> chatHistory = new();
+    public string description;
 }
 
 public class Quest
@@ -24,7 +17,15 @@ public class Quest
     public string questId;
     public string name;
     public string description;
-    public QuestStatus status;
+    public string status;
+    public int affinitasReward;
+}
+
+public enum QuestStatus
+{
+    Pending,
+    InProgress,
+    Completed
 }
 
 public class MainGameManager : MonoBehaviour
@@ -35,15 +36,18 @@ public class MainGameManager : MonoBehaviour
     public List<Npc> npcList = new(6);
     //public Dictionary<string, Npc> npcDict = new();
     public int dailyActionPoints;
-    public int dayNo;
+    public int dayNo = -1;
+    public bool journalActive;
+    public string journalTownInfo;
 
-    public int gusItem;
-    public int moraItems;
+    public Dictionary<QuestStatus, string> questDict = new()
+    {
+        { QuestStatus.Pending, "pending" },
+        { QuestStatus.InProgress, "active" },
+        { QuestStatus.Completed, "complete" }
+    };
 
-    public Dictionary<string, bool> hadDialogueDict = new();
-    public Dictionary<string, bool> gotQuestDict = new();
-    // 0: GusMinigame, 1: CherMinigame, 2: MonaMinigame
-    public bool[] minigameList = { false, false, false };
+    public List<Npc> currentNpcQuests = new();
 
     // Temporary
     public int gusMinigameScore;
@@ -62,23 +66,39 @@ public class MainGameManager : MonoBehaviour
         }
     }
 
+    public void InitializeNpcsUisAndVariables()
+    {
+        foreach (Npc npc in npcList)
+        {
+            MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
+        }
+        CheckBartEnderQuest();
+        CheckJournalActive();
+    }
+
     public void CheckBartEnderQuest()
     {
         if (dayNo > 1)
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
 
         // if Bart Ender quest has not begun, then that means first day has not ended
-        else if (npcList[2].questList[0].status == QuestStatus.Pending)
+        else if (npcList[2].questList[0].status.Equals(questDict[QuestStatus.Pending]))
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(false);
         else
             MainGame.MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
+    }
+
+    // TODO: WHEN TO MAKE JOURNAL ACTIVE?
+    public void CheckJournalActive()
+    {
+        MainGame.MainGameUiManager.Instance.ToggleJournalButtonActive(journalActive);
     }
 
     //Call when End Day button is pressed
     public async void EndDay()
     {
         // If Bart Ender Quest not completed, do not let the day pass
-        if (npcList[2].questList[0].status != QuestStatus.Completed)
+        if (!npcList[2].questList[0].status.Equals(questDict[QuestStatus.Completed]))
         {
             MainGame.MainGameUiManager.Instance.OpenWarningPanel("You should complete Bart Ender's quest first!");
         }
@@ -93,52 +113,30 @@ public class MainGameManager : MonoBehaviour
         {
             dayNo += 1;
             dailyActionPoints = 15;
-            ResetVariables();
-            //MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
             await GameManager.Instance.NotifyForEndDay();
         }
     }
 
-    // Call this from dialogues, minigames, quests etc. after an action is done
-    // Check if action already done, if so do nothing, if not decrease action points
-    public void ReduceActionPointsForDialogue(string itemKey)
+    // Call from any house button pressed
+    public void ReduceActionPointsForDialogue()
     {
         if (dayNo == 1)
             return;
-        if (hadDialogueDict.ContainsKey(itemKey))
-        {
-            if (hadDialogueDict[itemKey] == false)
-            {
-                hadDialogueDict[itemKey] = true;
-                dailyActionPoints -= 1;
-            }
-        }
+        dailyActionPoints -= 1;
     }
-    public void ReduceActionPointsForMinigame(int minigameNo)
+    // Call from anu minigame button pressed
+    public void ReduceActionPointsForMinigame()
     {
         if (dayNo == 1)
             return;
-        if (minigameNo < minigameList.Length) //number of minigames is 3
-        {
-            if (minigameList[minigameNo] == false)
-            {
-                minigameList[minigameNo] = true;
-                dailyActionPoints -= 2;
-            }
-        }
+        dailyActionPoints -= 2;
     }
-    public void ReduceActionPointsForGetQuest(string itemKey)
+    // Call from any get quest button pressed
+    public void ReduceActionPointsForGetQuest()
     {
         if (dayNo == 1)
             return;
-        if (gotQuestDict.ContainsKey(itemKey))
-        {
-            if (gotQuestDict[itemKey] == false)
-            {
-                gotQuestDict[itemKey] = true;
-                dailyActionPoints -= 3;
-            }
-        }
+        dailyActionPoints -= 3;
     }
 
     // Call this from dialogues, minigames, quests etc. before an action is done
@@ -160,33 +158,6 @@ public class MainGameManager : MonoBehaviour
         if (3 <= dailyActionPoints)
             return true;
         return false;
-    }
-
-    // Call this at the end of each day
-    void ResetVariables()
-    {
-        foreach (string key in gotQuestDict.Keys.ToList())
-            gotQuestDict[key] = false;
-
-        foreach (string key in hadDialogueDict.Keys.ToList())
-            hadDialogueDict[key] = false;
-
-        for (int i = 0; i < minigameList.Length; i++)
-            minigameList[i] = false;
-    }
-
-    public void InitializeNpcsUisAndVariables()
-    {
-        foreach (Npc npc in npcList)
-        {
-            MainGame.MainGameUiManager.Instance.InitializeNpcUIs(npc);
-            gotQuestDict.Add(npc.npcName, false);
-            hadDialogueDict.Add(npc.npcName, false);
-        }
-        for (int i = 0; i < minigameList.Length; i++)
-            minigameList[i] = false;
-        CheckBartEnderQuest();
-        MainGame.MainGameUiManager.Instance.UpdateDaysLeftPanel();
     }
 
     // Call from GoToMap function in GusMinigameScene
@@ -212,12 +183,12 @@ public class MainGameManager : MonoBehaviour
         }
             
         string questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
-        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[0].questId, questText);
+        MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[0].questId, questText, npcQuests[0].status);
 
         for (int i = 1; i < npcQuests.Count; i++)
         {
             questText = $@"\n• <size=24>{npcQuests[i].name}</size>";
-            MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[i].questId, questText);
+            MainGame.MainGameUiManager.Instance.AddQuestToQuestPanel(npcQuests[i].questId, questText, npcQuests[0].status);
         }
 
         questText = $@"<b><size=30>{npcList[npcId - 1].npcName}'s Quest:\n{npcQuests[0].name}</size></b>";
@@ -227,13 +198,15 @@ public class MainGameManager : MonoBehaviour
             questText += $@"\n<b>• <size=26>{npcQuests[i].name}</size></b>";
             questText += $@"\n<size=24>{npcQuests[i].description}</size>";
         }
-        MainGame.MainGameUiManager.Instance.AddQuestToJournal(npcId, questText + "\n\n");
+        MainGame.MainGameUiManager.Instance.AddQuestToQuestDetails(npcId, questText + "\n\n");
 
         // This is <s>crossed out</s>. This is <b>bold</b> text.
     }
 
-    public List<string> UpdateQuestStatus(Npc npc, string questId, QuestStatus newStatus)
+    public List<string> UpdateQuestStatus(Npc npc, string questId, string newStatus)
     {
+        Debug.Log("hey");
+
         List<string> completeQuestIds = new();
         Quest questToUpdate = null;
 
@@ -249,6 +222,8 @@ public class MainGameManager : MonoBehaviour
             return null;
         }
 
+        Debug.Log("hey again");
+
         completeQuestIds.Add(questToUpdate.questId);
         questToUpdate.status = newStatus;
         MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(questId, newStatus);
@@ -260,7 +235,7 @@ public class MainGameManager : MonoBehaviour
         {
             for (int i = 1; i < npc.questList.Count; i++)
             {
-                if (npc.questList[i].status != QuestStatus.Completed)
+                if (!npc.questList[i].status.Equals(questDict[QuestStatus.Completed]))
                 {
                     allSubquestsCompleted = false;
                 }
@@ -289,38 +264,58 @@ public class MainGameManager : MonoBehaviour
         return null;
     }
 
-    // Call from Gus Give item button
-    public void GiveGusItem()
+    public void LoadSavedQuestsToQuestPanel()
     {
-        if (gusItem > 0)
+        currentNpcQuests = new();
+        MainGame.MainGameUiManager.Instance.EmptyQuestPanel();
+        foreach (Npc npc in npcList)
         {
-            gusItem -= 1;
-            MainGame.MainGameUiManager.Instance.GiveItemToGus();
+            bool handledQuests = false;
+            Debug.Log("npc name: " + npc.npcName);
+            foreach (Quest quest in npc.questList)
+            {
+                Debug.Log("quest name: " + quest.name + " with status: " + quest.status.ToString());
+                if (!quest.status.Equals(questDict[QuestStatus.Pending]))
+                {
+                    if (!handledQuests)
+                    {
+                        currentNpcQuests.Add(npc);
+                        HandleGivenQuests(npc.npcId);
+                        handledQuests = true;
+                    }
+                    if (quest.status.Equals(questDict[QuestStatus.Completed]))
+                    {
+                        Debug.Log("pls");
+                        UpdateQuestStatus(npc, quest.questId, questDict[QuestStatus.Completed]);
+                    }
+                }
+            }
         }
     }
 
-    // Call from Mora Give item button
-    public void GiveMoraItem()
+    public List<string> CreateJournalText()
     {
-        if (moraItems > 0)
+        List<string> journalTexts = new();
+
+        string townInfoText = $@"<b><size=30>Information About the Town</size></b>";
+        townInfoText += $@"\n<size=24>{journalTownInfo}</size>";
+        journalTexts.Add(townInfoText);
+
+        string npcInfoText = "";
+        foreach (Npc npc in npcList)
         {
-            moraItems -= 1;
-            MainGame.MainGameUiManager.Instance.GiveItemToMora();
+            npcInfoText += $@"<b><size=30>{npc.npcName}</size></b>";
+            npcInfoText += $@"\n<size=24>{npc.description}</size>\n\n";
         }
+        journalTexts.Add(npcInfoText);
+
+        return journalTexts;
     }
 
-    public void GetMoraItem()
+    public void ActivateJournal()
     {
-        moraItems += 1;
-        MainGame.MainGameUiManager.Instance.AddMoraPieceToInventory();
+        journalActive = true;
+        MainGame.MainGameUiManager.Instance.ToggleJournalButtonActive(true);
     }
-
-    public void GetGusItem()
-    {
-        gusItem += 1;
-        MainGame.MainGameUiManager.Instance.AddGusFishToInventory();
-    }
-
-
 
 }
