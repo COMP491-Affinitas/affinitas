@@ -6,7 +6,8 @@ from pydantic import BaseModel
 
 class JournalNPCEntry(BaseModel):
     npc_id: PydanticObjectId
-    description: str | None
+    description: str
+    active: bool
 
 
 class JournalQuestEntry(BaseModel):
