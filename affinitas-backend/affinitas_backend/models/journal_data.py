@@ -12,7 +12,7 @@ class JournalNPCEntry(BaseModel):
 
 class JournalQuestEntry(BaseModel):
     quest_id: PydanticObjectId
-    status: str
+    status: Literal["pending", "active", "completed"]
     name: str
 
 
