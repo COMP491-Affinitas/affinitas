@@ -342,10 +342,9 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
             f"NPC ID: {npc_id}, Shadow Save ID: {shadow_save_id}, Item Name: {item_name}"
         )
 
-    uq1 = (
+    query = (
         ShadowSave
         .find(ShadowSave.id == shadow_save_id)
-        .find(ShadowSave.item_list.name == item_name)  # noqa
         .update(
             Push({
                 "npcs.$[npc].chat_history": {"$each": [("system", sys_msg), ("ai", npc_response["message"])]},
@@ -355,12 +354,12 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
             array_filters=[
                 {"npc.npc_id": npc_id},
                 {"group.npc_id": npc_id},
-                {"item.active": item_name}
+                {"item.name": item_name}
             ],
         )
     )
 
-    background_tasks.add_task(await_coroutine, uq1)
+    background_tasks.add_task(await_coroutine, query)
 
     return NPCChatResponse(
         response=npc_response["message"],
