@@ -19,5 +19,7 @@ class Config(BaseSettings):
 
     daily_ap_limit: int = 15
 
+    log_level: str = "WARNING"
+
     class Config:
         env_file = ".env"

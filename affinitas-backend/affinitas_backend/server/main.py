@@ -1,9 +1,12 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from affinitas_backend.config import Config
 from affinitas_backend.server.lifespan import lifespan
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.routers.auth import router as auth_router
@@ -11,6 +14,10 @@ from affinitas_backend.server.routers.game import router as game_router
 from affinitas_backend.server.routers.npcs import router as npcs_router
 from affinitas_backend.server.routers.saves import router as saves_router
 from affinitas_backend.server.routers.session import router as session_router
+
+config = Config()  # noqa
+
+logging.basicConfig(level=config.log_level)
 
 DESCRIPTION = """
 Backend API for **Affinitas: A Ten Day Tale**

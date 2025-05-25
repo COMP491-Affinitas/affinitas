@@ -1,4 +1,5 @@
 import copy
+import logging
 from typing import Literal, cast, TypedDict
 
 from beanie import PydanticObjectId
@@ -68,6 +69,9 @@ class NPCChatService:
             self, message: BaseMessage, npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId,
             *, invoke_model: bool = False
     ) -> GetResponse | None:
+        logging.debug("get_response called with message: %s, npc_id: %s, shadow_save_id: %s", message, npc_id,
+                      shadow_save_id)
+
         thread_id = await get_thread_id(shadow_save_id, npc_id)
 
         if thread_id is None:
@@ -112,6 +116,7 @@ class NPCChatService:
         affinitas_increase = state["npc"]["affinitas_config"]["increase"]
         affinitas_decrease = state["npc"]["affinitas_config"]["decrease"]
 
+
         prompt = self.prompt_template.format_prompt(
             messages=trimmed_messages,
             name=state["npc"]["name"],
@@ -130,7 +135,12 @@ class NPCChatService:
             affinitas_down=isinstance(affinitas_decrease, float) and f"{affinitas_decrease:.2f}" or ", ".join(
                 affinitas_decrease),
         )
+
+        logging.debug("Calling model with prompt messages: %s", prompt)
+
         res = self.model.invoke(prompt)
+
+        logging.debug("Model response: %s", res)
 
         response = res.response
         affinitas_change = res.affinitas_change
