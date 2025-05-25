@@ -241,6 +241,7 @@ async def complete_quest(
                 "quest_id": "$quests._id",
                 "name": "$quests.name",
                 "description": "$quests.description",
+                "affinitas_reward": "$quests.affinitas_reward"
             }}
 
         ]).to_list()
@@ -253,6 +254,7 @@ async def complete_quest(
     quest_id = quest_data["quest_id"]
     quest_name = quest_data["name"]
     quest_description = quest_data["description"]
+    quest_reward = quest_data["affinitas_reward"]
 
     sys_msg = COMPLETE_QUEST_PROMPT_TEMPLATE.format(
         quest_id=quest_id,
@@ -260,22 +262,11 @@ async def complete_quest(
         quest_description=quest_description
     )
 
-    affinitas_reward = await (
-        NPC
-        .get_motor_collection()
-        .find_one({"_id": npc_id, "quests._id": quest_id}, {"quests.$": 1, "_id": 0})
-    )
-
-    if not affinitas_reward:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found")
-
-    affinitas_reward = affinitas_reward["quests"][0]["affinitas_reward"]
-
     res: ShadowSave = await (
         ShadowSave
         .find_one(ShadowSave.id == shadow_save_id)
         .update_one(
-            Inc({"npcs.$[npc].affinitas": affinitas_reward}),
+            Inc({"npcs.$[npc].affinitas": quest_reward}),
             Set({
                 "npcs.$[npc].quests.$[quest].status": "completed",
                 "journal_data.quests.$[group].quests.$[quest].status": "completed"
