@@ -99,7 +99,9 @@ class NPCChatService:
                     "likes": res["npc"]["likes"],
                     "dislikes": res["npc"]["dislikes"],
                 },
-                "completed_quests": res["npc"]["completed_quests"][len(npc["completed_quests"]):],
+                "completed_quests": list(
+                    set(res["npc"]["completed_quests"]) - set(npc["completed_quests"])
+                )
             })
 
         return None
