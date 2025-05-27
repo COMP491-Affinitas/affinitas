@@ -23,8 +23,11 @@ namespace GusMinigame
         public int gusMinigameScore;
         public float timeLimit = 100f;
         float remainingTime;
-        
 
+        int targetScore = 70;
+        bool gusQuestCompleted = false;
+        int givenFish = 0;
+        
         private void Awake()
         {
             Instance = this;
@@ -39,8 +42,7 @@ namespace GusMinigame
         public void GoToMap()
         {
             // Save score and go to map
-            MainGameManager.Instance.ReturnFromGusMinigame(gusMinigameScore);
-            //SceneManager.LoadScene(0);
+            MainGameManager.Instance.ReturnFromGusMinigame(gusMinigameScore, givenFish);
             SceneManager.UnloadSceneAsync(1);
         }
 
@@ -94,7 +96,15 @@ namespace GusMinigame
                 if (fish != null)
                     fish.StopMoving();
             }
-            endPanel.GetComponentInChildren<TextMeshProUGUI>().text = "Your Time is Up! Final Score: " + gusMinigameScore.ToString();
+            if (!gusQuestCompleted)
+                CheckGusQuest();
+            if (gusQuestCompleted && givenFish < 1)
+            {
+                endPanel.GetComponentInChildren<TextMeshProUGUI>().text = "Your Time is Up! Final Score: " + gusMinigameScore.ToString() + "\nObtained fish!";
+                givenFish += 1;
+            }
+            else
+                endPanel.GetComponentInChildren<TextMeshProUGUI>().text = "Your Time is Up! Final Score: " + gusMinigameScore.ToString();
             endPanel.SetActive(true);
             fishingGameStartButton.interactable = true;
         }
@@ -153,6 +163,24 @@ namespace GusMinigame
             float y = Random.Range(-size.y / 2f + 200f, size.y / 2f - 200f);
 
             return new Vector2(x, y);
+        }
+
+        void CheckGusQuest()
+        {
+            if (MainGameManager.Instance.itemDict.TryGetValue("gus_fish", out Item gusFish) && gusFish != null)
+            {
+                if (gusFish.active)
+                {
+                    gusQuestCompleted = true;
+                    givenFish = 1;
+                    return;
+                }
+            }
+            if (MainGameManager.Instance.npcDict[2].questList[0].status == MainGameManager.Instance.questStatusDict[QuestStatus.InProgress])
+            {
+                if (gusMinigameScore >= targetScore)
+                    gusQuestCompleted = true;
+            }
         }
 
     }

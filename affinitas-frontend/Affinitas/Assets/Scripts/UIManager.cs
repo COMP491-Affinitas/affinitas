@@ -12,20 +12,20 @@ public class UIManager : MonoBehaviour
     [SerializeField] CanvasGroup[] gamePanels;
     // 0: menuPanel, 1: savesListPanel, 2: settingsPanel, 3: mainPanel, 4: endingPanel, 5: creditsPanel
 
-    [SerializeField]
-    GameObject savesListContent;
-    [SerializeField]
-    GameObject savePrefab;
+    [SerializeField] GameObject savesListContent;
+    [SerializeField] GameObject savePrefab;
 
-    [SerializeField]
-    Toggle fullscreenToggle;
+    [SerializeField] Toggle fullscreenToggle;
 
-    [SerializeField]
-    TextMeshProUGUI endingTextMesh;
-    [SerializeField]
-    ScrollRectHelper endingPanelScrollRectHelper;
+    [SerializeField] TextMeshProUGUI endingTextMesh;
+    [SerializeField] ScrollRectHelper endingPanelScrollRectHelper;
+
+    [SerializeField] Button continueToMenuButton;
+    [SerializeField] Button continueToMainGameButton;
 
     List<string> savedGameIds = new();
+
+    Coroutine endingTextCoroutine;
 
     private void Start()
     {
@@ -107,19 +107,34 @@ public class UIManager : MonoBehaviour
 
     public void PutEndingTextToPanel(string endingText)
     {
-        StartCoroutine(AddTextLetterByLetter(endingTextMesh, endingPanelScrollRectHelper, endingText));
+        if (endingTextCoroutine != null)
+            StopCoroutine(endingTextCoroutine);
+
+        endingTextCoroutine = StartCoroutine(AddTextLetterByLetter(endingTextMesh, endingPanelScrollRectHelper, endingText));
     }
 
-    public void PauseGame()
+    public void StopPuttingEndingTextToPanel()
     {
-        OpenSettingsPanel();
-        Time.timeScale = 0;
+        if (endingTextCoroutine != null)
+        {
+            StopCoroutine(endingTextCoroutine);
+            endingTextCoroutine = null;
+        }
     }
 
-    public void ContinueGame()
+    public void PauseGame(bool fromMenu)
     {
-        MakeActive(3);
-        Time.timeScale = 1;    
+        OpenSettingsPanel(fromMenu);
+        //Time.timeScale = 0;
+    }
+
+    public void ContinueGame(bool toMenu)
+    {
+        if (toMenu)
+            MakeActive(0);
+        else
+            MakeActive(3);
+        //Time.timeScale = 1;    
     }
 
     public void OpenCreditsPanel()
@@ -140,8 +155,10 @@ public class UIManager : MonoBehaviour
             Screen.fullScreen = !Screen.fullScreen;
     }
 
-    void OpenSettingsPanel()
+    public void OpenSettingsPanel(bool fromMenu)
     {
+        continueToMenuButton.gameObject.SetActive(fromMenu);
+        continueToMainGameButton.gameObject.SetActive(!fromMenu);
         MakeActive(2);
         FullscreenToggleInitializer();
     }
@@ -162,7 +179,7 @@ public class UIManager : MonoBehaviour
         for (int i = 0; i < str.Length; i++)
         {
             textMesh.text += str[i];
-            scrollRectHelper.ScrollToBottom();
+            if (i % 5 == 0) scrollRectHelper.ScrollToBottom();
             yield return new WaitForSeconds(0.05f);
         }
     }

@@ -18,11 +18,6 @@ public class SavedGame : MonoBehaviour
         await GameManager.Instance.LoadSavedGame(saveId);
         UIManager.Instance.StartGame();
         MainGame.MainGameUiManager.Instance.InitializeMainPanelsForSavedGame();
-
-        //MainGame.MainGameUiManager.Instance.LoadSavedChatHistories();
-
-        //TODO: Load journal info
-
         MainGameManager.Instance.LoadSavedQuestsToQuestPanel();
     }
 

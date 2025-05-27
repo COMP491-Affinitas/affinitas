@@ -18,16 +18,23 @@ public class LoadGameData
     public int remaining_ap;
     public LoadGameJournalData journal_data;
     public bool journal_active;
-    public List<string> item_list;
+    public List<LoadGameItemMeta> item_list;
     public List<LoadGameNpcData> npcs;
+}
+
+[Serializable]
+public class LoadGameItemMeta
+{
+    public string name;
+    public bool active;
 }
 
 [Serializable]
 public class LoadGameJournalData
 {
     public List<object> quests;
-    public List<LoadGameJournalNpcMeta> npc_info;
-    public string town_info;
+    public List<LoadGameJournalNpcMeta> npcs;
+    public LoadGameJournalTownInfoMeta town_info;
     public List<object> chat_history;
 }
 
@@ -36,6 +43,14 @@ public class LoadGameJournalNpcMeta
 {
     public string npc_id;
     public string description;
+    public bool active;
+}
+
+[Serializable]
+public class LoadGameJournalTownInfoMeta
+{
+    public string description;
+    public bool active;
 }
 
 [Serializable]
@@ -47,7 +62,6 @@ public class LoadGameNpcData
     public List<LoadGameQuestMeta> quests; // first quest is the main quest
     public List<List<string>> chat_history;
 }
-
 
 [Serializable]
 public class LoadGameQuestMeta
@@ -63,105 +77,139 @@ public static class LoadGame
 {
     public static async Task<LoadGameRootResponse> GetNewGameInfo()
     {
-        UuidRequest uuid = new UuidRequest { x_client_uuid = GameManager.Instance.playerId };
+        UuidRequest uuid = new()
+        {
+            x_client_uuid = GameManager.Instance.playerId
+        };
+
         LoadGameRootResponse rootResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(uuid, "/session/new", HttpMethod.Get);
+            .SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(
+                uuid,
+                "/session/new",
+                HttpMethod.Get
+            );
+        Debug.Log("New game root response: " + rootResponse);
         Debug.Log("New game shadow_save_id: " +  rootResponse.shadow_save_id);
         return rootResponse;
     }
 
     public static async Task<LoadGameRootResponse> GetSavedGameInfo(string saveIdToLoad)
     {
-        LoadSaveRequest loadSaveRequest = new() { save_id = saveIdToLoad };
+        LoadSaveRequest loadSaveRequest = new()
+        {
+            save_id = saveIdToLoad
+        };
+
         LoadGameRootResponse rootResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<LoadSaveRequest, LoadGameRootResponse>(loadSaveRequest, "/game/load", HttpMethod.Post);
+            .SendAndGetMessageFromServer<LoadSaveRequest, LoadGameRootResponse>(
+                loadSaveRequest,
+                "/game/load",
+                HttpMethod.Post
+            );
+
         return rootResponse;
     }
 
     public static void InitializeGameInfo(LoadGameRootResponse rootResponse)
     {
-        Debug.Log("root response: " + rootResponse);
-        Debug.Log("root response.data: " + rootResponse.data);
-
         GameManager.Instance.shadowSaveId = rootResponse.shadow_save_id;
 
         MainGameManager.Instance.dayNo = rootResponse.data.day_no;
         MainGameManager.Instance.dailyActionPoints = rootResponse.data.remaining_ap;
         MainGameManager.Instance.journalActive = rootResponse.data.journal_active;
-        MainGameManager.Instance.journalTownInfo = rootResponse.data.journal_data.town_info;
+        MainGameManager.Instance.journalTownInfo = rootResponse.data.journal_data.town_info.description;
 
+        Debug.Log("journal town info: " + rootResponse.data.journal_data.town_info);
         Debug.Log("Game Info");
         Debug.Log("action points: " + MainGameManager.Instance.dailyActionPoints);
-        Debug.Log(MainGameManager.Instance.dayNo);
+        Debug.Log("day no:" + MainGameManager.Instance.dayNo);
 
         List<LoadGameNpcData> npcDatas = rootResponse.data.npcs;
-        MainGameManager.Instance.npcList = new(6);
-        int i = 1;
+        MainGameManager.Instance.npcDict = new();
+        int npcIdInGame = 0;
         foreach (LoadGameNpcData npcData in npcDatas)
         {
+            npcIdInGame++;
             Npc newNpc = new()
             {
+                npcId = npcIdInGame,
                 dbNpcId = npcData.npc_id,
-                npcId = i,
                 npcName = npcData.name,
                 affinitasValue = npcData.affinitas,
                 chatHistory = npcData.chat_history
             };
-            i++;
 
-            if (rootResponse.data.journal_data.npc_info != null)
+            Debug.Log("npc infos: " + rootResponse.data.journal_data.npcs);
+            if (rootResponse.data.journal_data.npcs != null)
             {
-                foreach (LoadGameJournalNpcMeta npcInfo in rootResponse.data.journal_data.npc_info)
+                Debug.Log("npc infos not null");
+                foreach (LoadGameJournalNpcMeta npcInfo in rootResponse.data.journal_data.npcs)
                 {
                     if (npcInfo.npc_id.Equals(newNpc.dbNpcId))
+                    {
                         newNpc.description = npcInfo.description;
+                        Debug.Log("npc matched description: " + newNpc.description);
+                    }
+                    Debug.Log("npc description: " + npcInfo.description);
                 }
             }
-
-            //TODO: DELETE LATER
-            if (npcData.chat_history == null)
-                Debug.Log("chat history null ");
-            else if (npcData.chat_history.Count > 0)
-            {
-                Debug.Log("chat history USER OR AI: " + npcData.chat_history[0][0]);
-                Debug.Log("chat history CONTENT: " + npcData.chat_history[0][1]);
-            }
-            else
-                Debug.Log("count: " + npcData.chat_history.Count.ToString());
-
 
             foreach (LoadGameQuestMeta questData in npcData.quests)
             {
                 Quest newQuest = new()
                 {
+                    linkedNpcId = npcIdInGame,
                     questId = questData.quest_id,
-                    status = questData.status,
                     name = questData.name,
                     description = questData.description,
-                    affinitasReward = questData.affinitas_reward
+                    status = questData.status,
+                    affinitasReward = questData.affinitas_reward,
+                    item = null
                 };
                 newNpc.questList.Add(newQuest);
+                MainGameManager.Instance.questDict[newQuest.questId] = newQuest;
+
                 Debug.Log("quest name: " + newQuest.name + ", status: [" + newQuest.status + "]");
             }
-            MainGameManager.Instance.npcList.Add(newNpc);
+            MainGameManager.Instance.npcDict[npcIdInGame] = newNpc;
 
             Debug.Log("Npc no " + newNpc.npcId.ToString() + ": " + newNpc.npcName + " with Affinitas " + newNpc.affinitasValue.ToString());
         }
 
-        
+        Debug.Log("item_list.Count: " + rootResponse.data.item_list.Count);
 
+        int questIndex = 1;
+        foreach (LoadGameItemMeta itemInfo in rootResponse.data.item_list)
+        {
+            Item newItem = new()
+            {
+                itemName = itemInfo.name,
+                active = itemInfo.active
+            };
+            MainGameManager.Instance.itemDict[newItem.itemName] = newItem;
 
+            Debug.Log("item name: " + newItem.itemName);
 
-        // TODO: Initialize journal info
-        // journal data from json LoadGameJournalNpc info and town info etc do it
-
-        // TODO: Chat history code!
+            Quest linkedQuest = null;
+            // Match gus fish to gus quest
+            if (newItem.itemName.Equals("gus_fish"))
+                linkedQuest = MainGameManager.Instance.npcDict[2].questList[0];
+            // Match mora pieces to mora subquests
+            else
+            {
+                linkedQuest = MainGameManager.Instance.npcDict[1].questList[questIndex];
+                questIndex++;
+            }
+            if (linkedQuest != null)
+            {
+                newItem.linkedQuestId = linkedQuest.questId;
+                linkedQuest.item = newItem;
+            }
+                
+        }
 
         // TODO: DELETE LATER!!!! Completes Bart Ender's quest 
-        //MainGameManager.Instance.npcList[2].questList[0].status = "completed";
-
-        return;
-
-        
+        MainGameManager.Instance.npcDict[3].questList[0].status = MainGameManager.Instance.questStatusDict[QuestStatus.Completed];
+        return;        
     }
 }

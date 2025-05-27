@@ -30,8 +30,13 @@ namespace MainGame
 
         [SerializeField] GameObject journalPanel;
         [SerializeField] CanvasGroup[] journalTabPanels;
+        [SerializeField] CanvasGroup[] journalCharacterTabPanels;
+        [SerializeField] TextMeshProUGUI[] journalCharacterTabButtonTextMeshes;
         [SerializeField] TextMeshProUGUI[] journalTextMeshes;
         [SerializeField] Button journalButton;
+
+        [SerializeField] Button endDayButton;
+        [SerializeField] Button mapButton;
 
         [SerializeField] GameObject tutorialPanel;
 
@@ -41,6 +46,7 @@ namespace MainGame
         [SerializeField] GameObject saveGamePanel;
         [SerializeField] GameObject saveGameText;
         [SerializeField] TMP_InputField saveGameInputField;
+        [SerializeField] Button saveGameButton;
 
         [SerializeField] GameObject questPanelContent;
         [SerializeField] GameObject questPrefab;
@@ -61,6 +67,7 @@ namespace MainGame
         }
 
         Dictionary<PopupPanelType, CanvasGroup> popupPanels;
+        Dictionary<string, UseItem> useItemDict;
 
         private void Start()
         {
@@ -85,13 +92,21 @@ namespace MainGame
         // Every time a game is started new or saved
         public void InitializeMainPanels()
         {
+            questDetailsPanel.SetActive(true);
+            journalPanel.SetActive(true);
+            tutorialPanel.SetActive(true);
+            warningPanel.SetActive(true);
+            saveGamePanel.SetActive(true);
             CloseQuestDetailslPanel();
             CloseTutoriallPanel();
             CloseJournalPanel();
             CloseWarningPanel();
             CloseSaveGamePanel();
             OpenJournalTab(-1);
+            OpenQuestDetailTab(-1);
+            OpenJournalCharacterTab(-1);
             OpenMapPanel();
+            InitializeItemDict();
         }
 
         public void InitializeMainPanelsForNewGame()
@@ -106,10 +121,21 @@ namespace MainGame
 
         public void InitializeMainPanelsForSavedGame()
         {
+            EmptyQuestPanel();
             InitializeDialoguePanels();
             LoadChatHistory();
             UpdateDaysLeftPanel();
-            EmptyQuestPanel();
+            InitializeInventoryForSavedGame();
+        }
+
+        void InitializeItemDict()
+        {
+            useItemDict = new();
+            useItemDict[gusFishItem.itemName] = gusFishItem;
+            foreach (UseItem item in moraPieceItems)
+            {
+                useItemDict[item.itemName] = item;
+            }
         }
 
         public void EmptyQuestDetails()
@@ -130,14 +156,12 @@ namespace MainGame
         // Call from Quest Details button
         public void OpenQuestDetailsPanel()
         {
-            questDetailsPanel.SetActive(true);
             ToggleActivePopupPanel(PopupPanelType.QuestDetailsPanel, true);
         }
 
         // Call from close (x) button on the Quest Details panel
         public void CloseQuestDetailslPanel()
         {
-            //questDetailsPanel.SetActive(false);
             ToggleActivePopupPanel(PopupPanelType.QuestDetailsPanel, false);
         }
 
@@ -158,14 +182,12 @@ namespace MainGame
         // Call from Open Tutorial button
         public void OpenTutorialPanel()
         {
-            tutorialPanel.SetActive(true);
             ToggleActivePopupPanel(PopupPanelType.TutorialPanel, true);
         }
 
         // Call from close (x) button on the Tutorial panel
         public void CloseTutoriallPanel()
         {
-            //tutorialPanel.SetActive(false);
             ToggleActivePopupPanel(PopupPanelType.TutorialPanel, false);
         }
 
@@ -180,14 +202,16 @@ namespace MainGame
         public void AddTextToJournal()
         {
             List<string> texts = MainGameManager.Instance.CreateJournalText();
-            journalTextMeshes[0].text = texts[0];
-            journalTextMeshes[1].text = texts[1];
+            for (int i = 0; i < journalTextMeshes.Length; i++)
+            {
+                journalTextMeshes[i].text = texts[i];
+            }
+            
         }
 
         // Call from Open Journal button
         public void OpenJournalPanel()
         {
-            journalPanel.SetActive(true);
             AddTextToJournal();
             ToggleActivePopupPanel(PopupPanelType.JournalPanel, true);
         }
@@ -195,13 +219,11 @@ namespace MainGame
         // Call from close (x) button on the Journal panel
         public void CloseJournalPanel()
         {
-            //journalPanel.SetActive(false);
             ToggleActivePopupPanel(PopupPanelType.JournalPanel, false);
         }
 
         public void OpenWarningPanel(string warningText)
         {
-            warningPanel.SetActive(true);
             ToggleActivePopupPanel(PopupPanelType.WarningPanel, true);
             warningPanelTextMesh.text = warningText;
         }
@@ -209,13 +231,11 @@ namespace MainGame
         // Call from close (x) button on the Warning panel
         public void CloseWarningPanel()
         {
-            //warningPanel.SetActive(false);
             ToggleActivePopupPanel(PopupPanelType.WarningPanel, false);
         }
 
         public void OpenSaveGamePanel()
         {
-            saveGamePanel.SetActive(true);
             ToggleActivePopupPanel(PopupPanelType.SaveGamePanel, true);
             saveGameText.SetActive(false);
         }
@@ -232,16 +252,24 @@ namespace MainGame
         // Call from close (x) button on the Warning panel
         public void CloseSaveGamePanel()
         {
-            //saveGamePanel.SetActive(false);
             ToggleActivePopupPanel(PopupPanelType.SaveGamePanel, false);
         }
 
         //Call when End Day button is pressed
-        // TODO: if days left is zero, also update End Day button to say End Game!!!
         public void UpdateDaysLeftPanel()
         {
             string panelText = "Day No: " + MainGameManager.Instance.dayNo.ToString() + "\n\nAction Points Left: " + MainGameManager.Instance.dailyActionPoints.ToString();
             daysLeftPanel.transform.GetComponentInChildren<TextMeshProUGUI>().text = panelText;
+            UpdateEndGameButtonText();
+        }
+
+        // If on 10th day then  update End Day button text to say End Game!!!
+        void UpdateEndGameButtonText()
+        {
+            if (MainGameManager.Instance.dayNo < 10)
+                endDayButton.gameObject.GetComponentInChildren<TextMeshProUGUI>().text = "End Day";
+            else
+                endDayButton.gameObject.GetComponentInChildren<TextMeshProUGUI>().text = "End Game";
         }
 
         // Call when Tab buttons are clicked
@@ -249,11 +277,22 @@ namespace MainGame
         {
             for (int i = 0; i < journalTabPanels.Length; i++)
             {
-                //npcDialoguePanels[i].SetActive(i == (index-1));
                 bool isActive = i == index - 1;
                 journalTabPanels[i].alpha = isActive ? 1f : 0f;
                 journalTabPanels[i].interactable = isActive;
                 journalTabPanels[i].blocksRaycasts = isActive;
+            }
+        }
+
+        // Call when Tab buttons are clicked
+        public void OpenJournalCharacterTab(int index)
+        {
+            for (int i = 0; i < journalCharacterTabPanels.Length; i++)
+            {
+                bool isActive = i == index - 1;
+                journalCharacterTabPanels[i].alpha = isActive ? 1f : 0f;
+                journalCharacterTabPanels[i].interactable = isActive;
+                journalCharacterTabPanels[i].blocksRaycasts = isActive;
             }
         }
 
@@ -271,7 +310,6 @@ namespace MainGame
             mapPanel.SetActive(false);
             for (int i = 0; i < npcDialoguePanels.Length; i++)
             {
-                //npcDialoguePanels[i].SetActive(i == (index-1));
                 bool isActive = i == index-1;
                 npcDialoguePanels[i].alpha = isActive ? 1f : 0f;
                 npcDialoguePanels[i].interactable = isActive;
@@ -295,22 +333,22 @@ namespace MainGame
             }
             MainGameManager.Instance.ReduceActionPointsForMinigame();
             UpdateDaysLeftPanel();
-            //SceneManager.LoadScene(minigameSceneIndex);
             SceneManager.LoadScene(minigameSceneIndex, LoadSceneMode.Additive);
         }
 
         // Call from End Day button
-        public void EndDayButton()
+        public void EndDay()
         {
             MainGameManager.Instance.EndDay();
+            InformDayEndForAll();
         }
-
 
         // npcId indexing starts from 1
         public void InitializeNpcUIs(Npc npcData)
         {
             int i = npcData.npcId - 1;
             questDetailsTabButtonTextMeshes[i].text = npcData.npcName;
+            journalCharacterTabButtonTextMeshes[i].text = npcData.npcName;
             dialoguePanelNameTextMeshes[i].text = npcData.npcName;
             affinitasTextMeshes[i].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
         }
@@ -319,6 +357,25 @@ namespace MainGame
         {
             affinitasTextMeshes[npcData.npcId - 1].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
         }
+
+        public void EmphasizeAffinitas(Npc npcData)
+        {
+            StartCoroutine(EmphasizeAffinitasCoroutine(npcData));
+        }
+
+        IEnumerator EmphasizeAffinitasCoroutine(Npc npcData)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                affinitasTextMeshes[npcData.npcId - 1].text = $@"<size=24>{npcData.npcName}\nAffinitas: <b><color=red>{npcData.affinitasValue}</color></b></size>";
+                yield return new WaitForSeconds(0.3f);
+
+                affinitasTextMeshes[npcData.npcId - 1].text = $@"<size=24>{npcData.npcName}\nAffinitas: <b>{npcData.affinitasValue}</b></size>";
+                yield return new WaitForSeconds(0.3f);
+            }
+            affinitasTextMeshes[npcData.npcId - 1].text = $@"<size=24>{npcData.npcName}\nAffinitas: {npcData.affinitasValue}</size>";
+        }
+
 
         public void EmptyQuestPanel()
         {
@@ -348,14 +405,12 @@ namespace MainGame
 
         public void UpdateQuestInQuestPanel(string questId, string status)
         {
-            Debug.Log("why not work?");
-            if (status.Equals(MainGameManager.Instance.questDict[QuestStatus.Completed]))
+            if (status.Equals(MainGameManager.Instance.questStatusDict[QuestStatus.Completed]))
             {
                 TextMeshProUGUI questTextMesh = instantiatedQuests[questId];
                 string oldQuestText = questTextMesh.text;
                 questTextMesh.text = "<s>" + oldQuestText + "</s>";
             }
-            
         }
 
         // Make everyone but Bart Ender's houses invisible at the beginning of the game
@@ -380,8 +435,7 @@ namespace MainGame
         {
             foreach (SendText sendText in npcDialogueSendTexts)
             {
-                // TODO: main game manager dan current Npc quests al ve npc id lerine göre Get quest butonunu inaktif yap
-                sendText.InitializeDialoguePanels();
+                sendText.InitializeDialoguePanel();
             }
         }
 
@@ -389,62 +443,54 @@ namespace MainGame
         {
             foreach (SendText sendText in npcDialogueSendTexts)
             {
-                // TODO: main game manager dan current Npc quests al ve npc id lerine göre Get quest butonunu inaktif yap
                 sendText.LoadChatHistory();
             }
         }
 
-        // When subquest is completed, return itemName of given item to notify server
-        public string NpcGivesItemToPlayer(int npcId)
+        public void InformDayEndForAll()
         {
-            if (npcId == 1)
+            foreach(SendText sendText in npcDialogueSendTexts)
             {
-                foreach (UseItem moraPiece in moraPieceItems)
+                sendText.InformDayEnd();
+            }
+        }
+
+        // When subquest is completed, return itemName of given item to notify server
+        public bool AddItemToInventory(string itemName)
+        {
+            Debug.Log("try adding item: " + itemName);
+            if (useItemDict.TryGetValue(itemName, out UseItem item) && item != null)
+            {
+                Debug.Log("found item: " + item.itemName);
+                if (!item.inInventory)
                 {
-                    if (!moraPiece.inInventory)
-                    {
-                        moraPiece.transform.SetParent(inventoryContent);
-                        moraPiece.inInventory = true;
-                        return moraPiece.itemName;
-                    }
+                    item.transform.SetParent(inventoryContent);
+                    item.inInventory = true;
+                    return true;
                 }
             }
-            // For Gus this comes from minigame
-            else if (npcId == 2)
-            {
-                if (!gusFishItem.inInventory)
-                {
-                    gusFishItem.transform.SetParent(inventoryContent);
-                    gusFishItem.inInventory = true;
-                    return gusFishItem.itemName;
-                }
-            }
-            return null;
+            return false;
         }
 
         // Call from Give Item to Npc button
-        public string PlayerGivesItemToNpc(int npcId)
+        public Item GiveItemFromInventory(int npcId)
         {
-            if (npcId == 1)
+            foreach (Item item in MainGameManager.Instance.itemDict.Values)
             {
-                foreach (UseItem moraPiece in moraPieceItems)
+                if (MainGameManager.Instance.questDict.TryGetValue(item.linkedQuestId, out Quest linkedQuest) && linkedQuest != null)
                 {
-                    if (moraPiece.inInventory)
+                    if (linkedQuest.linkedNpcId == npcId)
                     {
-                        moraPiece.transform.SetParent(unusedItemsContent);
-                        moraPiece.inInventory = false;
-                        return moraPiece.itemName;
+                        if (useItemDict.TryGetValue(item.itemName, out UseItem useItem) && useItem != null)
+                        {
+                            if (useItem.inInventory)
+                            {
+                                useItem.transform.SetParent(unusedItemsContent);
+                                useItem.inInventory = false;
+                                return item;
+                            }
+                        }
                     }
-                }
-            }
-            // For Gus this comes from minigame
-            else if (npcId == 2)
-            {
-                if (gusFishItem.inInventory)
-                {
-                    gusFishItem.transform.SetParent(unusedItemsContent);
-                    gusFishItem.inInventory = false;
-                    return gusFishItem.itemName;
                 }
             }
             return null;
@@ -453,6 +499,28 @@ namespace MainGame
         public void ToggleJournalButtonActive(bool newActive)
         {
             journalButton.interactable = newActive;
+        }
+
+        public void InitializeInventoryForSavedGame()
+        {
+            foreach (Item item in MainGameManager.Instance.itemDict.Values)
+            {
+                if (item.active)
+                {
+                    if (useItemDict.TryGetValue(item.itemName, out UseItem useItem) && useItem != null)
+                    {
+                        useItem.transform.SetParent(inventoryContent);
+                        useItem.inInventory = true;
+                    }
+                }
+            }
+        }
+
+        public void ToggleMapEndDaySaveButtonsActive(bool newActive)
+        {
+            endDayButton.interactable = newActive;
+            saveGameButton.interactable = newActive;
+            mapButton.interactable = newActive;
         }
     }
 }

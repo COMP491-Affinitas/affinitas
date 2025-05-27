@@ -31,9 +31,9 @@ namespace CherMinigame
         [SerializeField]
         TextMeshProUGUI scoreText;
 
-        float space = 10f;
+        //float space = 10f;
         float lerpSpeed = 5f;
-        float paddingForLeftRightChars = 50f;
+        //float paddingForLeftRightChars = 50f;
         float preferredSpacing = 50f;
         float buttonWidth = 140f;
 

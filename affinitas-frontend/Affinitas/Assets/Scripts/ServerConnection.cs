@@ -68,6 +68,11 @@ public class SaveResponse : BaseRequest
 }
 
 [Serializable]
+public class DayNoInfoRequest : BaseRequest
+{
+    public string shadow_save_id;
+}
+[Serializable]
 public class QuitRequest : BaseRequest
 { 
 }
@@ -128,7 +133,9 @@ public class GiveItemRequest : BaseRequest
 [Serializable]
 public class GiveItemResponse : BaseResponse
 {
+    public int affinitas_new;
     public string response;
+    public List<string> completed_quests;
 }
 
 [Serializable]
@@ -203,7 +210,7 @@ public class ServerConnection : MonoBehaviour
 
         var requestMessage = new HttpRequestMessage(method, serverURL + directoryPath);
 
-        if (method == HttpMethod.Post || method == HttpMethod.Delete)
+        if (method == HttpMethod.Post || method == HttpMethod.Delete || method == HttpMethod.Patch)
         {
             requestMessage.Content = new StringContent(
                 JsonConvert.SerializeObject(message),  Encoding.UTF8, "application/json");

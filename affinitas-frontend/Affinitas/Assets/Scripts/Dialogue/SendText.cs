@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 using System;
+using System.Threading.Tasks;
 
 namespace MainGame
 {
@@ -25,26 +26,20 @@ namespace MainGame
         void Awake()
         {
             // Send Text also when user presses Enter
-            dialogueInputField.onSubmit.AddListener((str) => SendInputtedText());
-            dialogueInputField.onSubmit.AddListener((str) => SendTextGetNpcResponse(str));
+            dialogueInputField.onSubmit.AddListener((str) => SendTextGetResponse());
             addDialogueBox = gameObject.GetComponent<AddDialogueBox>();
             scrollRectHelper = gameObject.GetComponent<ScrollRectHelper>();
         }
 
-        private void Start()
+        public void InitializeDialoguePanel()
         {
+            getQuestDone = MainGameManager.Instance.CheckGetQuest(npcId);
             MakeButtonsClickable();
-        }
-
-        public void InitializeDialoguePanels()
-        {
             dialogueInputField.text = "";
-            //TODO:
-            //bool getQuestDone = ;
         }
 
         // Call this from Send Text button
-        public void SendInputtedText()
+        public void SendTextGetResponse()
         {
             MainGameManager.Instance.ActivateJournal();
 
@@ -53,35 +48,32 @@ namespace MainGame
                 MainGameUiManager.Instance.OpenWarningPanel("You do not have enough action points to talk. End the day!");
                 return;
             }
+            // Prevent spamming via pressing enter or buttons
             if (ServerConnection.Instance.canSendMessage == false)
                 return;
-
+            ServerConnection.Instance.canSendMessage = false;
             MakeButtonsUnclickable();
 
+            // Do not send text if no text
             playerInput = dialogueInputField.text;
             if (playerInput == "")
                 return;
 
-            addDialogueBox.AddPlayerDialogueBox(playerInput, null, null, true);
+            // Send text to server immediately to cut back on wait time
+            string dbNpcId = MainGameManager.Instance.npcDict[npcId].dbNpcId;
+            var responseTask = GameManager.Instance.CreateMessageForSendPlayerInput(playerInput, dbNpcId);
+
+            // Write player text to screen and when it is finished, write npc text when it is returned from server
+            addDialogueBox.AddPlayerDialogueBox(playerInput, () => HandleNpcResponseAfterTyping(responseTask), null, true);
             scrollRectHelper.ScrollToBottom();
 
             dialogueInputField.text = "";
             dialogueInputField.ActivateInputField();
         }
 
-        public async void SendTextGetNpcResponse(string playerInput)
+        async void HandleNpcResponseAfterTyping(Task<string> responseTask)
         {
-            if (MainGameManager.Instance.EnoughActionPointsForDialogue() == false)
-                return;
-
-            if (ServerConnection.Instance.canSendMessage == false)
-                return;
-
-            ServerConnection.Instance.canSendMessage = false;
-
-            string dbNpcId = MainGameManager.Instance.npcList[npcId-1].dbNpcId;
-
-            string npcResponse = await GameManager.Instance.CreateMessageForSendPlayerInput(playerInput, dbNpcId);
+            string npcResponse = await responseTask;
 
             if (!string.IsNullOrEmpty(npcResponse))
             {
@@ -110,26 +102,21 @@ namespace MainGame
             MainGameManager.Instance.ReduceActionPointsForGetQuest();
             MainGameUiManager.Instance.UpdateDaysLeftPanel();
 
-            string dbNpcId = MainGameManager.Instance.npcList[npcId - 1].dbNpcId;
-
-            Debug.Log("sending get quest request to server");
+            string dbNpcId = MainGameManager.Instance.npcDict[npcId].dbNpcId;
 
             List<string> questDescriptions = await GameManager.Instance.CreateMessageForGetQuest(dbNpcId, npcId);
-
-            Debug.Log("quest: " + questDescriptions[0]);
 
             if (questDescriptions != null)
             {
                 getQuestDone = true;
+                addDialogueBox.AddInfoPanel("You asked for a quest!", null, null, true);
 
                 StartCoroutine(ShowQuestsOneByOne(questDescriptions));
             }
 
             // if Bart Ender's get quest button is pressed, then make all map buttons visible
             if (npcId == 3)
-            {
                 MainGameUiManager.Instance.ToggleMapButtonsVisibility(true);
-            }
         }
 
         IEnumerator ShowQuestsOneByOne(List<string> questDescriptions)
@@ -140,7 +127,7 @@ namespace MainGame
                     yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], ServerConnection.Instance.OnServerMessageReceived, MakeButtonsClickable);
                 else
                     yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], null, null);
-                scrollRectHelper.ScrollToBottom();
+                if (i % 5 == 0) scrollRectHelper.ScrollToBottom();
             }
         }
 
@@ -149,37 +136,43 @@ namespace MainGame
             getQuestButton.interactable = false;
             giveItemButton.interactable = false;
             sendTextButton.interactable = false;
+            MainGameUiManager.Instance.ToggleMapEndDaySaveButtonsActive(false);
         }
 
         public void MakeButtonsClickable()
         {
-            if (getQuestDone == false)
-                getQuestButton.interactable = true;
+            getQuestButton.interactable = !getQuestDone;
             giveItemButton.interactable = true;
             sendTextButton.interactable = true;
+            MainGameUiManager.Instance.ToggleMapEndDaySaveButtonsActive(true);
         }
-
 
         // Call when Give Item button pressed for an Npc
         public async void GiveItem()
         {
-            // If not Gus or Mora, no item can be given
-            string itemName = MainGameUiManager.Instance.PlayerGivesItemToNpc(npcId);
-            if (itemName == null)
+            Item item = MainGameUiManager.Instance.GiveItemFromInventory(npcId);
+            if (item == null)
             {
                 MainGameUiManager.Instance.OpenWarningPanel("You have no items to give!");
                 return;
             }
 
-            MakeButtonsUnclickable();
-
-            string dbNpcId = MainGameManager.Instance.npcList[npcId - 1].dbNpcId;
-            string npcResponse = await GameManager.Instance.NotifyForItemGivenToNpc(dbNpcId, itemName);
-
-            if(!string.IsNullOrEmpty(npcResponse))
+            if (MainGameManager.Instance.questDict.TryGetValue(item.linkedQuestId, out Quest linkedQuest) && linkedQuest != null &&
+                MainGameManager.Instance.npcDict.TryGetValue(linkedQuest.linkedNpcId, out Npc linkedNpc) && linkedNpc != null)
             {
-                addDialogueBox.AddNpcDialogueBox(npcResponse, ServerConnection.Instance.OnServerMessageReceived, MakeButtonsClickable, true);
-                scrollRectHelper.ScrollToBottom();
+                MakeButtonsUnclickable();
+
+                string npcResponse = await GameManager.Instance.NotifyForItemGivenToNpc(linkedNpc.dbNpcId, item.itemName);
+
+                if (!string.IsNullOrEmpty(npcResponse))
+                {
+                    addDialogueBox.AddInfoPanel("You gave an item!", null, null, true);
+                    addDialogueBox.AddNpcDialogueBox(npcResponse, ServerConnection.Instance.OnServerMessageReceived, MakeButtonsClickable, true);
+                    scrollRectHelper.ScrollToBottom();
+                }
+
+                MainGameManager.Instance.UpdateQuestComplete(linkedNpc, linkedQuest.questId);
+                await GameManager.Instance.NotifyForQuestComplete(linkedNpc, linkedQuest.questId);
             }
         }
 
@@ -193,15 +186,21 @@ namespace MainGame
         {
             EmptyChat();
 
-            List<List<string>> chatHistory = MainGameManager.Instance.npcList[npcId - 1].chatHistory;
+            List<List<string>> chatHistory = MainGameManager.Instance.npcDict[npcId].chatHistory;
 
-            foreach (List<String> gameChat in chatHistory)
+            foreach (List<string> gameChat in chatHistory)
             {
                 if (gameChat[0] == "user")
                     addDialogueBox.AddPlayerDialogueBox(gameChat[1], null, null, false);
                 else if (gameChat[0] == "ai")
                     addDialogueBox.AddNpcDialogueBox(gameChat[1], null, null, false);
             }
+        }
+
+        public void InformDayEnd()
+        {
+            addDialogueBox.AddInfoPanel("Day ended. A new day has begun!", null, null, true);
+            scrollRectHelper.ScrollToBottom();
         }
     }
 }
