@@ -27,7 +27,7 @@ public class GameManager : MonoBehaviour
     private async void Start()
     {
         //TODO: DELETE LATER
-        //PlayerPrefs.SetString("player_id", "");
+        PlayerPrefs.SetString("player_id", "");
 
         playerId = PlayerPrefs.GetString("player_id");
         Debug.Log("Current player id: " + playerId);
@@ -157,7 +157,10 @@ public class GameManager : MonoBehaviour
             int oldAffinitas = npc.affinitasValue;
             npc.affinitasValue = npcResponse.affinitas_new;
             if (oldAffinitas != npc.affinitasValue)
+            {
                 MainGame.MainGameUiManager.Instance.UpdateNpcAffinitasUi(npc);
+                MainGame.MainGameUiManager.Instance.EmphasizeAffinitas(npc);
+            }
 
             if (npcResponse.completed_quests.Count != 0)
             {
@@ -181,7 +184,7 @@ public class GameManager : MonoBehaviour
                                 {
                                     foreach (string completeQuestId in completeQuestIds)
                                     {
-                                        Debug.Log("completedQuestIds: " + completeQuestId + " of npc: " + npcMatchedToQuest.npcName);
+                                        Debug.Log("completedQuestIds: " + completeQuestId + " of quest name: " + MainGameManager.Instance.questDict[completeQuestId].name + " of npc: " + npcMatchedToQuest.npcName);
                                         await NotifyForQuestComplete(npcMatchedToQuest, completeQuestId);
                                     }
                                 }
@@ -248,18 +251,19 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    public async Task<bool> SendActionPointInfo()
+    public async Task<bool> SendDayNoAndActionPointInfo()
     {
-        ActionPointRequest message = new()
+        string url = $"/session?day-no={MainGameManager.Instance.dayNo}&ap={MainGameManager.Instance.dailyActionPoints}";
+
+        DayNoInfoRequest message = new()
         {
-            shadow_save_id = shadowSaveId,
-            action_points = MainGameManager.Instance.dailyActionPoints
+            shadow_save_id = shadowSaveId
         };
 
         BaseResponse serverResponse = await ServerConnection.Instance
-            .SendAndGetMessageFromServer<ActionPointRequest, BaseResponse>(
+            .SendAndGetMessageFromServer<DayNoInfoRequest, BaseResponse>(
                 message,
-                $"/session/action-points",
+                url,
                 HttpMethod.Patch
             );
         return true;
@@ -353,28 +357,29 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    // Call from go to menu button in main panel
+    // Call from go to menu button in main panel and from go to menu in ending panel
     public async void EndCurrentGame()
     {
         await EndGameSession();
     }
 
     // Call from quit game button in menu panel
-    public async void QuitGame()
+    public void QuitGame()
     {
-        await EndGameSession();
         ServerConnection.Instance.CloseServerConnection();
     }
 
     async Task EndGameSession()
     {
         // Delete the shadow save
+        string url = "/session?id=" + shadowSaveId;
+
         QuitRequest quitRequest = new();
 
         BaseResponse quitResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<QuitRequest, BaseResponse>(
                 quitRequest,
-                "/session?id=" + shadowSaveId,
+                url,
                 HttpMethod.Delete
             );
 

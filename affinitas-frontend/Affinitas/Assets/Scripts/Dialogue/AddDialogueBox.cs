@@ -87,7 +87,8 @@ namespace MainGame
             for (int i = 0; i < str.Length; i++)
             {
                 textMesh.text += str[i];
-                scrollRectHelper.ScrollToBottom();
+                //scrollRectHelper.ScrollToBottom();
+                if (i % 5 == 0) scrollRectHelper.ScrollToBottom();
                 yield return new WaitForSeconds(writingSpeed);
             }
 

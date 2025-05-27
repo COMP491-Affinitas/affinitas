@@ -55,10 +55,8 @@ public class MainGameManager : MonoBehaviour
     {
         { QuestStatus.Pending, "pending" },
         { QuestStatus.InProgress, "active" },
-        { QuestStatus.Completed, "complete" }
+        { QuestStatus.Completed, "completed" }
     };
-
-    //public List<Npc> currentNpcQuests = new();
 
     public int gusMinigameScore;
     public int cherMinigameScore;
@@ -107,18 +105,17 @@ public class MainGameManager : MonoBehaviour
         // If Bart Ender Quest not completed, do not let the day pass
         if (!npcDict[3].questList[0].status.Equals(questStatusDict[QuestStatus.Completed]))
             MainGame.MainGameUiManager.Instance.OpenWarningPanel("You should complete Bart Ender's quest first!");
-        else if (dayNo > 10)
+        else if (dayNo >= 10)
         {
             UIManager.Instance.OpenEndingPanel();
             string endingText = await GameManager.Instance.CreateMessageForEndGame();
-            Debug.Log(endingText);
             UIManager.Instance.PutEndingTextToPanel(endingText);
         }
         else
         {
             dayNo += 1;
             dailyActionPoints = 15;
-            await GameManager.Instance.SendActionPointInfo();
+            await GameManager.Instance.SendDayNoAndActionPointInfo();
             await GameManager.Instance.NotifyForEndDay();
         }
     }
@@ -129,7 +126,7 @@ public class MainGameManager : MonoBehaviour
         if (dayNo == 1)
             return;
         dailyActionPoints -= 1;
-        await GameManager.Instance.SendActionPointInfo();
+        await GameManager.Instance.SendDayNoAndActionPointInfo();
     }
     // Call from anu minigame button pressed
     public async void ReduceActionPointsForMinigame()
@@ -137,7 +134,7 @@ public class MainGameManager : MonoBehaviour
         if (dayNo == 1)
             return;
         dailyActionPoints -= 2;
-        await GameManager.Instance.SendActionPointInfo();
+        await GameManager.Instance.SendDayNoAndActionPointInfo();
     }
     // Call from any get quest button pressed
     public async void ReduceActionPointsForGetQuest()
@@ -145,7 +142,7 @@ public class MainGameManager : MonoBehaviour
         if (dayNo == 1)
             return;
         dailyActionPoints -= 3;
-        await GameManager.Instance.SendActionPointInfo();
+        await GameManager.Instance.SendDayNoAndActionPointInfo();
     }
 
     // Call this from dialogues, minigames, quests etc. before an action is done
@@ -249,24 +246,15 @@ public class MainGameManager : MonoBehaviour
 
     public void LoadSavedQuestsToQuestPanel()
     {
-        MainGame.MainGameUiManager.Instance.EmptyQuestPanel();
-
-        List<Npc> currentNpcsWithQuests = new();
         foreach (Npc npc in npcDict.Values)
         {
-            bool handledQuests = false;
-            foreach (Quest quest in npc.questList)
+            if (npc.questList[0].status != questStatusDict[QuestStatus.Pending])
             {
-                if (!quest.status.Equals(questStatusDict[QuestStatus.Pending]))
+                HandleGivenQuests(npc.npcId);
+                foreach (Quest quest in npc.questList)
                 {
-                    if (!handledQuests)
-                    {
-                        currentNpcsWithQuests.Add(npc);
-                        HandleGivenQuests(npc.npcId);
-                        handledQuests = true;
-                    }
-                    if (quest.status.Equals(questStatusDict[QuestStatus.Completed]))
-                        UpdateQuestComplete(npc, quest.questId);
+                    if (quest.status == questStatusDict[QuestStatus.Completed])
+                        MainGame.MainGameUiManager.Instance.UpdateQuestInQuestPanel(quest.questId, questStatusDict[QuestStatus.Completed]);
                 }
             }
         }

@@ -209,7 +209,7 @@ public static class LoadGame
         }
 
         // TODO: DELETE LATER!!!! Completes Bart Ender's quest 
-        //MainGameManager.Instance.npcDict[3].questList[0].status = MainGameManager.Instance.questStatusDict[QuestStatus.Completed];
+        MainGameManager.Instance.npcDict[3].questList[0].status = MainGameManager.Instance.questStatusDict[QuestStatus.Completed];
         return;        
     }
 }

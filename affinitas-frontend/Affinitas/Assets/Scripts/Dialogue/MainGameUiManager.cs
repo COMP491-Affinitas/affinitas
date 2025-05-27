@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Collections;
 
 namespace MainGame
 {
@@ -120,12 +121,10 @@ namespace MainGame
 
         public void InitializeMainPanelsForSavedGame()
         {
+            EmptyQuestPanel();
             InitializeDialoguePanels();
             LoadChatHistory();
             UpdateDaysLeftPanel();
-            EmptyQuestPanel();
-            //TODO: DELETE LATER IF NOT NECESSARY
-            //InitializeInventoryForSavedGame();
             InitializeInventoryForSavedGame();
         }
 
@@ -338,9 +337,10 @@ namespace MainGame
         }
 
         // Call from End Day button
-        public void EndDayButton()
+        public void EndDay()
         {
             MainGameManager.Instance.EndDay();
+            InformDayEndForAll();
         }
 
         // npcId indexing starts from 1
@@ -357,6 +357,25 @@ namespace MainGame
         {
             affinitasTextMeshes[npcData.npcId - 1].text = npcData.npcName + "\nAffinitas: " + npcData.affinitasValue.ToString();
         }
+
+        public void EmphasizeAffinitas(Npc npcData)
+        {
+            StartCoroutine(EmphasizeAffinitasCoroutine(npcData));
+        }
+
+        IEnumerator EmphasizeAffinitasCoroutine(Npc npcData)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                affinitasTextMeshes[npcData.npcId - 1].text = $@"<size=24>{npcData.npcName}\nAffinitas: <b><color=red>{npcData.affinitasValue}</color></b></size>";
+                yield return new WaitForSeconds(0.3f);
+
+                affinitasTextMeshes[npcData.npcId - 1].text = $@"<size=24>{npcData.npcName}\nAffinitas: <b>{npcData.affinitasValue}</b></size>";
+                yield return new WaitForSeconds(0.3f);
+            }
+            affinitasTextMeshes[npcData.npcId - 1].text = $@"<size=24>{npcData.npcName}\nAffinitas: {npcData.affinitasValue}</size>";
+        }
+
 
         public void EmptyQuestPanel()
         {
@@ -425,6 +444,14 @@ namespace MainGame
             foreach (SendText sendText in npcDialogueSendTexts)
             {
                 sendText.LoadChatHistory();
+            }
+        }
+
+        public void InformDayEndForAll()
+        {
+            foreach(SendText sendText in npcDialogueSendTexts)
+            {
+                sendText.InformDayEnd();
             }
         }
 

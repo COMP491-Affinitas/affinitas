@@ -127,7 +127,7 @@ namespace MainGame
                     yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], ServerConnection.Instance.OnServerMessageReceived, MakeButtonsClickable);
                 else
                     yield return addDialogueBox.AddNpcDialogueBoxForQuests(questDescriptions[i], null, null);
-                scrollRectHelper.ScrollToBottom();
+                if (i % 5 == 0) scrollRectHelper.ScrollToBottom();
             }
         }
 
@@ -195,6 +195,12 @@ namespace MainGame
                 else if (gameChat[0] == "ai")
                     addDialogueBox.AddNpcDialogueBox(gameChat[1], null, null, false);
             }
+        }
+
+        public void InformDayEnd()
+        {
+            addDialogueBox.AddInfoPanel("Day ended. A new day has begun!", null, null, true);
+            scrollRectHelper.ScrollToBottom();
         }
     }
 }

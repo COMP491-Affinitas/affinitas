@@ -68,6 +68,11 @@ public class SaveResponse : BaseRequest
 }
 
 [Serializable]
+public class DayNoInfoRequest : BaseRequest
+{
+    public string shadow_save_id;
+}
+[Serializable]
 public class QuitRequest : BaseRequest
 { 
 }
@@ -146,13 +151,6 @@ public class NpcResponse : BaseResponse
     public string response;
     public int affinitas_new;
     public List<string> completed_quests;
-}
-
-[Serializable]
-public class ActionPointRequest : BaseRequest
-{
-    public string shadow_save_id;
-    public int action_points;
 }
 
 //  JSON body should be sent to POST/game/quit endpoint; becasue it expects save_id not x_client_uuid

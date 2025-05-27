@@ -25,6 +25,8 @@ public class UIManager : MonoBehaviour
 
     List<string> savedGameIds = new();
 
+    Coroutine endingTextCoroutine;
+
     private void Start()
     {
         if (Instance != null && Instance != this)
@@ -105,7 +107,19 @@ public class UIManager : MonoBehaviour
 
     public void PutEndingTextToPanel(string endingText)
     {
-        StartCoroutine(AddTextLetterByLetter(endingTextMesh, endingPanelScrollRectHelper, endingText));
+        if (endingTextCoroutine != null)
+            StopCoroutine(endingTextCoroutine);
+
+        endingTextCoroutine = StartCoroutine(AddTextLetterByLetter(endingTextMesh, endingPanelScrollRectHelper, endingText));
+    }
+
+    public void StopPuttingEndingTextToPanel()
+    {
+        if (endingTextCoroutine != null)
+        {
+            StopCoroutine(endingTextCoroutine);
+            endingTextCoroutine = null;
+        }
     }
 
     public void PauseGame(bool fromMenu)
@@ -165,7 +179,7 @@ public class UIManager : MonoBehaviour
         for (int i = 0; i < str.Length; i++)
         {
             textMesh.text += str[i];
-            scrollRectHelper.ScrollToBottom();
+            if (i % 5 == 0) scrollRectHelper.ScrollToBottom();
             yield return new WaitForSeconds(0.05f);
         }
     }
