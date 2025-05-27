@@ -4,8 +4,7 @@ from typing import Awaitable
 from beanie import PydanticObjectId
 from beanie.odm.operators.find.array import ElemMatch
 from beanie.odm.operators.update.array import Push
-from beanie.odm.operators.update.general import Inc
-from beanie.odm.operators.update.general import Set
+from beanie.odm.operators.update.general import Inc, Set
 from beanie.odm.queries.update import UpdateResponse
 from fastapi import Response, HTTPException, status
 from fastapi.background import BackgroundTasks
