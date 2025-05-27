@@ -3,6 +3,7 @@ from typing import Any
 from beanie import PydanticObjectId
 
 from affinitas_backend.models.beanie.save import ShadowSave
+from affinitas_backend.models.chat.chat import ThreadInfo
 
 
 def get_save_pipeline(match: dict[str, Any]):
@@ -264,3 +265,17 @@ def get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: Pydantic
             'npc_id': 0,
             'quests.quest_id': 0
         }}]).to_list()
+
+
+async def get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> str | None:
+    res = (
+        await ShadowSave
+        .find(ShadowSave.id == shadow_save_id)
+        .project(ThreadInfo)
+        .first_or_none()
+    )
+
+    if res:
+        return f"{res.client_uuid}:{res.chat_id}:{npc_id}"
+
+    return None

@@ -1,4 +1,5 @@
 import copy
+import logging
 from typing import Literal, cast, TypedDict
 
 from beanie import PydanticObjectId
@@ -7,20 +8,15 @@ from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, trim_m
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.tracers import LangChainTracer
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, END, StateGraph
-from langsmith import Client
-from langsmith.wrappers import wrap_openai
-from openai import OpenAI
 from pydantic import TypeAdapter
 
-from affinitas_backend.chat.utils import NPC_PROMPT_TEMPLATE, AFFINITAS_CHANGE_MAP, get_message, \
-    _pretty_quests
+from affinitas_backend.chat.utils import NPC_PROMPT_TEMPLATE, AFFINITAS_CHANGE_MAP, get_message, pretty_quests, \
+    with_tracing
 from affinitas_backend.config import Config
-from affinitas_backend.db.utils import get_shadow_save_npc_state
-from affinitas_backend.models.beanie.save import ShadowSave
-from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState, ThreadInfo
+from affinitas_backend.db.utils import get_shadow_save_npc_state, get_thread_id
+from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCMessagesState, NPCState
 
 
 class UpdatedNPCData(TypedDict):
@@ -46,7 +42,7 @@ class NPCChatService:
         ).with_structured_output(OpenAI_NPCChatResponse)
 
         if self.config.langsmith_tracing:
-            self._init_langsmith()
+            self.model = with_tracing(self.model, self.config)
 
         self.trimmer = trim_messages(
             max_tokens=config.langchain_max_tokens,
@@ -73,7 +69,10 @@ class NPCChatService:
             self, message: BaseMessage, npc_id: PydanticObjectId, shadow_save_id: PydanticObjectId,
             *, invoke_model: bool = False
     ) -> GetResponse | None:
-        thread_id = await _get_thread_id(shadow_save_id, npc_id)
+        logging.debug("get_response called with message: %s, npc_id: %s, shadow_save_id: %s", message, npc_id,
+                      shadow_save_id)
+
+        thread_id = await get_thread_id(shadow_save_id, npc_id)
 
         if thread_id is None:
             raise ValueError(f"Thread ID not found for NPC ID {npc_id} and ShadowSave ID {shadow_save_id}")
@@ -104,7 +103,9 @@ class NPCChatService:
                     "likes": res["npc"]["likes"],
                     "dislikes": res["npc"]["dislikes"],
                 },
-                "completed_quests": res["npc"]["completed_quests"][len(npc["completed_quests"]):],
+                "completed_quests": list(
+                    set(res["npc"]["completed_quests"]) - set(npc["completed_quests"])
+                )
             })
 
         return None
@@ -114,6 +115,7 @@ class NPCChatService:
 
         affinitas_increase = state["npc"]["affinitas_config"]["increase"]
         affinitas_decrease = state["npc"]["affinitas_config"]["decrease"]
+
 
         prompt = self.prompt_template.format_prompt(
             messages=trimmed_messages,
@@ -126,14 +128,19 @@ class NPCChatService:
             likes=", ".join(state["npc"]["likes"] or ["Unspecified"]),
             dislikes=", ".join(state["npc"]["dislikes"] or ["Unspecified"]),
             dialogue_unlocks=", ".join(state["npc"]["dialogue_unlocks"]),
-            quests=_pretty_quests(state["npc"]["quests"]),
+            quests=pretty_quests(state["npc"]["quests"]),
             affinitas=state["npc"]["affinitas"],
             affinitas_up=isinstance(affinitas_increase, float) and f"{affinitas_increase:.2f}" or ", ".join(
                 affinitas_increase),
             affinitas_down=isinstance(affinitas_decrease, float) and f"{affinitas_decrease:.2f}" or ", ".join(
                 affinitas_decrease),
         )
+
+        logging.debug("Calling model with prompt messages: %s", prompt)
+
         res = self.model.invoke(prompt)
+
+        logging.debug("Model response: %s", res)
 
         response = res.response
         affinitas_change = res.affinitas_change
@@ -167,19 +174,13 @@ class NPCChatService:
             npc = npc_data[0]
             chat_history = npc.pop("chat_history")
 
-            if self.config.env == "dev":  # TODO: Remove this after confirming the npc_data has the correct structure
+            if self.config.env == "dev":
                 npc_state_validator = TypeAdapter(NPCState)
                 npc_state_validator.validate_python(npc, strict=True)
 
             return cast(NPCState, npc), [get_message(message[0], message[1]) for message in chat_history]
 
         return None, []
-
-    def _init_langsmith(self):
-        client = Client(api_key=self.config.langsmith_api_key, api_url=self.config.langsmith_endpoint)
-        tracer = LangChainTracer(client=client, project_name=self.config.langsmith_project)
-        openai_client = wrap_openai(OpenAI(api_key=self.config.openai_api_key))
-        self.model = self.model.with_config(callbacks=[tracer], client=openai_client)
 
 
 def _append_message(state: NPCMessagesState):
@@ -217,17 +218,3 @@ def _update_npc(npc: NPCState, *, affinitas_change: int = 0, occupation: str | N
         npc["completed_quests"] = list(set(npc["completed_quests"]))
 
     return npc
-
-
-async def _get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> str | None:
-    res = (
-        await ShadowSave
-        .find(ShadowSave.id == shadow_save_id)
-        .project(ThreadInfo)
-        .first_or_none()
-    )
-
-    if res:
-        return f"{res.client_uuid}:{res.chat_id}:{npc_id}"
-
-    return None

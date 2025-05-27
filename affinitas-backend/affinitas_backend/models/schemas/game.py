@@ -3,8 +3,11 @@ from datetime import datetime
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
+from affinitas_backend.config import Config
 from affinitas_backend.models.game_data import GameData
 from affinitas_backend.models.schemas.npcs import NPCResponse
+
+config = Config()  # noqa
 
 
 class SaveSessionRequest(BaseModel):
@@ -42,7 +45,7 @@ class GameSavesResponse(BaseModel):
     saves: list[GameSaveSummary] = Field(default_factory=list)
 
 
-class GenerateGameEndingRequest(BaseModel):
+class ShadowSaveIdRequest(BaseModel):
     shadow_save_id: PydanticObjectId
 
 

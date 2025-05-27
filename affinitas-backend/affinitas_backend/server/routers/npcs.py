@@ -1,10 +1,10 @@
 import logging
-from typing import Awaitable, Any
+from typing import Awaitable
 
 from beanie import PydanticObjectId
-from beanie.odm.operators.update.array import Push, Pull
-from beanie.odm.operators.update.general import Inc, Unset
-from beanie.odm.operators.update.general import Set
+from beanie.odm.operators.find.array import ElemMatch
+from beanie.odm.operators.update.array import Push
+from beanie.odm.operators.update.general import Inc, Set
 from beanie.odm.queries.update import UpdateResponse
 from fastapi import Response, HTTPException, status
 from fastapi.background import BackgroundTasks
@@ -70,18 +70,28 @@ async def npc_chat(
         npc_response = res["message"]
         updated_npc_data = res["updated_npc_data"]
         completed_quests = res["completed_quests"]
+
+        chat = [(payload.role, payload.content), ("ai", npc_response)]
         update_query = (
             update_query
             .update(
                 Set({
                     "npcs.$.affinitas": updated_npc_data["affinitas"],
                     "npcs.$.occupation": updated_npc_data["occupation"],
-                    "npcs.$.likes": updated_npc_data["likes"]
+                    "npcs.$.likes": updated_npc_data["likes"],
+                    "journal_active": True,
+                    "journal_data.npcs.$[npc].active": True,
+                    "journal_data.town_info.active": True,
                 }),
                 Push({
-                    "npcs.$.chat_history": {"$each": [(payload.role, payload.content), ("ai", npc_response)]},
+                    "npcs.$.chat_history": {"$each": chat},
                     "npcs.$.completed_quests": {"$each": completed_quests},
+                    "journal_data.chat_history.$[group].chat_history": {"$each": chat},
                 }),
+                array_filters=[
+                    {"group.npc_id": npc_id},
+                    {"npc.npc_id": npc_id}
+                ],
             )
         )
 
@@ -132,8 +142,14 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
         ShadowSave
         .find(ShadowSave.id == payload.shadow_save_id)
         .update(
-            Set({"npcs.$[npc].quests.$[].status": "active"}),
-            array_filters=[{"npc.npc_id": npc_id}]
+            Set({
+                "npcs.$[npc].quests.$[].status": "active",
+                "journal_data.quests.$[group].quests.$[].status": "active"
+            }),
+            array_filters=[
+                {"npc.npc_id": npc_id},
+                {"group.npc_id": npc_id}
+            ],
         )
     )
 
@@ -142,7 +158,7 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
     for quest in quests:
         linked_npc_id = quest.get("linked_npc")
         if linked_npc_id:
-            msg = QUEST_PROMPT_TEMPLATE.format(
+            msg = TAKE_QUEST_PROMPT_TEMPLATE.format(
                 quest_id=quest.get("quest_id"),
                 quest_name=quest.get("name"),
                 quest_description=quest.get("description"),
@@ -173,6 +189,24 @@ async def get_quest(request: Request, npc_id: PydanticObjectId, payload: NPCQues
         npc_id=npc_id,
     )
 
+    npc_responses = [("ai", quest["response"]) for quest in res]
+    update_query2 = (
+        ShadowSave
+        .find(ShadowSave.id == payload.shadow_save_id)
+        .update(
+            Push({
+                "npcs.$[npc].chat_history": {"$each": npc_responses},
+                "journal_data.chat_history.$[group].chat_history": {"$each": npc_responses},
+            }),
+            array_filters=[
+                {"npc.npc_id": npc_id},
+                {"group.npc_id": npc_id}
+            ],
+        )
+    )
+
+    background_tasks.add_task(await_coroutine, update_query2)
+
     return TypeAdapter(NPCQuestResponses).validate_python({
         "quests": res
     })
@@ -193,33 +227,54 @@ async def complete_quest(
         payload: NPCQuestCompleteRequest,
         x_client_uuid: XClientUUIDHeader,
 ):
-    quest_id = payload.quest_id
     shadow_save_id = payload.shadow_save_id
 
-    sys_msg = f"Quest with ID `{quest_id!r}` completed."
-
-    affinitas_reward = await (
+    quest_data = await (
         NPC
-        .get_motor_collection()
-        .find_one({"_id": npc_id, "quests._id": quest_id}, {"quests.$": 1, "_id": 0})
+        .aggregate([
+            {"$match": {"_id": npc_id}},
+            {"$unwind": "$quests"},
+            {"$match": {"quests._id": payload.quest_id}},
+            {"$project": {
+                "_id": 0,
+                "quest_id": "$quests._id",
+                "name": "$quests.name",
+                "description": "$quests.description",
+                "affinitas_reward": "$quests.affinitas_reward"
+            }}
+
+        ]).to_list()
     )
 
-    if not affinitas_reward:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found")
+    if not quest_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found for this NPC")
 
-    affinitas_reward = affinitas_reward["quests"][0]["affinitas_reward"]
+    quest_data = quest_data[0]
+    quest_id = quest_data["quest_id"]
+    quest_name = quest_data["name"]
+    quest_description = quest_data["description"]
+    quest_reward = quest_data["affinitas_reward"]
+
+    sys_msg = COMPLETE_QUEST_PROMPT_TEMPLATE.format(
+        quest_id=quest_id,
+        quest_name=quest_name,
+        quest_description=quest_description
+    )
 
     res: ShadowSave = await (
         ShadowSave
         .find_one(ShadowSave.id == shadow_save_id)
         .update_one(
-            Inc({"npcs.$[npc].affinitas": affinitas_reward}),
-            Set({"npcs.$[npc].quests.$[quest].status": "completed"}),
-            Push({"npcs.$[npc].chat_history": {"$each": [("system", sys_msg)]}}),
+            Inc({"npcs.$[npc].affinitas": quest_reward}),
+            Set({
+                "npcs.$[npc].quests.$[quest].status": "completed",
+                "journal_data.quests.$[group].quests.$[quest].status": "completed"
+            }),
+            Push({"npcs.$[npc].chat_history": ("system", sys_msg)}),
             array_filters=[
                 {"npc.npc_id": npc_id},
-                {"quest.quest_id": quest_id},
-                {"quest.status": "active"}
+                {"quest.quest_id": quest_id, "quest.status": "active"},
+                {"group.npc_id": npc_id},
             ],
             response_type=UpdateResponse.NEW_DOCUMENT
         )
@@ -255,15 +310,14 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
     item_exists = await ShadowSave.find_one(
         ShadowSave.id == shadow_save_id,
         ShadowSave.client_uuid == x_client_uuid,
-        ShadowSave.item_list == item_name
+        ElemMatch(ShadowSave.item_list, {"name": item_name, "active": True})
     )
 
     if not item_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Item not found in inventory for the current session")
 
-    sys_msg = (f"The player gives `{item_name}` to you. On your next response, please acknowledge the item. "
-               f"Do not modify the affinitas value or the NPC's state. Only return a response")
+    sys_msg = GIVE_ITEM_TEMPLATE.format(item_name=item_name)
 
     npc_response = await npc_chat_service.get_response(
         message=get_message("system", sys_msg),
@@ -278,28 +332,24 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
             f"NPC ID: {npc_id}, Shadow Save ID: {shadow_save_id}, Item Name: {item_name}"
         )
 
-    uq1 = (
-        ShadowSave
-        .find(ShadowSave.id == shadow_save_id)
-        .find(ShadowSave.item_list == item_name)
-        .update(
-            Push({"npcs.$[npc].chat_history": {"$each": [("system", sys_msg), ("ai", npc_response["message"])]}}),
-            Unset({"item_list.$": 1}),
-            array_filters=[{"npc.npc_id": npc_id}],
-        )
-    )
-
-    uq2 = (
+    query = (
         ShadowSave
         .find(ShadowSave.id == shadow_save_id)
         .update(
-            Pull({"item_list": None}),
+            Push({
+                "npcs.$[npc].chat_history": {"$each": [("system", sys_msg), ("ai", npc_response["message"])]},
+                "journal_data.chat_history.$[group].chat_history": ("ai", npc_response["message"]),
+            }),
+            Set({"item_list.$[item].active": False}),
+            array_filters=[
+                {"npc.npc_id": npc_id},
+                {"group.npc_id": npc_id},
+                {"item.name": item_name}
+            ],
         )
-
     )
 
-    background_tasks.add_task(await_coroutine, uq1)
-    background_tasks.add_task(await_coroutine, uq2)
+    background_tasks.add_task(await_coroutine, query)
 
     return NPCChatResponse(
         response=npc_response["message"],
@@ -308,14 +358,14 @@ async def give_item(request: Request, npc_id: PydanticObjectId, payload: NPCGive
     )
 
 
-async def await_coroutine(coroutine: Awaitable[Any]):
+async def await_coroutine(coroutine: Awaitable):
     try:
         await coroutine
     except Exception as e:
         logging.error(f"Background update failed: {e}")
 
 
-QUEST_PROMPT_TEMPLATE = """\
+TAKE_QUEST_PROMPT_TEMPLATE = """\
 The player has accepted this quest:
 
 Quest ID: {quest_id}
@@ -327,4 +377,23 @@ to decide whether the quest is completed.
 {keywords}
 ---
 If the player completes the quest, append the quest ID to the `completed_quests` array.\
+"""
+
+COMPLETE_QUEST_PROMPT_TEMPLATE = """\
+The player has completed this quest:
+Quest ID: {quest_id}
+Quest Name: {quest_name}
+Quest Description: {quest_description}
+---
+This quest is already completed and should not be included in the `completed_quests` array.
+Keep this in mind in future conversations.\
+"""
+
+GIVE_ITEM_TEMPLATE = """\
+The player has given you the following item:
+Item Name: {item_name}
+---
+On your next response, please acknowledge the item. \
+Do not modify the affinitas value, the NPC's state or mark any quest completed. \
+Only return a response.\
 """

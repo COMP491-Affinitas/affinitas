@@ -1,9 +1,11 @@
 import datetime
 import logging
 import uuid
+from typing import Annotated
 
-from beanie.odm.operators.update.array import Push
-from fastapi import HTTPException, APIRouter, Request, status, BackgroundTasks
+from beanie import PydanticObjectId
+from beanie.odm.operators.update.general import Set
+from fastapi import HTTPException, APIRouter, Request, status, Query
 from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.chat import master_llm_service
@@ -11,7 +13,7 @@ from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
 from affinitas_backend.models.beanie.save import DefaultSave, ShadowSave, Save
 from affinitas_backend.models.schemas.game import GameSessionResponse, GameSessionData, GameSaveSummary, \
-    SaveSessionRequest, DeleteSessionRequest, GameEndingResponse, GenerateGameEndingRequest, GiveItemRequest
+    SaveSessionRequest, GameEndingResponse, ShadowSaveIdRequest, GiveItemRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.utils import throw_500
@@ -87,8 +89,7 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     status_code=status.HTTP_204_NO_CONTENT,
 )
 @limiter.limit("10/minute")
-async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: XClientUUIDHeader,
-                    background_tasks: BackgroundTasks):
+async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: XClientUUIDHeader):
     shadow_save_id = payload.shadow_save_id
     item_name = payload.item_name
 
@@ -96,8 +97,10 @@ async def give_item(request: Request, payload: GiveItemRequest, x_client_uuid: X
         ShadowSave
         .find(ShadowSave.id == shadow_save_id)
         .find(ShadowSave.client_uuid == x_client_uuid)
+        .find(ShadowSave.item_list.name == item_name)  # noqa
         .update(
-            Push({"item_list": item_name}),
+            Set({"item_list.$[item].active": True}),
+            array_filters=[{"item.name": item_name}],
         )
     )
 
@@ -136,7 +139,7 @@ async def save_game(request: Request, payload: SaveSessionRequest, x_client_uuid
     save = Save(
         name=payload.name,
         saved_at=datetime.datetime.now(datetime.UTC),
-        **shadow_save.model_dump(exclude={"_id"}),
+        **shadow_save.model_dump(exclude={"id"}),
     )
 
     save_res = await save.insert()  # noqa: A bug with the linter. No issue with the code.
@@ -158,7 +161,7 @@ async def save_game(request: Request, payload: SaveSessionRequest, x_client_uuid
 
 
 @router.delete(
-    "/",
+    "",
     response_model=None,
     summary="Used to quit a game",
     description="Deletes the shadow save entry to remove redundant data before quitting. If the "
@@ -167,13 +170,14 @@ async def save_game(request: Request, payload: SaveSessionRequest, x_client_uuid
     status_code=status.HTTP_204_NO_CONTENT,
 )
 @limiter.limit("10/minute")
-async def quit_game(request: Request, payload: DeleteSessionRequest, x_client_uuid: XClientUUIDHeader):
-    shadow_save = await ShadowSave.get(payload.save_id)
+async def quit_game(request: Request, shadow_save_id: Annotated[PydanticObjectId, Query(alias="id")],
+                    x_client_uuid: XClientUUIDHeader):
+    shadow_save = await ShadowSave.get(shadow_save_id)
     if not shadow_save:
-        logging.info(f"Shadow save with ID {payload.save_id} not found")
+        logging.info(f"Shadow save with ID {shadow_save_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Shadow save not found. shadow_save_id: {payload.save_id}"
+            detail=f"Shadow save not found. shadow_save_id: {shadow_save_id}"
         )
 
     await shadow_save.delete()  # noqa
@@ -189,7 +193,7 @@ async def quit_game(request: Request, payload: DeleteSessionRequest, x_client_uu
                 "must be called to delete the shadow save entry.",
     status_code=status.HTTP_200_OK,
 )
-async def generate_ending(request: Request, payload: GenerateGameEndingRequest, x_client_uuid: XClientUUIDHeader):
+async def generate_ending(request: Request, payload: ShadowSaveIdRequest, x_client_uuid: XClientUUIDHeader):
     npc_infos = (
         await ShadowSave
         .aggregate(
@@ -218,3 +222,38 @@ async def generate_ending(request: Request, payload: GenerateGameEndingRequest, 
         )
 
     return GameEndingResponse(ending=res.content)
+
+
+@router.patch(
+    "",
+    response_model=None,
+    summary="Sets the action points for the given shadow save.",
+    description="Sets the action points for the given shadow save. "
+                "The action points are set to the given value without any checks. "
+                "The `X-Client-UUID` header must be provided. The shadow save entry ",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@limiter.limit("30/minute")
+async def update_shadow_save(
+        request: Request,
+        day_no: Annotated[int, Query(alias="day-no")],
+        ap: Annotated[int, Query(alias="ap")],
+        payload: ShadowSaveIdRequest,
+        x_client_uuid: XClientUUIDHeader
+):
+    shadow_save = await ShadowSave.find_one(
+        ShadowSave.id == payload.shadow_save_id,
+        ShadowSave.client_uuid == x_client_uuid,
+    )
+
+    if not shadow_save:
+        logging.info(f"Shadow save with ID {payload.shadow_save_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shadow save not found. shadow_save_id: {payload.shadow_save_id}"
+        )
+
+    await shadow_save.set({
+        ShadowSave.remaining_ap: ap,
+        ShadowSave.day_no: day_no,
+    })

@@ -4,7 +4,7 @@ from fastapi.routing import APIRouter
 
 from affinitas_backend.models.schemas.game import GameSavesResponse, GameSessionResponse, SaveIdRequest, \
     SaveSessionRequest, \
-    GameSaveSummary, DeleteSessionRequest, GameEndingResponse, GenerateGameEndingRequest
+    GameSaveSummary, DeleteSessionRequest, GameEndingResponse, ShadowSaveIdRequest
 from affinitas_backend.server.dependencies import XClientUUIDHeader
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.routers.saves import list_game_saves, load_game_save
@@ -61,7 +61,7 @@ async def _save_game(request: Request, payload: SaveSessionRequest, x_client_uui
 )
 @limiter.limit("10/minute")
 async def _quit_game(request: Request, payload: DeleteSessionRequest, x_client_uuid: XClientUUIDHeader):
-    return await quit_game(request, payload, x_client_uuid)
+    return await quit_game(request, payload.save_id, x_client_uuid)
 
 
 @router.get(
@@ -85,5 +85,5 @@ async def _new_game(request: Request, x_client_uuid: XClientUUIDHeader):
     description="Deprecated. Use `POST /session/generate-ending` instead.",
     status_code=status.HTTP_200_OK,
 )
-async def _end_game(request: Request, payload: GenerateGameEndingRequest, x_client_uuid: XClientUUIDHeader):
+async def _end_game(request: Request, payload: ShadowSaveIdRequest, x_client_uuid: XClientUUIDHeader):
     return await generate_ending(request, payload, x_client_uuid)

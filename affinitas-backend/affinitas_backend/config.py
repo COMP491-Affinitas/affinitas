@@ -14,8 +14,12 @@ class Config(BaseSettings):
     langsmith_project: str
 
     env: str = "production"
-    default_save_version: int
+    default_save_version: int = 5
     langchain_max_tokens: int = 30000
+
+    daily_ap_limit: int = 15
+
+    log_level: str = "WARNING"
 
     class Config:
         env_file = ".env"
