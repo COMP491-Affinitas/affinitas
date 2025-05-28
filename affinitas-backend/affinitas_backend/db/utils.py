@@ -186,8 +186,13 @@ def get_npc_quests_pipeline(npc_id: PydanticObjectId, shadow_save_id: PydanticOb
     ]
 
 
-def get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId):
-    return ShadowSave.aggregate([
+def get_dynamic_npc_data_pipeline(
+        shadow_save_id: PydanticObjectId,
+        npc_id: PydanticObjectId, *,
+        include_chat_history: bool = False,
+        include_static_data: bool = False,
+):
+    return [
         {'$match': {
             '_id': shadow_save_id
         }},
@@ -206,19 +211,32 @@ def get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: Pydantic
             'newRoot': {
                 '$mergeObjects': [
                     '$npcs', {
-                        'name': '$npc_config.name',
-                        'age': '$npc_config.age',
-                        'occupation': '$npcs.occupation',
-                        'personality': '$npc_config.personality',
+                        "$cond": {
+                            "if": include_chat_history,
+                            "then": {
+                                'chat_history': '$npcs.chat_history'
+                            },
+                            "else": {}
+                        }
+                    }, {
+                        "$cond": {
+                            "if": include_static_data,
+                            "then": {
+                                'name': '$npc_config.name',
+                                'age': '$npc_config.age',
+                                'personality': '$npc_config.personality',
+                                'motivations': '$npc_config.motivations',
+                                'backstory': '$npc_config.backstory',
+                                'affinitas_config': '$npc_config.affinitas_config',
+                                'endings': '$npc_config.endings',
+                                'dialogue_unlocks': '$npc_config.dialogue_unlocks'
+                            },
+                            "else": {}
+                        }
+                    }, {
                         'likes': '$npcs.likes',
                         'dislikes': '$npcs.dislikes',
-                        'motivations': '$npc_config.motivations',
-                        'backstory': '$npc_config.backstory',
-                        'endings': '$npc_config.endings',
-                        'dialogue_unlocks': '$npc_config.dialogue_unlocks',
-                        'affinitas_config': '$npc_config.affinitas_config',
                         'affinitas': '$npcs.affinitas',
-                        'chat_history': '$npcs.chat_history',
                         'completed_quests': '$npcs.completed_quests',
                         'quests': {
                             '$map': {
@@ -248,7 +266,6 @@ def get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: Pydantic
                                                 '$$quest_save', {
                                                     'name': '$$quest_config.name',
                                                     'description': '$$quest_config.description',
-                                                    'affinitas_reward': '$$quest_config.affinitas_reward'
                                                 }
                                             ]
                                         }
@@ -264,7 +281,7 @@ def get_shadow_save_npc_state(shadow_save_id: PydanticObjectId, npc_id: Pydantic
         {'$project': {
             'npc_id': 0,
             'quests.quest_id': 0
-        }}]).to_list()
+        }}]
 
 
 async def get_thread_id(shadow_save_id: PydanticObjectId, npc_id: PydanticObjectId) -> str | None:
