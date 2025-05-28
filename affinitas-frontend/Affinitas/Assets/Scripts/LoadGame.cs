@@ -188,7 +188,7 @@ public static class LoadGame
             };
             MainGameManager.Instance.itemDict[newItem.itemName] = newItem;
 
-            Debug.Log("item name: " + newItem.itemName);
+            Debug.Log("item name: " + newItem.itemName + ", active:" + newItem.active);
 
             Quest linkedQuest = null;
             // Match gus fish to gus quest

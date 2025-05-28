@@ -24,7 +24,7 @@ namespace GusMinigame
         public float timeLimit = 100f;
         float remainingTime;
 
-        int targetScore = 70;
+        int targetScore = 50;
         bool gusQuestCompleted = false;
         int givenFish = 0;
         

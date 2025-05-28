@@ -107,6 +107,7 @@ namespace MainGame
             OpenJournalCharacterTab(-1);
             OpenMapPanel();
             InitializeItemDict();
+            RemoveAllItemsFromInventory();
         }
 
         public void InitializeMainPanelsForNewGame()
@@ -424,9 +425,11 @@ namespace MainGame
 
         public void RemoveAllItemsFromInventory()
         {
+            gusFishItem.inInventory = false;
             gusFishItem.transform.SetParent(unusedItemsContent);
             foreach (UseItem moraPiece in moraPieceItems)
             {
+                moraPiece.inInventory = false;
                 moraPiece.transform.SetParent(unusedItemsContent);
             }
         }
