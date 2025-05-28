@@ -180,7 +180,7 @@ public class UIManager : MonoBehaviour
         {
             textMesh.text += str[i];
             if (i % 5 == 0) scrollRectHelper.ScrollToBottom();
-            yield return new WaitForSeconds(0.05f);
+            yield return new WaitForSeconds(0.01f);
         }
     }
 

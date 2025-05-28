@@ -188,7 +188,7 @@ public static class LoadGame
             };
             MainGameManager.Instance.itemDict[newItem.itemName] = newItem;
 
-            Debug.Log("item name: " + newItem.itemName);
+            Debug.Log("item name: " + newItem.itemName + ", active:" + newItem.active);
 
             Quest linkedQuest = null;
             // Match gus fish to gus quest
@@ -204,12 +204,8 @@ public static class LoadGame
             {
                 newItem.linkedQuestId = linkedQuest.questId;
                 linkedQuest.item = newItem;
-            }
-                
+            }    
         }
-
-        // TODO: DELETE LATER!!!! Completes Bart Ender's quest 
-        MainGameManager.Instance.npcDict[3].questList[0].status = MainGameManager.Instance.questStatusDict[QuestStatus.Completed];
         return;        
     }
 }

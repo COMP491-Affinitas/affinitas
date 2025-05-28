@@ -26,8 +26,7 @@ public class GameManager : MonoBehaviour
 
     private async void Start()
     {
-        //TODO: DELETE LATER
-        PlayerPrefs.SetString("player_id", "");
+        //PlayerPrefs.SetString("player_id", ""); //TODO: COMMENT
 
         playerId = PlayerPrefs.GetString("player_id");
         Debug.Log("Current player id: " + playerId);
