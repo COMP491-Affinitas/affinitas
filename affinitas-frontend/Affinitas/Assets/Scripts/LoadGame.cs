@@ -204,12 +204,8 @@ public static class LoadGame
             {
                 newItem.linkedQuestId = linkedQuest.questId;
                 linkedQuest.item = newItem;
-            }
-                
+            }    
         }
-
-        // TODO: DELETE LATER!!!! Completes Bart Ender's quest 
-        MainGameManager.Instance.npcDict[3].questList[0].status = MainGameManager.Instance.questStatusDict[QuestStatus.Completed];
         return;        
     }
 }
