@@ -1,77 +1,113 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-
-//// Call from Go to map button
-//public void GoToMap()
-//{
-//    SceneManager.UnloadSceneAsync(3);
-//}
 
 namespace MoraMinigame
 {
     public class MoraMinigameManager : MonoBehaviour
     {
         // Make sure to enable Read/write in advanced settings in the source images!
+        // Tiles as 2D array [[0,1,2], [3,4,5], [6,7,8]] so start axis should be Horizontal to match in Grid layout group
 
-        // TODO: Add GoToMap function to button
-        // TODO: Erase Event System
+        // Singleton
+        public static MoraMinigameManager Instance { get; private set; }
 
-        private int emptyIndex = 8;
-        private int currentImageIndex;
-        private bool gameEnded = false;
-        private bool firstClick = true;
+        int shuffleCount = 20;
+        public int emptyIndex = 8;
+        
+        public bool gameEnded = false;
+        public bool firstClick = true;
 
-        [SerializeField] private Transform tileParent;
-        [SerializeField] private List<Texture2D> sourceImages;
-        [SerializeField] private GameObject winPanel;
-        [SerializeField] private GameObject giveUpPanel;
-        [SerializeField] private GameObject gameBoard;
-        [SerializeField] private Image fullPaintingDisplay;
+        int currentImageIndex;
+        List<int> prevPlayedImageIndices = new();
 
-        private List<Image> squares = new();
-        private List<List<Sprite>> tileSets = new();
-        private List<Sprite> correctOrder;
-        private List<Sprite> currentTileState;
+        [SerializeField] GameObject endPanel;
+        [SerializeField] GameObject giveUpButton;
+        [SerializeField] GameObject gameBoard;
+        [SerializeField] Image completeImagePanel;
 
-        private void Start()
+        [SerializeField] List<Texture2D> sourceImages;
+        // List of 9 square images created by dividing the original images
+        List<List<Sprite>> tiledImages = new();
+
+        // List of game tiles (all children of the game board)
+        List<Tile> tiles = new();
+
+        void Awake()
         {
-            winPanel.SetActive(false);
-            giveUpPanel.SetActive(false);
-            gameBoard.SetActive(true);
-
-            foreach (Transform child in tileParent)
-            {
-                Image img = child.GetComponent<Image>();
-                Button btn = child.GetComponent<Button>();
-                if (img != null && btn != null)
-                {
-                    int index = squares.Count;
-                    squares.Add(img);
-                    btn.onClick.AddListener(() => OnTileClicked(index));
-                }
-            }
-
-            foreach (var tex in sourceImages)
-            {
-                tileSets.Add(SplitImageIntoNine(tex));
-            }
-
-            currentImageIndex = Random.Range(0, tileSets.Count);
-            AssignOriginal();
-            Invoke(nameof(AssignShuffled), 1.5f);
+            Instance = this;
         }
 
-        private void OnTileClicked(int clickedIndex)
+        void Start()
+        {
+            InitializePanelsAndVariables();
+            InitializeGame();
+            StartGame();
+        }
+
+        // Call from Go to map button
+        public void GoToMap()
+        {
+            SceneManager.UnloadSceneAsync(3);
+        }
+
+        void InitializePanelsAndVariables()
+        {
+            endPanel.SetActive(false);
+            giveUpButton.SetActive(false);
+            gameBoard.SetActive(true);
+            gameEnded = false;
+            firstClick = true;
+        }
+
+        void InitializeGame()
+        {
+            // Configure game buttons and images
+            Tile tile;
+            for (int i = 0; i < gameBoard.transform.childCount; i++)
+            {
+                tile = gameBoard.transform.GetChild(i).gameObject.GetComponent<Tile>();
+                tile.InitializeTile();
+                tiles.Add(tile);
+            }
+
+            ToggleButtonsInteractable(false);
+
+            // Split images and add each texture to tile
+            foreach (Texture2D texture in sourceImages)
+            {
+                tiledImages.Add(SplitImageIntoNine(texture));
+            }
+        }
+
+        void StartGame()
+        {
+            // Choose random image to start with
+            // if image already played, choose different image
+            while (prevPlayedImageIndices.Contains(currentImageIndex))
+                currentImageIndex = Random.Range(0, tiledImages.Count);
+
+            prevPlayedImageIndices.Add(currentImageIndex);
+            // if all images already played then empty prev images list
+            if (prevPlayedImageIndices.Count >= sourceImages.Count)
+                prevPlayedImageIndices = new();
+
+            AssignOriginal();
+            StartCoroutine(AssignShuffled());
+        }
+
+        public void OnTileClicked(int clickedIndex)
         {
             if (firstClick)
             {
-                giveUpPanel.SetActive(true);
+                giveUpButton.SetActive(true);
                 firstClick = false;
             }
 
-            if (gameEnded) return;
+            if (gameEnded)
+                return;
 
             if (IsAdjacent(clickedIndex, emptyIndex))
             {
@@ -79,140 +115,112 @@ namespace MoraMinigame
                 if (CheckWin())
                 {
                     gameEnded = true;
-                    gameBoard.SetActive(false);
-                    winPanel.SetActive(true);
+                    giveUpButton.SetActive(false);
+                    endPanel.SetActive(true);
+                    ToggleButtonsInteractable(false);
                 }
             }
         }
 
-        private void AssignOriginal()
+        void AssignOriginal()
         {
-            correctOrder = new List<Sprite>(tileSets[currentImageIndex]);
-
-            for (int i = 0; i < squares.Count; i++)
+            // Put divided-to-9 images to game buttons in correct order
+            for (int i = 0; i < tiles.Count; i++)
             {
-                squares[i].sprite = correctOrder[i];
-                squares[i].preserveAspect = true;
+                tiles[i].image.sprite = tiledImages[currentImageIndex][i];
+                tiles[i].image.preserveAspect = true;
             }
 
-            if (sourceImages.Count > currentImageIndex && fullPaintingDisplay != null)
+            // Also add a small version of the completed image on a panel
+            if (sourceImages.Count > currentImageIndex && completeImagePanel != null)
             {
                 Sprite fullSprite = Sprite.Create(
                     sourceImages[currentImageIndex],
                     new Rect(0, 0, sourceImages[currentImageIndex].width, sourceImages[currentImageIndex].height),
                     new Vector2(0.5f, 0.5f));
-                fullPaintingDisplay.sprite = fullSprite;
-                fullPaintingDisplay.preserveAspect = true;
+                completeImagePanel.sprite = fullSprite;
+                completeImagePanel.preserveAspect = true;
             }
         }
 
-        private void AssignShuffled()
+        IEnumerator AssignShuffled()
         {
-            List<Sprite> shuffledTiles = new(correctOrder);
+            yield return new WaitForSeconds(1.5f);
 
-            // Keep shuffling until it's not the same as correctOrder
-            do
+            // Shuffle
+            for (int i = 0; i < shuffleCount; i++)
             {
-                Shuffle(shuffledTiles);
-            } while (IsSameOrder(shuffledTiles, correctOrder));
-
-            shuffledTiles[8] = null;
-
-            for (int i = 0; i < squares.Count; i++)
-            {
-                squares[i].sprite = shuffledTiles[i];
-                squares[i].preserveAspect = true;
+                Shuffle();
             }
 
-            currentTileState = new List<Sprite>(shuffledTiles);
+            // Make last tile empty 
             emptyIndex = 8;
+            tiles[emptyIndex].image.sprite = null;
+
+            ToggleButtonsInteractable(true);
         }
 
-        private bool IsSameOrder(List<Sprite> a, List<Sprite> b)
+        void MoveTile(int clickedIndex)
         {
-            for (int i = 0; i < a.Count; i++)
+            // Swap game button sprites and indices with clicked square and empty square
+            tiles[emptyIndex].image.sprite = tiles[clickedIndex].image.sprite;
+            tiles[clickedIndex].image.sprite = null;
+
+            int tmp = tiles[emptyIndex].correctIndex;
+            tiles[emptyIndex].correctIndex = tiles[clickedIndex].correctIndex;
+            tiles[clickedIndex].correctIndex = tmp;
+
+            emptyIndex = clickedIndex;
+        }
+
+        public bool IsAdjacent(int a, int b)
+        {
+            int rowA = a / 3;
+            int colA = a % 3;
+            int rowB = b / 3;
+            int colB = b % 3;
+
+            if (Mathf.Abs(rowA - rowB) + Mathf.Abs(colA - colB) == 1)
+                return true;
+            return false;
+        }
+
+        void Shuffle()
+        {
+            // Swap game button sprites and indices to shuffle image
+            int shuffleCount = tiles.Count;
+            int rand, tmpInt;
+            Sprite tmpSprite;
+            for (int i = 0; i < shuffleCount; i++)
             {
-                if (a[i] == null || b[i] == null) continue;
-                if (a[i].name != b[i].name)
+                rand = Random.Range(i, tiles.Count);
+
+                tmpSprite = tiles[i].image.sprite;
+                tiles[i].image.sprite = tiles[rand].image.sprite;
+                tiles[rand].image.sprite = tmpSprite;
+
+                tmpInt = tiles[i].correctIndex;
+                tiles[i].correctIndex = tiles[rand].correctIndex;
+                tiles[rand].correctIndex = tmpInt;
+            }
+        }
+
+        bool CheckWin()
+        {
+            for (int i = 0; i < tiles.Count; i++)
+            {
+                if (tiles[i].gridIndex != tiles[i].correctIndex)
                     return false;
             }
             return true;
         }
 
-        private void MoveTile(int clickedIndex)
-        {
-            squares[emptyIndex].sprite = squares[clickedIndex].sprite;
-            squares[clickedIndex].sprite = null;
-
-            currentTileState[emptyIndex] = currentTileState[clickedIndex];
-            currentTileState[clickedIndex] = null;
-
-            emptyIndex = clickedIndex;
-        }
-
-        private bool IsAdjacent(int a, int b)
-        {
-            int rowA = a / 3, colA = a % 3;
-            int rowB = b / 3, colB = b % 3;
-            return Mathf.Abs(rowA - rowB) + Mathf.Abs(colA - colB) == 1;
-        }
-
-        private void Shuffle(List<Sprite> list)
-        {
-            for (int i = 0; i < list.Count; i++)
-            {
-                int rand = Random.Range(i, list.Count);
-                (list[i], list[rand]) = (list[rand], list[i]);
-            }
-        }
-
-        private bool CheckWin()
-        {
-            // Empty tile must be at index 8
-            if (emptyIndex != 8)
-                return false;
-
-            for (int i = 0; i < currentTileState.Count; i++)
-            {
-                if (i == emptyIndex)
-                {
-                    if (currentTileState[i] != null)
-                        return false;
-                }
-                else
-                {
-                    if (currentTileState[i] == null || correctOrder[i] == null || currentTileState[i].name != correctOrder[i].name)
-                        return false;
-                }
-            }
-            return true;
-        }
-
-
+        // Call from Give up button
         public void RestartGame()
         {
-            winPanel.SetActive(false);
-            giveUpPanel.SetActive(false);
-            gameEnded = false;
-            gameBoard.SetActive(true);
-            firstClick = true;
-
-            int newIndex = Random.Range(0, tileSets.Count);
-            while (newIndex == currentImageIndex && tileSets.Count > 1)
-            {
-                newIndex = Random.Range(0, tileSets.Count);
-            }
-            currentImageIndex = newIndex;
-
-            AssignOriginal();
-            Invoke(nameof(AssignShuffled), 1.5f);
-        }
-
-        public void GiveUp()
-        {
-            gameEnded = true;
-            giveUpPanel.SetActive(true);
-            gameBoard.SetActive(false);
+            InitializePanelsAndVariables();
+            ToggleButtonsInteractable(false);
+            StartGame();
         }
 
         public List<Sprite> SplitImageIntoNine(Texture2D texture)
@@ -225,14 +233,30 @@ namespace MoraMinigame
             {
                 for (int col = 0; col < 3; col++)
                 {
-                    Rect rect = new Rect(col * tileWidth, (2 - row) * tileHeight, tileWidth, tileHeight);
-                    Vector2 pivot = new Vector2(0.5f, 0.5f);
+                    Rect rect = new(col * tileWidth, (2 - row) * tileHeight, tileWidth, tileHeight);
+                    Vector2 pivot = new(0.5f, 0.5f);
                     Sprite tile = Sprite.Create(texture, rect, pivot);
                     tiles.Add(tile);
                 }
             }
-
             return tiles;
+        }
+
+        public void OnFirstClick()
+        {
+            if (firstClick)
+            {
+                giveUpButton.SetActive(true);
+                firstClick = false;
+            }
+        }
+
+        void ToggleButtonsInteractable(bool newActive)
+        {
+            foreach (Tile tile in tiles)
+            {
+                tile.button.interactable = newActive;
+            }
         }
     }
 }
