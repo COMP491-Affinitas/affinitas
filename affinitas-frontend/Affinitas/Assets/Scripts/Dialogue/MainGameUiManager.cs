@@ -37,11 +37,13 @@ namespace MainGame
 
         [SerializeField] Button endDayButton;
         [SerializeField] Button mapButton;
+        [SerializeField] Button goToMenuButton;
 
         [SerializeField] GameObject tutorialPanel;
 
         [SerializeField] GameObject warningPanel;
         [SerializeField] TextMeshProUGUI warningPanelTextMesh;
+        [SerializeField] GameObject goToMenuAnywayButton;
 
         [SerializeField] GameObject saveGamePanel;
         [SerializeField] GameObject saveGameText;
@@ -68,6 +70,7 @@ namespace MainGame
 
         Dictionary<PopupPanelType, CanvasGroup> popupPanels;
         Dictionary<string, UseItem> useItemDict;
+        bool doneActionAfterSaveGame = false;
 
         private void Start()
         {
@@ -108,6 +111,7 @@ namespace MainGame
             OpenMapPanel();
             InitializeItemDict();
             RemoveAllItemsFromInventory();
+            EmptyQuestPanel();
         }
 
         public void InitializeMainPanelsForNewGame()
@@ -137,6 +141,34 @@ namespace MainGame
             {
                 useItemDict[item.itemName] = item;
             }
+        }
+
+        // Call from Send text, Get quest, Give item, End day buttons
+        public void ActionAfterGameSaved()
+        {
+            doneActionAfterSaveGame = true;
+        }
+
+        // Call from Go to Menu button in main panel
+        public void GoToMenuIfSaved()
+        {
+            if (doneActionAfterSaveGame)
+            {
+                OpenWarningPanel("You should considering saving before you leave the game!");
+                ToggleWarningPanelButtonActive(true);
+            }
+            else
+            {
+                UIManager.Instance.GoToMenu();
+                GameManager.Instance.EndCurrentGame();
+                doneActionAfterSaveGame = false;
+            }
+                
+        }
+
+        void ToggleWarningPanelButtonActive(bool newActive)
+        {
+            goToMenuAnywayButton.SetActive(newActive);
         }
 
         public void EmptyQuestDetails()
@@ -206,8 +238,16 @@ namespace MainGame
             for (int i = 0; i < journalTextMeshes.Length; i++)
             {
                 journalTextMeshes[i].text = texts[i];
+                RefreshPanelLayout(journalTextMeshes[i]);
             }
-            
+        }
+
+        IEnumerator RefreshPanelLayout(TextMeshProUGUI textMesh)
+        {
+            yield return new WaitForEndOfFrame();
+            textMesh.text += " ";
+            yield return new WaitForEndOfFrame();
+            textMesh.text += " ";
         }
 
         // Call from Open Journal button
@@ -226,6 +266,7 @@ namespace MainGame
         public void OpenWarningPanel(string warningText)
         {
             ToggleActivePopupPanel(PopupPanelType.WarningPanel, true);
+            ToggleWarningPanelButtonActive(false);
             warningPanelTextMesh.text = warningText;
         }
 
@@ -247,6 +288,7 @@ namespace MainGame
             saveGameInputField.text = "";
             saveGameText.GetComponent<TextMeshProUGUI>().text = "Game saved as \"" + saveName + "\"";
             saveGameText.SetActive(true);
+            doneActionAfterSaveGame = false;
             return saveName;
         }
 
@@ -402,15 +444,18 @@ namespace MainGame
         public void AddQuestToQuestDetails(int npcId, string questText)
         {
             questDetailsTextMeshes[npcId - 1].text += questText;
+            RefreshPanelLayout(questDetailsTextMeshes[npcId - 1]);
         }
 
         public void UpdateQuestInQuestPanel(string questId, string status)
         {
             if (status.Equals(MainGameManager.Instance.questStatusDict[QuestStatus.Completed]))
             {
-                TextMeshProUGUI questTextMesh = instantiatedQuests[questId];
-                string oldQuestText = questTextMesh.text;
-                questTextMesh.text = "<s>" + oldQuestText + "</s>";
+                if (instantiatedQuests.TryGetValue(questId, out TextMeshProUGUI questTextMesh) && questTextMesh != null)
+                {
+                    string oldQuestText = questTextMesh.text;
+                    questTextMesh.text = "<s>" + oldQuestText + "</s>";
+                }
             }
         }
 
@@ -524,6 +569,7 @@ namespace MainGame
             endDayButton.interactable = newActive;
             saveGameButton.interactable = newActive;
             mapButton.interactable = newActive;
+            goToMenuButton.interactable = newActive;
         }
     }
 }

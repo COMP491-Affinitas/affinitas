@@ -26,11 +26,18 @@ public class GameManager : MonoBehaviour
 
     private async void Start()
     {
-        //PlayerPrefs.SetString("player_id", ""); //TODO: COMMENT
+        //PlayerPrefs.SetString("player_id", ""); //TODO: COMMENT OUT WHEN BUILDING GAME
 
         playerId = PlayerPrefs.GetString("player_id");
         Debug.Log("Current player id: " + playerId);
         await GetAuthenticationUUID();
+    }
+
+    [ContextMenu("Reset Player ID")]
+    private void ResetPlayerID()
+    {
+        PlayerPrefs.SetString("player_id", "");
+        Debug.Log("Player ID cleared: " + PlayerPrefs.GetString("player_id"));
     }
 
     // Get New UUID from server or authenticate UUID
@@ -359,6 +366,7 @@ public class GameManager : MonoBehaviour
     // Call from go to menu button in main panel and from go to menu in ending panel
     public async void EndCurrentGame()
     {
+        ServerConnection.Instance.canSendMessage = true;
         await EndGameSession();
     }
 

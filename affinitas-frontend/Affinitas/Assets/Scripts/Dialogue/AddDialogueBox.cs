@@ -19,7 +19,7 @@ namespace MainGame
         Transform contentTransform;
         ScrollRectHelper scrollRectHelper;
 
-        float writingSpeed = 0.01f; //0.05f;
+        float writingSpeed = 0.035f; //0.05f;
 
         private void Start()
         {

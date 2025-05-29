@@ -164,8 +164,7 @@ public class ServerConnection : MonoBehaviour
 {
     public static ServerConnection Instance { get; private set; }
 
-    const string serverURL = "https://affinitas.onrender.com";
-
+    const string serverURL = "https://affinitas-pr-27.onrender.com"; 
     static HttpClient client = new HttpClient();
 
     public bool canSendMessage = true;
