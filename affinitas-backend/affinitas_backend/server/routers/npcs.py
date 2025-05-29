@@ -79,6 +79,7 @@ async def npc_chat(
                     "npcs.$.affinitas": updated_npc_data["affinitas"],
                     "npcs.$.occupation": updated_npc_data["occupation"],
                     "npcs.$.likes": updated_npc_data["likes"],
+                    "npcs.$.dislikes": updated_npc_data["dislikes"],
                     "journal_active": True,
                     "journal_data.npcs.$[npc].active": True,
                     "journal_data.town_info.active": True,

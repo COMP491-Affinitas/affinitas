@@ -87,7 +87,8 @@ class NPCChatService:
             raise ValueError(f"Thread ID not found for NPC ID {npc_id} and ShadowSave ID {shadow_save_id}")
 
         state = self._get_state(thread_id)
-        npc_old = self._npc
+        prev_completed_quests = self._npc["completed_quests"].copy() if self._npc else []
+
         self._npc, chat_history = await self._get_npc_state(shadow_save_id, npc_id, state)
         if self._npc is None:
             raise ValueError(f"NPC with ID {npc_id} not found")
@@ -108,7 +109,7 @@ class NPCChatService:
                     "dislikes": self._npc["dislikes"],
                 },
                 "completed_quests": list(
-                    set(npc_old["completed_quests"]) if npc_old else set() - set(self._npc["completed_quests"])
+                    set(prev_completed_quests) - set(self._npc["completed_quests"])
                 )
             })
 
