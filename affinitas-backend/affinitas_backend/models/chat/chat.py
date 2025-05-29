@@ -1,6 +1,5 @@
 from typing import Literal, TypedDict
 
-from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field, UUID4
 
 
@@ -52,14 +51,6 @@ class NPCData(TypedDict):
     })
     endings: list[str]
     dialogue_unlocks: list[str]
-
-
-class State(MessagesState):
-    invoke_model: bool
-
-
-class ChatContext(TypedDict):
-    npc: NPCChatState | None
 
 
 class ThreadInfo(BaseModel):

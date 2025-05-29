@@ -60,13 +60,13 @@ async def npc_chat(
         .find(ShadowSave.npcs.npc_id == npc_id)  # noqa
     )
 
-    res = await npc_chat_service.get_response(
-        message=message,
-        npc_id=npc_id,
-        shadow_save_id=shadow_save_id,
-    )
+    if payload.role == "user":
+        res = await npc_chat_service.get_response(
+            message=message,
+            npc_id=npc_id,
+            shadow_save_id=shadow_save_id,
+        )
 
-    if res:
         npc_response = res["message"]
         updated_npc_data = res["updated_npc_data"]
         completed_quests = res["completed_quests"]
