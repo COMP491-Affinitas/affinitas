@@ -1,5 +1,5 @@
 import copy
-from typing import Literal, cast, TypedDict, Final
+from typing import cast, TypedDict, Final
 
 from beanie import PydanticObjectId
 from langchain.chat_models import init_chat_model
@@ -8,7 +8,7 @@ from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import START, END, StateGraph, MessagesState
+from langgraph.graph import START, StateGraph, MessagesState
 from pydantic import TypeAdapter
 
 from affinitas_backend.chat.utils import (
@@ -67,9 +67,7 @@ class NPCChatService:
 
         workflow = StateGraph(state_schema=MessagesState)
         workflow.add_node("call", self._call_model)
-        workflow.add_node("append", _append_message)
-        workflow.add_edge(START, "append")
-        workflow.add_conditional_edges("append", self._get_next_node)
+        workflow.add_edge(START, "call")
 
         memory = MemorySaver()
         self.app = workflow.compile(checkpointer=memory)
@@ -109,13 +107,17 @@ class NPCChatService:
                     "dislikes": self._npc["dislikes"],
                 },
                 "completed_quests": list(
-                    set(prev_completed_quests) - set(self._npc["completed_quests"])
+                    set(self._npc["completed_quests"]) - set(prev_completed_quests)
                 )
             })
 
         return None
 
     def _call_model(self, state: MessagesState):
+        if not self._invoke_model:
+            # If we are not invoking the model, just append the message and return
+            return {"messages": []}
+
         trimmed_messages = self.trimmer.invoke(state["messages"])
 
         npc = self._npc
@@ -167,7 +169,7 @@ class NPCChatService:
         npc = await get_npc_data(
             shadow_save_id,
             npc_id,
-            include_chat_history=state is None,
+            include_chat_history=not state,
             include_static_data=False,
         )
 
@@ -182,12 +184,6 @@ class NPCChatService:
                                              chat_history]
 
         return None, []
-
-    def _get_next_node(self, _: MessagesState) -> Literal["call", "__end__"]:
-        if self._invoke_model:
-            return "call"
-        else:
-            return END
 
     @property
     def _npc(self) -> NPCChatState | None:
@@ -204,10 +200,6 @@ class NPCChatService:
     @_invoke_model.setter
     def _invoke_model(self, invoke_model: bool):
         self._ctx["invoke_model"] = invoke_model
-
-
-def _append_message(_: MessagesState) -> MessagesState:
-    return {"messages": []}
 
 
 def _update_npc(
