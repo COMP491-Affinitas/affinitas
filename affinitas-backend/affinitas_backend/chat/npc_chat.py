@@ -1,5 +1,5 @@
 import copy
-from typing import cast, TypedDict, Final
+from typing import cast, TypedDict, Final, Literal
 
 from beanie import PydanticObjectId
 from langchain.chat_models import init_chat_model
@@ -8,6 +8,7 @@ from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.constants import END
 from langgraph.graph import START, StateGraph, MessagesState
 from pydantic import TypeAdapter
 
@@ -20,7 +21,7 @@ from affinitas_backend.chat.utils import (
 )
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_thread_id
-from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCChatState, ChatContext
+from affinitas_backend.models.chat.chat import OpenAI_NPCChatResponse, NPCChatState, ChatContext, State
 
 
 class UpdatedNPCData(TypedDict):
@@ -62,12 +63,13 @@ class NPCChatService:
 
         self._ctx: Final[ChatContext] = {
             "npc": None,
-            "invoke_model": False
         }
 
-        workflow = StateGraph(state_schema=MessagesState)
+        workflow = StateGraph(state_schema=State)
         workflow.add_node("call", self._call_model)
-        workflow.add_edge(START, "call")
+        workflow.add_node("append", _append_message)
+        workflow.add_edge(START, "append")
+        workflow.add_conditional_edges("append", _get_next_node)
 
         memory = MemorySaver()
         self.app = workflow.compile(checkpointer=memory)
@@ -91,13 +93,14 @@ class NPCChatService:
         if self._npc is None:
             raise ValueError(f"NPC with ID {npc_id} not found")
 
-        self._invoke_model = invoke_model or isinstance(message, HumanMessage)
+        invoke_model = invoke_model or isinstance(message, HumanMessage)
 
         res = self.app.invoke({
             "messages": chat_history + [message],
+            "invoke_model": invoke_model
         }, config=cast(RunnableConfig, {"configurable": {"thread_id": thread_id}}))
 
-        if self._invoke_model:
+        if invoke_model:
             return cast(GetResponse, {
                 "message": res["messages"][-1].content,
                 "updated_npc_data": {
@@ -114,10 +117,6 @@ class NPCChatService:
         return None
 
     def _call_model(self, state: MessagesState):
-        if not self._invoke_model:
-            # If we are not invoking the model, just append the message and return
-            return {"messages": []}
-
         trimmed_messages = self.trimmer.invoke(state["messages"])
 
         npc = self._npc
@@ -189,17 +188,20 @@ class NPCChatService:
     def _npc(self) -> NPCChatState | None:
         return self._ctx["npc"]
 
-    @property
-    def _invoke_model(self) -> bool:
-        return self._ctx["invoke_model"]
-
     @_npc.setter
     def _npc(self, npc: NPCChatState | None):
         self._ctx["npc"] = copy.deepcopy(npc) if npc else None
 
-    @_invoke_model.setter
-    def _invoke_model(self, invoke_model: bool):
-        self._ctx["invoke_model"] = invoke_model
+
+def _append_message(state: State):
+    return {"messages": [state["messages"][-1]]}
+
+
+def _get_next_node(state: State) -> Literal["call", "__end__"]:
+    if state["invoke_model"]:
+        return "call"
+    else:
+        return END
 
 
 def _update_npc(
