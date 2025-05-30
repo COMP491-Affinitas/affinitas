@@ -6,6 +6,7 @@ from typing import Annotated
 from beanie import PydanticObjectId
 from beanie.odm.operators.update.general import Set
 from fastapi import HTTPException, APIRouter, Request, status, Query
+from fastapi.responses import StreamingResponse
 from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.chat import master_llm_service
@@ -192,8 +193,16 @@ async def quit_game(request: Request, shadow_save_id: Annotated[PydanticObjectId
                 "is not deleted after generating the ending is returned. Thus, /game/quit "
                 "must be called to delete the shadow save entry.",
     status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {"content": {"text/x-ndjson": {}}},
+    }
 )
-async def generate_ending(request: Request, payload: ShadowSaveIdRequest, x_client_uuid: XClientUUIDHeader):
+async def generate_ending(
+        request: Request,
+        payload: ShadowSaveIdRequest,
+        x_client_uuid: XClientUUIDHeader,
+        stream: bool = Query(alias="stream", default=False)
+):
     npc_infos = (
         await ShadowSave
         .aggregate(
@@ -212,13 +221,20 @@ async def generate_ending(request: Request, payload: ShadowSaveIdRequest, x_clie
 
     npc_infos = npc_infos[0].get("npcs", [])
 
-    res = master_llm_service.generate_ending(npc_infos)
+    res = master_llm_service.generate_ending(npc_infos, stream=stream)
 
     if res is None:
         throw_500(
             "Failed to generate game ending",
             f"Shadow save ID: {payload.shadow_save_id}",
             f"NPC data: {npc_infos}",
+        )
+
+    if stream:
+        return StreamingResponse(
+            stream_response(res, lambda chunk: GameEndingResponse(ending=chunk.content).model_dump_json()),
+            media_type="text/x-ndjson",
+            status_code=status.HTTP_200_OK,
         )
 
     return GameEndingResponse(ending=res.content)
@@ -257,3 +273,8 @@ async def update_shadow_save(
         ShadowSave.remaining_ap: ap,
         ShadowSave.day_no: day_no,
     })
+
+
+async def stream_response(stream, transform):
+    async for chunk in stream:
+        yield f"{transform(chunk)}\n"

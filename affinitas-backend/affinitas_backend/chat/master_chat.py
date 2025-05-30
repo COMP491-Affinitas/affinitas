@@ -79,7 +79,9 @@ class MasterLLM:
             for quest, message in zip(quests, res)
         ]
 
-    def generate_ending(self, npc_infos: list[dict[str, Any]]):
-        return self.model.invoke(
-            ENDING_PROMPT_TEMPLATE.format(game_state=bson.json_util.dumps(npc_infos))
+    def generate_ending(self, npc_infos: list[dict[str, Any]], *, stream: bool = False):
+        meth = self.model.invoke if not stream else self.model.astream
+        return meth(
+            ENDING_PROMPT_TEMPLATE.format(game_state=bson.json_util.dumps(npc_infos)),
+            stream=stream
         )
