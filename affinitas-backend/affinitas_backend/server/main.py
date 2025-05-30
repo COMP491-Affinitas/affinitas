@@ -10,7 +10,6 @@ from affinitas_backend.config import Config
 from affinitas_backend.server.lifespan import lifespan
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.routers.auth import router as auth_router
-from affinitas_backend.server.routers.game import router as game_router
 from affinitas_backend.server.routers.npcs import router as npcs_router
 from affinitas_backend.server.routers.saves import router as saves_router
 from affinitas_backend.server.routers.session import router as session_router
@@ -106,4 +105,3 @@ app.include_router(auth_router)
 app.include_router(npcs_router)
 app.include_router(session_router)
 app.include_router(saves_router)
-app.include_router(game_router)
