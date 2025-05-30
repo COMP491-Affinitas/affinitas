@@ -15,14 +15,43 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post(
     "/uuid",
     response_model=UUIDResponse,
+    status_code=status.HTTP_200_OK,
     summary="Generate or validate a client UUID",
-    description="Returns a UUID for client identification. If the `X-Client-UUID` header is provided "
-                "and is valid, it is returned. If invalid, a 400 status is returned. Generates and returns "
-                " a new UUID if the header is missing.",
-    status_code=status.HTTP_200_OK
+    description=(
+            "Retrieves a UUID for client identification.\n\n"
+            "**Behavior:**\n"
+            "- If the `X-Client-UUID` header is provided and valid, returns it unchanged.\n"
+            "- If the header is invalid, returns `400 Bad Request`.\n"
+            "- If the header is missing, generates, logs, and returns a new UUID.\n\n"
+            "**Rate Limit:** 100 requests per minute per client."
+    ),
+    responses={
+        status.HTTP_200_OK: {
+            "description": "UUID successfully generated or validated.",
+            "content": {
+                "application/json": {
+                    "example": {"uuid": "c8c5d7a4-df9e-4b8a-8cf4-04844a56f5df"}
+                }
+            }
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "Invalid UUID provided in the X-Client-UUID header.",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invalid UUID format."}
+                }
+            }
+        }
+    }
 )
 @limiter.limit("100/minute")
 async def auth(request: Request, x_client_uuid: XClientUUIDHeader = None):
+    """
+    Generate or validate a UUID for identifying the client.
+
+    - Returns the provided `X-Client-UUID` if it is valid.
+    - Generates a new UUID if no header is provided.
+    """
     if x_client_uuid:
         return UUIDResponse(uuid=x_client_uuid)
 
