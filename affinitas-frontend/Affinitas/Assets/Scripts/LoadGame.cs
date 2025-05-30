@@ -103,7 +103,7 @@ public static class LoadGame
         LoadGameRootResponse rootResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<LoadSaveRequest, LoadGameRootResponse>(
                 loadSaveRequest,
-                "/game/load",
+                "/saves/",
                 HttpMethod.Post
             );
 
