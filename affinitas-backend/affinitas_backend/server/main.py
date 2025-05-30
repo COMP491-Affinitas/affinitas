@@ -10,7 +10,6 @@ from affinitas_backend.config import Config
 from affinitas_backend.server.lifespan import lifespan
 from affinitas_backend.server.limiter import limiter
 from affinitas_backend.server.routers.auth import router as auth_router
-from affinitas_backend.server.routers.game import router as game_router
 from affinitas_backend.server.routers.npcs import router as npcs_router
 from affinitas_backend.server.routers.saves import router as saves_router
 from affinitas_backend.server.routers.session import router as session_router
@@ -22,72 +21,66 @@ logging.basicConfig(level=config.log_level)
 DESCRIPTION = """
 Backend API for **Affinitas: A Ten Day Tale**
 
-This FastAPI service handles player identity, game-state persistence, and dialogue with
-LLM-driven NPCs.
+This FastAPI service handles player authentication, game‐state persistence, session control, and dynamic NPC interactions powered by LLM-driven dialogue and quest logic.
 
 ---
 
 ### Core Responsibilities
-* **Authentication** – Issues or validates a `X-Client-UUID` so the game data can be identified.
-* **Game** –  
-  * Create a *shadow save* for a new run.  
-  * Promote a shadow save to a permanent save-slot.  
-  * List or restore existing saves.  
-  * Cleanly discard a shadow save on quit.
-* **NPC Interaction** – Sends user or system messages to any NPC, returns the NPC’s reply
-  plus the updated **affinitas** score, and logs the exchange in the background.
+* **Authentication** – Issue and validate `X-Client-UUID` headers for client identification.  
+* **Game Save Management** –  
+  * List existing saves, load a save into a *shadow* session, persist a shadow session to a permanent save, and delete saves.  
+* **Session Control** –  
+  * Start new games, update action points & day number, give items to the player’s inventory, generate narrative endings, and quit sessions (clean up shadow saves).  
+* **NPC Workflows** –  
+  * Chat (user or system messages), retrieve & activate quests, complete quests (with affinitas rewards), and give items to NPCs.  
+  * All interactions return LLM-generated responses, updated **affinitas** scores, and are logged asynchronously.
 
 ---
 
 ### Public Endpoints & Rate Limits
 
-| Method & Path                | Purpose                                                     | Limit |
-|------------------------------|-------------------------------------------------------------|-------|
-| **POST /auth/uuid**          | Issue a new UUID or echo back a valid one                  | 5/min |
-| **GET  /game/load**          | List all saves for the caller                              | 3/min |
-| **POST /game/load**          | Load a save → returns shadow-save & trimmed game data      | 3/min |
-| **GET  /game/new**           | Bootstrap a fresh game from the default template           | 3/min |
-| **POST /game/save**          | Persist the active shadow save as a permanent slot         | 10/min|
-| **POST /game/quit**          | Delete the shadow save when the player exits               | 3/min |
-| **POST /npcs/{npc_id}/chat** | Talk to an NPC<br>• User msg → 200 with reply & affinity<br>• System msg → 204 No Content | 10/min |
-
-*(A master `/game/chat` route is reserved for future global narrative events.)*
+| Method & Path                       | Purpose                                                   | Limit    |
+|-------------------------------------|-----------------------------------------------------------|----------|
+| **POST /auth/uuid**                 | Issue or validate client UUID                            | 100/min  |
+| **GET  /saves/**                    | List all saved games for the client                       | 10/min   |
+| **POST /saves/**                    | Load a save → returns shadow-save ID & trimmed game data  | 10/min   |
+| **DELETE /saves/{save_id}**         | Permanently delete a saved game                           | 10/min   |
+| **POST /session/new**               | Create a new shadow save for a fresh run                  | 10/min   |
+| **PATCH /session?day-no=&ap=**      | Update action points & advance day number                 | 30/min   |
+| **POST /session/item**              | Give an item to the player (activate in shadow save)      | 10/min   |
+| **POST /session/save**              | Persist the active shadow save as a permanent slot        | 10/min   |
+| **DELETE /session?id={shadow_id}**  | Quit game → delete the shadow save                        | 10/min   |
+| **POST /session/generate-ending**   | Generate a narrative game ending based on NPC states      | 10/min   |
+| **POST /npcs/{npc_id}/chat**        | Chat with an NPC → returns reply & updated affinitas      | 10/min   |
+| **POST /npcs/{npc_id}/quest**       | Retrieve and activate quests for an NPC                   | 10/min   |
+| **POST /npcs/{npc_id}/quest/complete** | Complete a quest and reward affinitas                | 10/min   |
+| **POST /npcs/{npc_id}/item**        | Give an item to an NPC → receive narrative response       | 10/min   |
 
 ---
 
 ### Data-Flow Highlights
-* **Shadow-save pattern** – Gameplay occurs on an isolated copy; only committed to
-  `Save` when the player explicitly saves.
-* **MongoDB aggregation** – NPC and quest configuration documents are merged into
-  save data at query time to keep the schema lean.
-* **Background tasks** – Chat logs and affinity updates run asynchronously so the client
-  never waits on disk I/O.
+* **Shadow-save pattern** – All gameplay modifications occur on an isolated session copy; commits only on explicit save.  
+* **MongoDB Aggregation** – Merges save, NPC, and quest data at query time for schema flexibility.  
+* **Background Tasks** – Performs chat logging and state updates asynchronously to keep API responses low-latency.
 
 ---
 
 ### Typical Client Flow
-1. `POST /auth/uuid` → obtain your UUID header.  
-2. `GET  /game/new` *or* `POST /game/load` → receive initial data & shadow-save ID.  
-3. `POST /npcs/{npc}/chat` → converse; affinity and history update in the background.  
-4. `POST /game/save` to commit progress, or `POST /game/quit` to discard.
+1. `POST /auth/uuid` → obtain your client UUID.  
+2. `POST /session/new` *or* `POST /saves/` → start a new run or load an existing save (get shadow-save ID + game data).  
+3. `POST /npcs/{npc_id}/chat`, `/quest`, `/quest/complete`, `/item` → interact with NPCs; affinitas and history update in background.  
+4. `PATCH /session?day-no=&ap=` to advance days or adjust action points.  
+5. `POST /session/save` to commit progress, or `DELETE /session?id=` to quit and discard.  
+6. Optionally generate the ending with `POST /session/generate-ending`.
 
----
-
-### Roadmap
-* Finish the reserved `/game/chat` route.
-  * May be better to separate into `GET /game/quest/:quest_id` and `POST /game/ending`
-* Add OpenAPI examples for every schema.
-
-#### Non-Urgent
-* Add `DELETE /game/load` to delete a save.
-* Rename game routes.
-* Remove the shadow save ID dependency from game routes.
+Licensed under MIT.
 """
+
 
 app = FastAPI(
     title="Affinitas Backend",
     description=DESCRIPTION,
-    version="0.1.0",
+    version="1.0.0",
     license_info={
         "name": "MIT",
         "url": "https://github.com/COMP491-Affinitas/affinitas/blob/main/LICENSE"
@@ -112,4 +105,3 @@ app.include_router(auth_router)
 app.include_router(npcs_router)
 app.include_router(session_router)
 app.include_router(saves_router)
-app.include_router(game_router)
