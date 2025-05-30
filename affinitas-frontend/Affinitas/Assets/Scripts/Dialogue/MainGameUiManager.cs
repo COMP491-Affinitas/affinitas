@@ -154,7 +154,7 @@ namespace MainGame
         {
             if (doneActionAfterSaveGame)
             {
-                OpenWarningPanel("You should considering saving before you leave the game!");
+                OpenWarningPanel("You should consider saving before you leave the game!");
                 ToggleWarningPanelButtonActive(true);
             }
             else
