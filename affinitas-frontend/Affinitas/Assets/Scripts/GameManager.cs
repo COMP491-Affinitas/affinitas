@@ -48,7 +48,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<UuidRequest, UuidResponse>(
                 uuid,
                 "/auth/uuid",
-                HttpMethod.Post
+                "POST"
             );
 
         playerId = uuidResponse.uuid;
@@ -95,7 +95,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<GetSavesRequest, GetSavesResponse>(
                 getSavesRequest,
                 "/saves/",
-                HttpMethod.Get
+                "GET"
             );
 
         return getSavesResponse.saves;
@@ -109,7 +109,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<DeleteSaveRequest, BaseResponse>(
                 deleteSaveRequest,
                 $"/saves/{saveIdToDelete}",
-                HttpMethod.Delete
+                "DELETE"
             );
     }
 
@@ -124,7 +124,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<EndingRequest, EndingResponse>(
                 endRequest,
                 "/session/generate-ending",
-                HttpMethod.Post
+                "POST"
             );
 
         if (endResponse == null)
@@ -146,7 +146,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<PlayerRequest, NpcResponse>(
                 message,
                 $"/npcs/{dbNpcId}/chat",
-                HttpMethod.Post
+                "POST"
             );
 
         if (npcResponse == null)
@@ -216,7 +216,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<QuestRequest, QuestListResponse>(
                 request,
                 $"/npcs/{dbNpcId}/quest",
-                HttpMethod.Post
+                "POST"
             );
 
         List<string> questDescriptions = new();
@@ -251,7 +251,7 @@ public class GameManager : MonoBehaviour
                 .SendAndGetMessageFromServer<PlayerRequest, NpcResponse>(
                     message,
                     $"/npcs/{npc.dbNpcId}/chat",
-                    HttpMethod.Post
+                    "POST"
                 );
         }
         return true;
@@ -270,7 +270,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<DayNoInfoRequest, BaseResponse>(
                 message,
                 url,
-                HttpMethod.Patch
+                "PATCH"
             );
         return true;
     }
@@ -288,7 +288,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<QuestCompleteRequest, QuestCompleteResponse>(
                 message,
                 $"/npcs/{npc.dbNpcId}/quest/complete",
-                HttpMethod.Post
+                "POST"
             );
 
         Debug.Log("updated affinitas: " + serverResponse.affinitas);
@@ -310,7 +310,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<TakeItemRequest, BaseResponse>(
                 message,
                 $"/session/item",
-                HttpMethod.Post
+                "POST"
             );
         return true;
     }
@@ -330,7 +330,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<GiveItemRequest, GiveItemResponse>(
                 message,
                 $"/npcs/{npc.dbNpcId}/item",
-                HttpMethod.Post
+                "POST"
             );
         return npcResponse.response;
     }
@@ -358,7 +358,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<SaveRequest, SaveResponse>(
                 saveRequest,
                 "/session/save",
-                HttpMethod.Post
+                "POST"
             );
         return true;
     }
@@ -387,7 +387,7 @@ public class GameManager : MonoBehaviour
             .SendAndGetMessageFromServer<QuitRequest, BaseResponse>(
                 quitRequest,
                 url,
-                HttpMethod.Delete
+                "DELETE"
             );
 
         shadowSaveId = "";
