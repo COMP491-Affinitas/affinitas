@@ -4,7 +4,6 @@ from beanie import SortDirection, PydanticObjectId
 from fastapi import HTTPException, status
 from fastapi.requests import Request
 from fastapi.routing import APIRouter
-from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.config import Config
 from affinitas_backend.db.utils import get_save_pipeline
@@ -170,13 +169,9 @@ async def load_game_save(
     save = save[0]
     shadow_save = ShadowSave(**save)
 
-    try:
-        res = await shadow_save.insert()  # noqa
-    except DuplicateKeyError:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A game save for this client already exists.",
-        )
+    await ShadowSave.find(ShadowSave.client_uuid == x_client_uuid).delete()
+
+    res = await shadow_save.insert()  # noqa
 
     if res is None:
         throw_500(

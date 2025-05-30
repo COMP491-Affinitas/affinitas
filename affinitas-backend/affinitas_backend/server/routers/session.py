@@ -6,7 +6,6 @@ from typing import Annotated
 from beanie import PydanticObjectId
 from beanie.odm.operators.update.general import Set
 from fastapi import HTTPException, APIRouter, Request, status, Query
-from pymongo.errors import DuplicateKeyError
 
 from affinitas_backend.chat import master_llm_service
 from affinitas_backend.config import Config
@@ -52,13 +51,9 @@ async def new_game(request: Request, x_client_uuid: XClientUUIDHeader):
         **save,
     )
 
-    try:
-        res = await shadow_save.insert()  # noqa
-    except DuplicateKeyError:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"A game save for this client already exists.",
-        )
+    await ShadowSave.find(ShadowSave.client_uuid == x_client_uuid).delete()
+
+    res = await shadow_save.insert()  # noqa
 
     if res is None:
         throw_500(
