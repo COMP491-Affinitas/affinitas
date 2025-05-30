@@ -7,10 +7,9 @@ from langchain.chat_models import init_chat_model
 from pydantic import TypeAdapter
 
 from affinitas_backend.chat.utils import NPC_DATA_TEMPLATE, pretty_quests, QUEST_PROMPT_TEMPLATE, \
-    ENDING_PROMPT_TEMPLATE, with_tracing
+    ENDING_PROMPT_TEMPLATE, with_tracing, get_npc_data
 from affinitas_backend.config import Config
-from affinitas_backend.db.utils import get_shadow_save_npc_state
-from affinitas_backend.models.chat.chat import NPCState
+from affinitas_backend.models.chat.chat import NPCData
 
 
 class MasterLLM:
@@ -27,17 +26,19 @@ class MasterLLM:
 
     async def get_quest_responses(self, quests: list[dict], shadow_save_id: PydanticObjectId,
                                   npc_id: PydanticObjectId) -> list[dict]:
-        npc = await get_shadow_save_npc_state(
+        npc = await get_npc_data(
             shadow_save_id,
             npc_id,
+            include_chat_history=False,
+            include_static_data=True,
         )
 
-        if npc:
-            npc = npc[0]
+        if not npc:
+            raise ValueError(f"NPC with ID {npc_id} not found in shadow save {shadow_save_id}.")
 
-            if self.config.env == "dev":
-                npc_state_validator = TypeAdapter(NPCState)
-                npc_state_validator.validate_python(npc, strict=True)
+        if self.config.env == "dev":
+            npc_data_validator = TypeAdapter(NPCData)
+            npc_data_validator.validate_python(npc, strict=True)
 
         affinitas_increase = npc["affinitas_config"]["increase"]
         affinitas_decrease = npc["affinitas_config"]["decrease"]

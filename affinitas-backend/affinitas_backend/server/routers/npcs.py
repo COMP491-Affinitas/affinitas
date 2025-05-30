@@ -60,13 +60,13 @@ async def npc_chat(
         .find(ShadowSave.npcs.npc_id == npc_id)  # noqa
     )
 
-    res = await npc_chat_service.get_response(
-        message=message,
-        npc_id=npc_id,
-        shadow_save_id=shadow_save_id,
-    )
+    if payload.role == "user":
+        res = await npc_chat_service.get_response(
+            message=message,
+            npc_id=npc_id,
+            shadow_save_id=shadow_save_id,
+        )
 
-    if res:
         npc_response = res["message"]
         updated_npc_data = res["updated_npc_data"]
         completed_quests = res["completed_quests"]
@@ -79,6 +79,7 @@ async def npc_chat(
                     "npcs.$.affinitas": updated_npc_data["affinitas"],
                     "npcs.$.occupation": updated_npc_data["occupation"],
                     "npcs.$.likes": updated_npc_data["likes"],
+                    "npcs.$.dislikes": updated_npc_data["dislikes"],
                     "journal_active": True,
                     "journal_data.npcs.$[npc].active": True,
                     "journal_data.town_info.active": True,

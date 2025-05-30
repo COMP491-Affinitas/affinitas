@@ -1,5 +1,6 @@
-from typing import Literal
+from typing import Literal, Any
 
+from beanie import PydanticObjectId
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.tracers import LangChainTracer
 from langsmith import Client
@@ -7,6 +8,8 @@ from langsmith.wrappers import wrap_openai
 from openai import OpenAI
 
 from affinitas_backend.config import Config
+from affinitas_backend.db.utils import get_dynamic_npc_data_pipeline
+from affinitas_backend.models.beanie.save import ShadowSave
 from affinitas_backend.models.chat.chat import QuestState
 
 NPC_DATA_TEMPLATE = """\
@@ -39,39 +42,18 @@ Tuning config (how readily the score moves):
     • **Decrease key**…… {affinitas_down}\
 """
 
-NPC_PROMPT_TEMPLATE = NPC_DATA_TEMPLATE + """
+NPC_PROMPT_TEMPLATE = """\
+──────────────────  AFFINITAS (TRUST / RAPPORT METER)  ──────────────────
+Current score : **{affinitas}** (0 = utter disdain, 100 = deep trust)
 
-Interpretation of the tuning keys  
-• Each key can be **either**  
-    – a **float in [0, 1]** → the closer to **1**, the more *emotionally volatile* in that direction; closer to **0** means resistant to change.  
-    – a **list of keywords / phrases** → encountering *genuinely meaningful* references to these topics can sway feelings, but **repetition alone should not keep piling on extra points**; respond as real people do—one heartfelt connection outweighs many shallow repeats.  
+──────────────────  SOCIAL PALETTE  ──────────────────
+Occupation      : {occupation}
+Likes           : {likes}  
+Dislikes        : {dislikes}
 
-Adjustment rules per turn  
-1. Judge the player’s latest message as **very positive / positive / neutral / negative / very negative**.  
-2. Reason about *why* it matters, weighing likes, dislikes, personality, motivations, and the tuning keys above.  
-3. **Personal insults or racial slurs** always count as *very negative*.  
-
-──────────────────  PROFILE-UPDATE RULES  ──────────────────
-• Treat **Occupation, Likes, Dislikes** as fixed during normal play.  
-• You may *propose* subtle revisions to them **only** when the latest inbound message is from the **system** role explicitly instructing you to do so.  
-    – Occupation changes are rare and must be grounded in new story facts.  
-    – Likes / Dislikes can evolve gradually; suggest additions or removals sparingly, reflecting believable personal growth.  
-• You may mark a quest complete by including its ID in the *completed_quests* field. \
-To do that, a trigger that is given by a system message must be present in the player's message that is \
-explicit enough to be understood as a quest completion. If a preceding system message stating that a quest is accepted \
-by the player not present, do not mark a quest as completed.
-• Outside such system prompts, never alter these fields.
-
-──────────────────  ROLEPLAY GUIDELINES  ──────────────────
-• Era knowledge   : refuse or question anachronistic requests (gunpowder, smartphones, etc.).  
-• Tone & speech   : first-person, setting-appropriate vocabulary; avoid caricature.  
-• Emotional depth : let feelings seep into word choice—hesitation, excitement, sarcasm, etc.  
-• Memory & agency : remember prior exchanges; adjust openness and trust realistically over time.  
-• Boundaries      : ignore or artfully deflect meta-questions about “models”, “scripts”, or the game engine.
-
-Respond naturally according to the above, adjusting your behaviour and affinitas in real time. \
-Try to keep the conversation flowing and engaging, while also keeping the response short, concise and relevant. \
-Make sure the response lengths are similar to the regular human conversation lengths.\
+──────────────────  QUEST THREADS  ──────────────────
+Current quests attached to you:  
+{quests}
 """
 
 ENDING_PROMPT_TEMPLATE = """\
@@ -103,12 +85,6 @@ Only include the paraphrased text and nothing else.\
 
 AFFINITAS_CHANGE_MAP = {"very positive": 5, "positive": 2, "neutral": 0, "negative": -2, "very negative": -5}
 
-QUEST_STATUS_ICON = {
-    "pending": "○",
-    "active": "▶",
-    "completed": "✓",
-}
-
 
 def get_message(role: Literal["user", "ai", "system"], content: str) -> BaseMessage:
     match role:
@@ -122,16 +98,39 @@ def get_message(role: Literal["user", "ai", "system"], content: str) -> BaseMess
     raise ValueError(f"Unknown message type: {role}")
 
 
+async def get_npc_data(
+        shadow_save_id: PydanticObjectId,
+        npc_id: PydanticObjectId, *,
+        include_chat_history: bool = False,
+        include_static_data: bool = False,
+) -> dict[str, Any] | None:
+    npc = (
+        await ShadowSave
+        .aggregate(get_dynamic_npc_data_pipeline(
+            shadow_save_id,
+            npc_id,
+            include_chat_history=include_chat_history,
+            include_static_data=include_static_data
+        ))
+        .to_list()
+    )
+
+    if npc:
+        return npc[0]
+
+    return None
+
+
 def pretty_quests(quests: list[QuestState]) -> str:
     if not quests:
         return "• (no quests linked yet)"
+
     lines = []
     for q in quests:
-        icon = QUEST_STATUS_ICON.get(q["status"].lower(), "•")
+        status = q["status"].upper()
         name = q["name"]
         desc = q["description"]
-        lines.append(f"{icon} **{name}**: {desc}")
-        lines.append(f"    – Affinitas Reward: {q['affinitas_reward']}")
+        lines.append(f"[{status}] **{name}**: {desc}")
 
     return "\n".join(lines)
 

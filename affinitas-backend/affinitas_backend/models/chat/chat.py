@@ -1,6 +1,5 @@
 from typing import Literal, TypedDict
 
-from langgraph.graph.message import MessagesState
 from pydantic import BaseModel, Field, UUID4
 
 
@@ -28,15 +27,18 @@ class QuestState(TypedDict):
     status: Literal["pending", "active", "completed"]
     name: str
     description: str | None
-    affinitas_reward: int
 
 
-class NPCState(TypedDict):
+class NPCChatState(TypedDict):
     affinitas: int
     likes: list[str]
     dislikes: list[str]
     occupation: str | None
     quests: list[QuestState]
+    completed_quests: list[str]
+
+
+class NPCData(TypedDict):
     name: str
     age: int
     personality: list[str]
@@ -49,12 +51,6 @@ class NPCState(TypedDict):
     })
     endings: list[str]
     dialogue_unlocks: list[str]
-    completed_quests: list[str]
-
-
-class NPCMessagesState(MessagesState):
-    npc: NPCState
-    invoke_model: bool
 
 
 class ThreadInfo(BaseModel):
