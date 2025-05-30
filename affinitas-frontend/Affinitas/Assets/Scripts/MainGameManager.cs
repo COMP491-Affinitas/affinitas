@@ -115,6 +115,7 @@ public class MainGameManager : MonoBehaviour
         {
             dayNo += 1;
             dailyActionPoints = 15;
+            MainGame.MainGameUiManager.Instance.ActionAfterGameSaved();
             await GameManager.Instance.SendDayNoAndActionPointInfo();
             await GameManager.Instance.NotifyForEndDay();
         }
@@ -172,7 +173,10 @@ public class MainGameManager : MonoBehaviour
         gusMinigameScore = gusMinigameScoreVal;
         if (obtainedFish > 0)
             if (MainGame.MainGameUiManager.Instance.AddItemToInventory("gus_fish"))
+            {
+                MainGame.MainGameUiManager.Instance.ActionAfterGameSaved();
                 await GameManager.Instance.NotifyForItemTakenFromNpcOrMinigame("gus_fish");
+            }    
     }
 
     // Call from GoToMap function in CherMinigameScene
@@ -248,8 +252,12 @@ public class MainGameManager : MonoBehaviour
     {
         foreach (Npc npc in npcDict.Values)
         {
+            if (npc.questList == null || npc.questList.Count < 1)
+                continue;
+
             if (npc.questList[0].status != questStatusDict[QuestStatus.Pending])
             {
+                Debug.Log("LoadSavedQuestsToQuestPanel, " + npc.questList[0].name + ", status: " + npc.questList[0].status);
                 HandleGivenQuests(npc.npcId);
                 foreach (Quest quest in npc.questList)
                 {
@@ -288,6 +296,9 @@ public class MainGameManager : MonoBehaviour
 
     public bool CheckGetQuest(int npcId)
     {
+        if (npcDict[npcId].questList == null || npcDict[npcId].questList.Count < 1)
+            return true;
+
         if (npcDict[npcId].questList[0].status != questStatusDict[QuestStatus.Pending])
             return true;
         return false;

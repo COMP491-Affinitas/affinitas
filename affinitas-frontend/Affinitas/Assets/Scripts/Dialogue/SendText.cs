@@ -59,6 +59,8 @@ namespace MainGame
             if (playerInput == "")
                 return;
 
+            MainGameUiManager.Instance.ActionAfterGameSaved();
+
             // Send text to server immediately to cut back on wait time
             string dbNpcId = MainGameManager.Instance.npcDict[npcId].dbNpcId;
             var responseTask = GameManager.Instance.CreateMessageForSendPlayerInput(playerInput, dbNpcId);
@@ -97,6 +99,8 @@ namespace MainGame
                 return;
 
             ServerConnection.Instance.canSendMessage = false;
+
+            MainGameUiManager.Instance.ActionAfterGameSaved();
 
             MakeButtonsUnclickable();
             MainGameManager.Instance.ReduceActionPointsForGetQuest();
@@ -160,6 +164,8 @@ namespace MainGame
             if (MainGameManager.Instance.questDict.TryGetValue(item.linkedQuestId, out Quest linkedQuest) && linkedQuest != null &&
                 MainGameManager.Instance.npcDict.TryGetValue(linkedQuest.linkedNpcId, out Npc linkedNpc) && linkedNpc != null)
             {
+                MainGameUiManager.Instance.ActionAfterGameSaved();
+
                 MakeButtonsUnclickable();
 
                 string npcResponse = await GameManager.Instance.NotifyForItemGivenToNpc(linkedNpc.dbNpcId, item.itemName);

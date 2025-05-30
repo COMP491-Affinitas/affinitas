@@ -26,11 +26,18 @@ public class GameManager : MonoBehaviour
 
     private async void Start()
     {
-        //PlayerPrefs.SetString("player_id", ""); //TODO: COMMENT
+        //PlayerPrefs.SetString("player_id", ""); //TODO: COMMENT OUT WHEN BUILDING GAME
 
         playerId = PlayerPrefs.GetString("player_id");
         Debug.Log("Current player id: " + playerId);
         await GetAuthenticationUUID();
+    }
+
+    [ContextMenu("Reset Player ID")]
+    private void ResetPlayerID()
+    {
+        PlayerPrefs.SetString("player_id", "");
+        Debug.Log("Player ID cleared: " + PlayerPrefs.GetString("player_id"));
     }
 
     // Get New UUID from server or authenticate UUID
@@ -65,7 +72,7 @@ public class GameManager : MonoBehaviour
         MainGameManager.Instance.InitializeNpcsUisAndVariables();
     }
 
-    public async Task<List<(string,string)>> CreateGameSavesList()
+    public async Task<List<(string, string)>> CreateGameSavesList()
     {
         List<Save> gameSaves = await GetGameSaves();
         List<(string, string)> gameSavesTexts = new();
@@ -141,11 +148,11 @@ public class GameManager : MonoBehaviour
                 $"/npcs/{dbNpcId}/chat",
                 HttpMethod.Post
             );
-        
+
         if (npcResponse == null)
         {
             Debug.LogError("Server returned null response.");
-            return null; 
+            return null;
         }
 
         // Update NPC data
@@ -194,7 +201,7 @@ public class GameManager : MonoBehaviour
             }
         }
         Debug.Log(npcResponse.response);
-        return npcResponse.response; 
+        return npcResponse.response;
     }
 
     public async Task<List<string>> CreateMessageForGetQuest(string dbNpcId, int npcId)
@@ -231,8 +238,8 @@ public class GameManager : MonoBehaviour
         // Send message to all npcs to notify that day has ended
         string systemMessage = "A new day has begun.";
 
-        PlayerRequest message = new ()
-        { 
+        PlayerRequest message = new()
+        {
             role = "system",
             shadow_save_id = shadowSaveId,
             content = systemMessage
@@ -315,7 +322,7 @@ public class GameManager : MonoBehaviour
 
         GiveItemRequest message = new()
         {
-            item_name = itemName,  
+            item_name = itemName,
             shadow_save_id = shadowSaveId
         };
 
@@ -350,7 +357,7 @@ public class GameManager : MonoBehaviour
         SaveResponse saveResponse = await ServerConnection.Instance
             .SendAndGetMessageFromServer<SaveRequest, SaveResponse>(
                 saveRequest,
-                "/game/save",
+                "/session/save",
                 HttpMethod.Post
             );
         return true;
@@ -359,6 +366,7 @@ public class GameManager : MonoBehaviour
     // Call from go to menu button in main panel and from go to menu in ending panel
     public async void EndCurrentGame()
     {
+        ServerConnection.Instance.canSendMessage = true;
         await EndGameSession();
     }
 
@@ -384,4 +392,10 @@ public class GameManager : MonoBehaviour
 
         shadowSaveId = "";
     }
+
+    void OnApplicationQuit()
+        {
+            QuitGame();
+        }
+
 }
