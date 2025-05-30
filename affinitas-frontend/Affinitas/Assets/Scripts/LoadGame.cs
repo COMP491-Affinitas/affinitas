@@ -86,7 +86,7 @@ public static class LoadGame
             .SendAndGetMessageFromServer<UuidRequest, LoadGameRootResponse>(
                 uuid,
                 "/session/new",
-                HttpMethod.Get
+                "GET"
             );
         Debug.Log("New game root response: " + rootResponse);
         Debug.Log("New game shadow_save_id: " +  rootResponse.shadow_save_id);
@@ -104,7 +104,7 @@ public static class LoadGame
             .SendAndGetMessageFromServer<LoadSaveRequest, LoadGameRootResponse>(
                 loadSaveRequest,
                 "/saves/",
-                HttpMethod.Post
+                "POST"
             );
 
         return rootResponse;

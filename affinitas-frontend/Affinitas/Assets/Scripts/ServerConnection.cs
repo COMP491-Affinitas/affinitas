@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using UnityEngine.Networking;
 
 [Serializable]
 public abstract class BaseRequest
@@ -201,58 +202,60 @@ public class ServerConnection : MonoBehaviour
         }
     }
 
-    // Send and Get Generic Response from Server
-    public async Task<BaseResponse> SendAndGetMessageFromServer<BaseRequest, BaseResponse>(BaseRequest message, string directoryPath, HttpMethod method = null)
+    public async Task<TResponse> SendAndGetMessageFromServer<TRequest, TResponse>(TRequest message, string directoryPath, string method = "POST")
     {
-        if (method == null)
-            method = HttpMethod.Post;
+        string url = serverURL + directoryPath;
+        string json = JsonConvert.SerializeObject(message);
 
-        var requestMessage = new HttpRequestMessage(method, serverURL + directoryPath);
+        UnityWebRequest request;
 
-        if (method == HttpMethod.Post || method == HttpMethod.Delete || method == HttpMethod.Patch)
+        if (method == "GET")
         {
-            requestMessage.Content = new StringContent(
-                JsonConvert.SerializeObject(message),  Encoding.UTF8, "application/json");
+            request = UnityWebRequest.Get(url);
         }
-
-        Debug.Log("Sending message to server with x-client-uuid: " + GameManager.Instance.playerId);
-        Debug.Log("Sending message to server with shadow-save-id: " + GameManager.Instance.shadowSaveId);
-
-        // Set the header x-client-uuid
-        if (!string.IsNullOrEmpty(GameManager.Instance.playerId)) {
-            requestMessage.Headers.Add("x-client-uuid", GameManager.Instance.playerId);
-        }
-
-        if (directoryPath.StartsWith("/npcs/")) {
-            requestMessage.Headers.Add("shadow-save-id", GameManager.Instance.shadowSaveId);
-        }
-
-        BaseResponse serverResponse = default;
-        try
+        else if (method == "DELETE")
         {
-            // Send request and wait for response
-            var response = await client.SendAsync(requestMessage);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
-                    Debug.Log("204 status code returned.");
-                else
-                {
-                    string result = await response.Content.ReadAsStringAsync();
-                    // Change back from JSON
-                    Debug.Log("Got message from server.");
-                    serverResponse = (BaseResponse)JsonConvert.DeserializeObject(result, typeof(BaseResponse));
-                }  
-            }
-            else
-                Debug.LogError($"Request failed: {response.StatusCode} - {response.ReasonPhrase}");
+            request = UnityWebRequest.Delete(url);
         }
-        catch (Exception ex)
+        else
         {
-            Debug.LogError($"Exception occurred: {ex.Message}");
+            request = new UnityWebRequest(url, method);
+            byte[] jsonToSend = Encoding.UTF8.GetBytes(json);
+            request.uploadHandler = new UploadHandlerRaw(jsonToSend);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
         }
-        return serverResponse;
+
+        // Set headers
+        if (!string.IsNullOrEmpty(GameManager.Instance.playerId))
+            request.SetRequestHeader("x-client-uuid", GameManager.Instance.playerId);
+
+        if (directoryPath.StartsWith("/npcs/"))
+            request.SetRequestHeader("shadow-save-id", GameManager.Instance.shadowSaveId);
+
+        // Send request
+        var operation = request.SendWebRequest();
+
+        while (!operation.isDone)
+            await Task.Yield();
+
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError($"Request failed: {request.error}");
+            return default;
+        }
+
+        if (request.responseCode == 204)
+        {
+            Debug.Log("204 No Content returned.");
+            return default;
+        }
+
+        string responseText = request.downloadHandler.text;
+        Debug.Log("Received response: " + responseText);
+        return JsonConvert.DeserializeObject<TResponse>(responseText);
     }
+
 
 }
