@@ -26,7 +26,7 @@ public class GameManager : MonoBehaviour
 
     private async void Start()
     {
-        PlayerPrefs.SetString("player_id", ""); //TODO: COMMENT OUT WHEN BUILDING GAME
+        //PlayerPrefs.SetString("player_id", ""); //TODO: COMMENT OUT WHEN BUILDING GAME
 
         playerId = PlayerPrefs.GetString("player_id");
         Debug.Log("Current player id: " + playerId);
