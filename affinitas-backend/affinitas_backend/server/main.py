@@ -80,7 +80,7 @@ Licensed under MIT.
 app = FastAPI(
     title="Affinitas Backend",
     description=DESCRIPTION,
-    version="1.3.1",
+    version="1.3.2",
     license_info={
         "name": "MIT",
         "url": "https://github.com/COMP491-Affinitas/affinitas/blob/main/LICENSE"

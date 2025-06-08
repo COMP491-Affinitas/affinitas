@@ -241,12 +241,6 @@ async def get_quest(
                 keywords=", ".join(map(repr, quest.get("triggers", []))),
             )
 
-            await npc_chat_service.get_response(
-                message=get_message(role="system", content=msg),
-                npc_id=linked_npc_id,
-                shadow_save_id=payload.shadow_save_id,
-            )
-
             update_query = (
                 ShadowSave
                 .find(ShadowSave.id == payload.shadow_save_id)
@@ -389,12 +383,6 @@ async def complete_quest(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Active quest not found"
         )
-
-    await npc_chat_service.get_response(
-        message=get_message("system", sys_msg),
-        npc_id=npc_id,
-        shadow_save_id=shadow_save_id,
-    )
 
     npc = next(npc for npc in res.npcs if npc.npc_id == npc_id)
     return NPCQuestCompleteResponse(affinitas=npc.affinitas)
