@@ -80,7 +80,7 @@ Licensed under MIT.
 app = FastAPI(
     title="Affinitas Backend",
     description=DESCRIPTION,
-    version="1.3.0",
+    version="1.3.1",
     license_info={
         "name": "MIT",
         "url": "https://github.com/COMP491-Affinitas/affinitas/blob/main/LICENSE"
@@ -96,7 +96,7 @@ app.add_middleware(
     CORSMiddleware,  # noqa
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "HEAD", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "HEAD", "OPTIONS"],
     allow_headers=["*"],
 )
 app.add_middleware(SlowAPIMiddleware)  # noqa
