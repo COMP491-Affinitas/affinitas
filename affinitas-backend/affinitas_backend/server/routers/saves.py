@@ -89,7 +89,6 @@ async def list_game_saves(
             "- Requires a valid `X-Client-UUID` header.\n"
             "- Finds the persistent save with the given ID owned by the client.\n"
             "- If the save is not found, returns `404 Not Found`.\n"
-            "- If a shadow save already exists, returns `409 Conflict`.\n"
             "- Creates and returns a new shadow save stripped of non-runtime metadata.\n\n"
             "**Rate Limit:** 10 requests per minute per client."
     ),
@@ -127,16 +126,6 @@ async def list_game_saves(
                 }
             }
         },
-        status.HTTP_409_CONFLICT: {
-            "description": "A shadow save already exists for this client and session.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "A game save for this client already exists."
-                    }
-                }
-            }
-        },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error during shadow save creation."
         }
@@ -153,7 +142,6 @@ async def load_game_save(
 
     - Returns game data if successful.
     - Raises 404 if save is not found.
-    - Raises 409 if a conflicting shadow save exists.
     """
     save = await Save.aggregate(
         get_save_pipeline({"_id": payload.save_id})
